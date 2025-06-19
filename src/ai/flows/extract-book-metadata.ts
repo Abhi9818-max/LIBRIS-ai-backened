@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -15,7 +16,7 @@ const ExtractBookMetadataInputSchema = z.object({
   pdfDataUri: z
     .string()
     .describe(
-      'The book PDF content as a data URI that must include a MIME type and use Base64 encoding. Expected format: \'data:<mimetype>;base64,<encoded_data>\'.' // Corrected typo here
+      'The book PDF content as a data URI that must include a MIME type and use Base64 encoding. Expected format: \'data:<mimetype>;base64,<encoded_data>\'.'
     ),
 });
 export type ExtractBookMetadataInput = z.infer<typeof ExtractBookMetadataInputSchema>;
@@ -43,14 +44,31 @@ const prompt = ai.definePrompt({
   PDF Content: {{media url=pdfDataUri}}`,
 });
 
+const defaultMetadata: ExtractBookMetadataOutput = {
+  title: "",
+  author: "",
+  summary: "",
+};
+
 const extractBookMetadataFlow = ai.defineFlow(
   {
     name: 'extractBookMetadataFlow',
     inputSchema: ExtractBookMetadataInputSchema,
     outputSchema: ExtractBookMetadataOutputSchema,
   },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
+  async (input): Promise<ExtractBookMetadataOutput> => {
+    try {
+      const {output} = await prompt(input);
+      if (output) {
+        return output;
+      } else {
+        console.warn('AI model did not return output for metadata extraction. Returning default values.');
+        return defaultMetadata;
+      }
+    } catch (error) {
+      console.error('Error during extractBookMetadataFlow:', error);
+      // Return default values to ensure the flow completes successfully for Next.js
+      return defaultMetadata;
+    }
   }
 );
