@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState, useCallback, ChangeEvent, DragEvent } from "react";
+import { useState, useCallback, ChangeEvent, DragEvent, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -26,7 +25,8 @@ type BookFormData = z.infer<typeof BookFormSchema>;
 interface UploadBookFormProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddBook: (book: Book) => void;
+  onSaveBook: (book: Book, isEditing: boolean) => void;
+  bookToEdit?: Book | null;
 }
 
 const readFileAsDataURL = (file: File): Promise<string> => {
@@ -45,7 +45,7 @@ const readFileAsDataURL = (file: File): Promise<string> => {
   });
 };
 
-export default function UploadBookForm({ isOpen, onOpenChange, onAddBook }: UploadBookFormProps) {
+export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookToEdit }: UploadBookFormProps) {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfFileName, setPdfFileName] = useState<string>("");
   const [currentPdfDataUri, setCurrentPdfDataUri] = useState<string | null>(null);
@@ -53,13 +53,14 @@ export default function UploadBookForm({ isOpen, onOpenChange, onAddBook }: Uplo
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const { toast } = useToast();
+  const isEditing = !!bookToEdit;
 
   const form = useForm<BookFormData>({
     resolver: zodResolver(BookFormSchema),
     defaultValues: { title: "", author: "", summary: "" },
   });
 
-  const resetFormState = () => {
+  const resetFormState = useCallback(() => {
     form.reset({ title: "", author: "", summary: "" });
     setPdfFile(null);
     setPdfFileName("");
@@ -67,7 +68,28 @@ export default function UploadBookForm({ isOpen, onOpenChange, onAddBook }: Uplo
     setCoverImageFile(null);
     setCoverPreviewUrl(null);
     setIsExtracting(false);
-  };
+  }, [form]);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (bookToEdit) {
+        form.reset({
+          title: bookToEdit.title,
+          author: bookToEdit.author,
+          summary: bookToEdit.summary,
+        });
+        setCoverPreviewUrl(bookToEdit.coverImageUrl);
+        setPdfFileName(bookToEdit.pdfFileName);
+        setCurrentPdfDataUri(bookToEdit.pdfDataUri);
+        // Reset file inputs, as they don't hold state for existing files
+        setPdfFile(null);
+        setCoverImageFile(null);
+      } else {
+        resetFormState();
+      }
+    }
+  }, [isOpen, bookToEdit, form, resetFormState]);
+
 
   const handlePdfFileChange = async (file: File | null) => {
     if (file) {
@@ -77,52 +99,63 @@ export default function UploadBookForm({ isOpen, onOpenChange, onAddBook }: Uplo
           description: "Please upload a PDF file (.pdf).",
           variant: "destructive",
         });
-        resetFormState(); // Reset relevant states
-        form.resetField("title"); // Clear fields potentially filled by a previous valid PDF
-        form.resetField("author");
-        form.resetField("summary");
+        setPdfFile(null);
+        setPdfFileName(bookToEdit ? bookToEdit.pdfFileName : "");
+        setCurrentPdfDataUri(bookToEdit ? bookToEdit.pdfDataUri : null);
         return;
       }
 
       setPdfFile(file);
       setPdfFileName(file.name);
-      form.reset({ title: "", author: "", summary: "" }); 
+      // Only reset fields if not editing or if user explicitly uploads a new PDF
+      if (!isEditing || (isEditing && file)) {
+         form.reset({ title: "", author: "", summary: "" });
+      }
       setIsExtracting(true);
       setCurrentPdfDataUri(null); 
       try {
         const pdfDataUriForMeta = await readFileAsDataURL(file);
         
         if (!pdfDataUriForMeta || !pdfDataUriForMeta.startsWith('data:application/pdf;base64,')) {
-            throw new Error('Generated PDF Data URI is invalid. It might be empty or not correctly formatted.');
+            throw new Error('Generated PDF Data URI is invalid.');
         }
         setCurrentPdfDataUri(pdfDataUriForMeta); 
         
         const metadata = await extractBookMetadata({ pdfDataUri: pdfDataUriForMeta });
-        form.setValue("title", metadata.title);
-        form.setValue("author", metadata.author);
-        form.setValue("summary", metadata.summary);
+        form.setValue("title", metadata.title || (isEditing ? bookToEdit.title : ""));
+        form.setValue("author", metadata.author || (isEditing ? bookToEdit.author : ""));
+        form.setValue("summary", metadata.summary || (isEditing ? bookToEdit.summary : ""));
         toast({ title: "Metadata Extracted", description: "Review and edit the details below." });
       } catch (error: any) { 
         console.error("Failed to extract metadata or read PDF:", error);
-        setCurrentPdfDataUri(null); 
+        setCurrentPdfDataUri(isEditing ? bookToEdit.pdfDataUri : null);
+        setPdfFileName(isEditing ? bookToEdit.pdfFileName : "");
         toast({
           title: "PDF Processing Error",
           description: `Could not process PDF: ${error.message || "Unknown error"}. Please try again or fill in manually.`,
           variant: "destructive",
         });
-        setPdfFile(null); // Clear invalid PDF file
-        setPdfFileName("");
+        setPdfFile(null); 
       } finally {
         setIsExtracting(false);
       }
     } else {
-      resetFormState(); // Full reset if file is null
+      // If file is removed (nulled)
+      if (!isEditing) { // Only fully reset if adding new book
+        setPdfFile(null);
+        setPdfFileName("");
+        setCurrentPdfDataUri(null);
+        form.reset({ title: "", author: "", summary: "" });
+      } else { // If editing, revert to original PDF info if new one is cleared
+        setPdfFile(null);
+        setPdfFileName(bookToEdit?.pdfFileName || "");
+        setCurrentPdfDataUri(bookToEdit?.pdfDataUri || null);
+      }
     }
   };
 
   const onPdfInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     handlePdfFileChange(e.target.files ? e.target.files[0] : null);
-    // Clear the input value to allow re-uploading the same file if needed after an error
     e.target.value = ""; 
   };
   
@@ -133,7 +166,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onAddBook }: Uplo
     if (event.dataTransfer.files && event.dataTransfer.files[0]) {
       handlePdfFileChange(event.dataTransfer.files[0]);
     }
-  }, []);
+  }, [isEditing, bookToEdit, form]);
 
   const onDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -157,7 +190,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onAddBook }: Uplo
             description: "Please upload an image file for the cover.",
             variant: "destructive",
         });
-        e.target.value = ""; // Clear the input
+        e.target.value = ""; 
         return;
       }
       setCoverImageFile(file);
@@ -168,75 +201,79 @@ export default function UploadBookForm({ isOpen, onOpenChange, onAddBook }: Uplo
         console.error("Error reading cover image:", error);
         toast({ title: "Cover Image Error", description: `Could not read cover image: ${error.message || "Unknown error"}.`, variant: "destructive"});
         setCoverImageFile(null);
-        setCoverPreviewUrl(null);
+        setCoverPreviewUrl(isEditing ? bookToEdit.coverImageUrl : null);
       }
     } else {
       setCoverImageFile(null);
-      setCoverPreviewUrl(null);
+      setCoverPreviewUrl(isEditing ? bookToEdit.coverImageUrl : null);
     }
-     e.target.value = ""; // Clear the input value for cover image as well
+     e.target.value = ""; 
   };
 
   const onSubmit = async (data: BookFormData) => {
-    if (!pdfFile || !coverImageFile) {
+    let bookId = isEditing && bookToEdit ? bookToEdit.id : Date.now().toString();
+    let finalCoverImageUrl = coverPreviewUrl; // This will be from new upload or bookToEdit in useEffect
+    let finalPdfDataUri = currentPdfDataUri; // This will be from new upload or bookToEdit in useEffect
+    let finalPdfFileName = pdfFileName; // This will be from new upload or bookToEdit in useEffect
+    
+    // If editing, and no new cover file was selected, keep the existing one
+    if (isEditing && bookToEdit && !coverImageFile) {
+        finalCoverImageUrl = bookToEdit.coverImageUrl;
+    }
+    // If editing, and no new PDF file was selected, keep the existing one
+    if (isEditing && bookToEdit && !pdfFile) {
+        finalPdfDataUri = bookToEdit.pdfDataUri;
+        finalPdfFileName = bookToEdit.pdfFileName;
+    }
+
+    if (!isEditing && (!pdfFile || !finalPdfDataUri)) {
       toast({ 
-        title: "Missing Files", 
-        description: "Please ensure PDF and cover image are uploaded.", 
+        title: "Missing PDF", 
+        description: "Please ensure a PDF is uploaded for a new book.", 
+        variant: "destructive" 
+      });
+      return;
+    }
+     if (!isEditing && !coverImageFile) {
+      toast({ 
+        title: "Missing Cover Image", 
+        description: "Please ensure a cover image is uploaded for a new book.", 
         variant: "destructive" 
       });
       return;
     }
 
-    if (!currentPdfDataUri || !currentPdfDataUri.startsWith('data:application/pdf;base64,')) {
-        toast({
-            title: "Invalid PDF Data",
-            description: "The PDF data could not be processed or is missing. Please re-upload the PDF.",
-            variant: "destructive",
-        });
-        return;
-    }
+
+    const savedBook: Book = {
+      id: bookId, 
+      ...data,
+      coverImageUrl: finalCoverImageUrl || "https://placehold.co/200x300.png", 
+      pdfFileName: finalPdfFileName || "",
+      pdfDataUri: finalPdfDataUri || "", 
+    };
+    onSaveBook(savedBook, isEditing);
+    toast({ title: isEditing ? "Book Updated!" : "Book Added!", description: `${data.title} has been ${isEditing ? 'updated' : 'added'}.` });
     
-    // Ensure coverPreviewUrl which holds the data URI for the cover image is also present
-    if (!coverPreviewUrl) {
-      toast({
-          title: "Missing Cover Image Data",
-          description: "The cover image data is missing. Please re-upload the cover image.",
-          variant: "destructive",
-      });
-      return;
-    }
-
-
-    try {
-      // coverPreviewUrl already holds the data URI from handleCoverImageChange
-      const newBook: Book = {
-        id: Date.now().toString(), 
-        ...data,
-        coverImageUrl: coverPreviewUrl, // Use the stored data URI
-        pdfFileName: pdfFile.name,
-        pdfDataUri: currentPdfDataUri, 
-      };
-      onAddBook(newBook);
-      toast({ title: "Book Added!", description: `${data.title} has been added to your shelf.` });
-      
-      resetFormState();
-      onOpenChange(false); 
-    } catch (error: any) {
-      console.error("Error adding book:", error);
-      toast({ title: "Error Adding Book", description: `Failed to add book: ${error.message || "Could not process files."}`, variant: "destructive" });
-    }
+    // resetFormState(); // ResetFormState is called by onOpenChange(false)
+    onOpenChange(false); 
   };
+  
+  const handleDialogClose = () => {
+    resetFormState();
+    onOpenChange(false);
+  };
+
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
         if (!open) {
-            resetFormState(); // Reset form if dialog is closed
+            resetFormState(); 
         }
         onOpenChange(open);
     }}>
       <DialogContent className="sm:max-w-[525px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-headline">Add New Book</DialogTitle>
+          <DialogTitle className="font-headline">{isEditing ? "Edit Book" : "Add New Book"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div 
@@ -252,7 +289,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onAddBook }: Uplo
                   htmlFor="pdf-upload"
                   className="relative cursor-pointer rounded-md font-medium text-primary hover:text-accent focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-ring"
                 >
-                  <span>Upload a PDF</span>
+                  <span>{pdfFile ? "Change PDF" : "Upload a PDF"}</span>
                   <Input id="pdf-upload" name="pdf-upload" type="file" className="sr-only" onChange={onPdfInputChange} accept="application/pdf" />
                 </Label>
                 <p className="pl-1">or drag and drop</p>
@@ -298,7 +335,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onAddBook }: Uplo
                 )}
                 <Button type="button" variant="outline" asChild>
                   <Label htmlFor="cover-image-upload" className="cursor-pointer">
-                    {coverImageFile ? "Change" : "Upload"} Cover
+                    {coverPreviewUrl && !coverImageFile ? "Change" : "Upload"} Cover
                     <Input id="cover-image-upload" name="cover-image-upload" type="file" className="sr-only" onChange={handleCoverImageChange} accept="image/*" />
                   </Label>
                 </Button>
@@ -307,11 +344,11 @@ export default function UploadBookForm({ isOpen, onOpenChange, onAddBook }: Uplo
           
           <DialogFooter>
             <DialogClose asChild>
-              <Button type="button" variant="outline">Cancel</Button>
+              <Button type="button" variant="outline" onClick={handleDialogClose}>Cancel</Button>
             </DialogClose>
-            <Button type="submit" disabled={isExtracting || !pdfFile || !coverImageFile || !currentPdfDataUri}>
+            <Button type="submit" disabled={isExtracting || (!isEditing && (!pdfFile || !coverImageFile)) }>
               {isExtracting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Add Book
+              {isEditing ? "Save Changes" : "Add Book"}
             </Button>
           </DialogFooter>
         </form>
@@ -319,4 +356,3 @@ export default function UploadBookForm({ isOpen, onOpenChange, onAddBook }: Uplo
     </Dialog>
   );
 }
-

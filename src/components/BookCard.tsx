@@ -1,30 +1,26 @@
-
 "use client";
 
 import type { Book } from "@/types";
 import Image from "next/image";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Trash2, FileText } from "lucide-react";
+import { Trash2, FileText, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface BookCardProps {
   book: Book;
   onRemove: (id: string) => void;
+  onEdit: (book: Book) => void;
 }
 
-export default function BookCard({ book, onRemove }: BookCardProps) {
+export default function BookCard({ book, onRemove, onEdit }: BookCardProps) {
   const { toast } = useToast();
 
   const handleOpenPdf = () => {
-    console.log("Attempting to download PDF for:", book.title);
-    console.log("PDF File Name from book object:", book.pdfFileName);
-    console.log("PDF Data URI (first 100 chars):", book.pdfDataUri ? book.pdfDataUri.substring(0, 100) + "..." : "No PDF Data URI");
-
     if (!book.pdfDataUri || !book.pdfDataUri.startsWith('data:application/pdf;base64,')) {
       toast({
         title: "Cannot Initiate Download",
-        description: "No valid PDF data is associated with this book. Please re-upload the book.",
+        description: "No valid PDF data is associated with this book. Please re-upload or edit the book to add a PDF.",
         variant: "destructive",
       });
       console.error("Invalid or missing PDF Data URI for book:", book.title);
@@ -35,12 +31,7 @@ export default function BookCard({ book, onRemove }: BookCardProps) {
       const link = document.createElement('a');
       link.href = book.pdfDataUri;
       
-      let fileName = 'document.pdf'; 
-      if (book.pdfFileName) {
-        fileName = book.pdfFileName.replace(/[^\w\s.-]/g, '_').replace(/\s+/g, '_');
-      } else if (book.title) {
-        fileName = `${book.title.replace(/[^\w\s.-]/g, '_').replace(/\s+/g, '_')}.pdf`;
-      }
+      let fileName = book.pdfFileName || `${book.title.replace(/[^\w\s.-]/g, '_').replace(/\s+/g, '_') || 'document'}.pdf`;
       link.download = fileName;
       
       console.log("Attempting to download with filename:", link.download);
@@ -52,7 +43,7 @@ export default function BookCard({ book, onRemove }: BookCardProps) {
       
       toast({
         title: "PDF Download Initiated",
-        description: `The download for "${link.download}" should start. If you see 'about:blank#blocked' and the file downloads as "untitled" or if the download doesn't begin at all, please check your browser's popup blocker and download settings. These often interfere with programmatic downloads. You may need to temporarily disable your popup blocker or adjust site permissions.`,
+        description: `The download for "${link.download}" should start. If you see 'about:blank#blocked' or the file downloads as "untitled", please check your browser's popup blocker and download settings. These can interfere with downloads from data URIs. You might need to adjust site permissions.`,
         variant: "default",
         duration: 9000, 
       });
@@ -81,30 +72,41 @@ export default function BookCard({ book, onRemove }: BookCardProps) {
             onLoadingComplete={(image) => image.classList.remove('opacity-0')}
           />
         </div>
-        <CardTitle className="font-headline text-lg truncate" title={book.title}>{book.title}</CardTitle>
-        <CardDescription className="text-sm text-muted-foreground truncate" title={book.author}>By: {book.author}</CardDescription>
+        <CardTitle className="font-headline text-lg truncate" title={book.title}>{book.title || "Untitled Book"}</CardTitle>
+        <CardDescription className="text-sm text-muted-foreground truncate" title={book.author}>By: {book.author || "Unknown Author"}</CardDescription>
       </CardHeader>
       <CardContent className="p-4 pt-0 flex-grow">
-        <p className="text-sm text-foreground/80 line-clamp-4">{book.summary}</p>
+        <p className="text-sm text-foreground/80 line-clamp-4">{book.summary || "No summary available."}</p>
       </CardContent>
-      <CardFooter className="p-4 pt-0 flex space-x-2">
-        {book.pdfDataUri && (
+      <CardFooter className="p-4 pt-0 flex flex-col space-y-2">
+        <div className="flex space-x-2 w-full">
+          {book.pdfDataUri && book.pdfDataUri.startsWith('data:application/pdf;base64,') && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleOpenPdf}
+              className="flex-1"
+              aria-label={`Open PDF for ${book.title}`}
+            >
+              <FileText className="mr-2 h-4 w-4" /> Open PDF
+            </Button>
+          )}
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
-            onClick={handleOpenPdf}
-            className="flex-1"
-            aria-label={`Open PDF for ${book.title}`}
+            onClick={() => onEdit(book)}
+            aria-label={`Edit ${book.title}`}
+            className={!book.pdfDataUri || !book.pdfDataUri.startsWith('data:application/pdf;base64,') ? "w-full" : "flex-1"}
           >
-            <FileText className="mr-2 h-4 w-4" /> Open PDF
+            <Pencil className="mr-2 h-4 w-4" /> Edit
           </Button>
-        )}
+        </div>
         <Button
           variant="destructive"
           size="sm"
           onClick={() => onRemove(book.id)}
           aria-label={`Remove ${book.title}`}
-          className={book.pdfDataUri ? "flex-1" : "w-full"}
+          className="w-full"
         >
           <Trash2 className="mr-2 h-4 w-4" /> Remove
         </Button>
@@ -112,4 +114,3 @@ export default function BookCard({ book, onRemove }: BookCardProps) {
     </Card>
   );
 }
-    
