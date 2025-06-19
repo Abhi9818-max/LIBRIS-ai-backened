@@ -18,13 +18,13 @@ export default function BookCard({ book, onRemove }: BookCardProps) {
 
   const handleOpenPdf = () => {
     console.log("Attempting to download PDF for:", book.title);
+    console.log("PDF File Name from book object:", book.pdfFileName);
     console.log("PDF Data URI (first 100 chars):", book.pdfDataUri ? book.pdfDataUri.substring(0, 100) + "..." : "No PDF Data URI");
-    console.log("PDF File Name:", book.pdfFileName);
 
     if (!book.pdfDataUri || !book.pdfDataUri.startsWith('data:application/pdf;base64,')) {
       toast({
         title: "Cannot Initiate Download",
-        description: "No valid PDF data is associated with this book. Please try re-uploading the book.",
+        description: "No valid PDF data is associated with this book. Please re-upload the book.",
         variant: "destructive",
       });
       console.error("Invalid or missing PDF Data URI for book:", book.title);
@@ -34,17 +34,28 @@ export default function BookCard({ book, onRemove }: BookCardProps) {
     try {
       const link = document.createElement('a');
       link.href = book.pdfDataUri;
-      link.download = book.pdfFileName || `${book.title.replace(/\s+/g, '_').replace(/[^\w.-]/g, '') || 'document'}.pdf`;
-      link.style.display = 'none'; // Ensure the link is not visible
+      
+      // Attempt to sanitize and set the filename
+      let fileName = 'document.pdf'; // Default filename
+      if (book.pdfFileName) {
+        fileName = book.pdfFileName.replace(/[^\w\s.-]/g, '_').replace(/\s+/g, '_');
+      } else if (book.title) {
+        fileName = `${book.title.replace(/[^\w\s.-]/g, '_').replace(/\s+/g, '_')}.pdf`;
+      }
+      link.download = fileName;
+      
+      console.log("Attempting to download with filename:", link.download);
 
+      link.style.display = 'none'; 
       document.body.appendChild(link);
-      link.click(); // This attempts to trigger the download
+      link.click(); 
       document.body.removeChild(link);
       
       toast({
         title: "PDF Download Initiated",
-        description: `The download for "${link.download}" should start. If you see 'about:blank#blocked' or the download doesn't begin, please check your browser's popup blocker and download settings, as they might be interfering.`,
+        description: `The download for "${link.download}" should start. If you see 'about:blank#blocked' and the file downloads as "untitled" or if the download doesn't begin at all, please check your browser's popup blocker and download settings. These often interfere with programmatic downloads. You may need to temporarily disable your popup blocker or adjust site permissions.`,
         variant: "default",
+        duration: 9000, // Longer duration for this important message
       });
 
     } catch (error) {
@@ -102,5 +113,4 @@ export default function BookCard({ book, onRemove }: BookCardProps) {
     </Card>
   );
 }
-
     
