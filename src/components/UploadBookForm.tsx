@@ -6,13 +6,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import type { Book } from "@/types";
 import { extractBookMetadata } from "@/ai/flows/extract-book-metadata";
+import { generateBookCover } from "@/ai/flows/generate-book-cover-flow";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { UploadCloud, ImageUp, Loader2 } from "lucide-react";
+import { UploadCloud, ImageUp, Loader2, Sparkles } from "lucide-react";
 
 const BookFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -52,6 +53,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [isGeneratingCover, setIsGeneratingCover] = useState(false);
   const { toast } = useToast();
   const isEditing = !!bookToEdit;
 
@@ -68,6 +70,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     setCoverImageFile(null);
     setCoverPreviewUrl(null);
     setIsExtracting(false);
+    setIsGeneratingCover(false);
   }, [form]);
 
   useEffect(() => {
@@ -81,7 +84,6 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         setCoverPreviewUrl(bookToEdit.coverImageUrl);
         setPdfFileName(bookToEdit.pdfFileName);
         setCurrentPdfDataUri(bookToEdit.pdfDataUri);
-        // Reset file inputs, as they don't hold state for existing files
         setPdfFile(null);
         setCoverImageFile(null);
       } else {
@@ -107,9 +109,9 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
 
       setPdfFile(file);
       setPdfFileName(file.name);
-      // Only reset fields if not editing or if user explicitly uploads a new PDF
       if (!isEditing || (isEditing && file)) {
          form.reset({ title: "", author: "", summary: "" });
+         if (!isEditing) setCoverPreviewUrl(null); // Clear previous AI cover if new PDF for new book
       }
       setIsExtracting(true);
       setCurrentPdfDataUri(null); 
@@ -126,6 +128,28 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         form.setValue("author", metadata.author || (isEditing ? bookToEdit.author : ""));
         form.setValue("summary", metadata.summary || (isEditing ? bookToEdit.summary : ""));
         toast({ title: "Metadata Extracted", description: "Review and edit the details below." });
+
+        // AI Cover Generation for new books if no cover image file is selected
+        if (!isEditing && !coverImageFile && metadata.title && metadata.summary) {
+          setIsGeneratingCover(true);
+          toast({ title: "AI Cover Generation", description: "Attempting to generate a cover image..." });
+          try {
+            const summaryForCover = metadata.summary.length >= 10 ? metadata.summary : `A book titled "${metadata.title}". If summary is short, use title.`;
+            const coverResult = await generateBookCover({ title: metadata.title, summary: summaryForCover });
+            if (coverResult.coverImageDataUri) {
+              setCoverPreviewUrl(coverResult.coverImageDataUri);
+              toast({ title: "AI Cover Generated!", description: "A cover image has been generated." });
+            } else {
+              toast({ title: "AI Cover Failed", description: "Could not generate cover. A placeholder will be used.", variant: "destructive" });
+            }
+          } catch (genError: any) {
+            console.error("Error generating cover image:", genError);
+            toast({ title: "AI Cover Error", description: `Cover generation failed: ${genError.message || "Unknown error"}.`, variant: "destructive" });
+          } finally {
+            setIsGeneratingCover(false);
+          }
+        }
+
       } catch (error: any) { 
         console.error("Failed to extract metadata or read PDF:", error);
         setCurrentPdfDataUri(isEditing ? bookToEdit.pdfDataUri : null);
@@ -140,13 +164,12 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         setIsExtracting(false);
       }
     } else {
-      // If file is removed (nulled)
-      if (!isEditing) { // Only fully reset if adding new book
+      if (!isEditing) { 
         setPdfFile(null);
         setPdfFileName("");
         setCurrentPdfDataUri(null);
         form.reset({ title: "", author: "", summary: "" });
-      } else { // If editing, revert to original PDF info if new one is cleared
+      } else { 
         setPdfFile(null);
         setPdfFileName(bookToEdit?.pdfFileName || "");
         setCurrentPdfDataUri(bookToEdit?.pdfDataUri || null);
@@ -166,7 +189,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     if (event.dataTransfer.files && event.dataTransfer.files[0]) {
       handlePdfFileChange(event.dataTransfer.files[0]);
     }
-  }, [isEditing, bookToEdit, form]);
+  }, [isEditing, bookToEdit, form, coverImageFile]); // Added coverImageFile dependency
 
   const onDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -205,22 +228,48 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       }
     } else {
       setCoverImageFile(null);
-      setCoverPreviewUrl(isEditing ? bookToEdit.coverImageUrl : null);
+      // If removing a user-uploaded cover for a new book, and PDF was processed, AI might generate one.
+      // For editing, if user removes cover, it reverts to original or placeholder.
+      if (isEditing) {
+        setCoverPreviewUrl(bookToEdit.coverImageUrl);
+      } else if (pdfFile && form.getValues("title") && form.getValues("summary")) { 
+        // If new book, PDF processed, title/summary exist, and user cleared cover: try AI gen
+        setIsGeneratingCover(true);
+        toast({ title: "AI Cover Generation", description: "Attempting to generate a cover image..." });
+        const metadata = form.getValues();
+        const summaryForCover = metadata.summary.length >= 10 ? metadata.summary : `A book titled "${metadata.title}". If summary is short, use title.`;
+        generateBookCover({ title: metadata.title, summary: summaryForCover })
+          .then(coverResult => {
+            if (coverResult.coverImageDataUri) {
+              setCoverPreviewUrl(coverResult.coverImageDataUri);
+              toast({ title: "AI Cover Generated!", description: "A cover image has been generated." });
+            } else {
+              setCoverPreviewUrl(null); // Explicitly null if AI fails after user clears
+              toast({ title: "AI Cover Failed", description: "Could not generate cover. A placeholder will be used.", variant: "destructive" });
+            }
+          })
+          .catch(genError => {
+            console.error("Error generating cover image:", genError);
+            setCoverPreviewUrl(null);
+            toast({ title: "AI Cover Error", description: "Cover generation failed.", variant: "destructive" });
+          })
+          .finally(() => setIsGeneratingCover(false));
+      } else {
+         setCoverPreviewUrl(null); // Cleared user cover, no AI gen yet
+      }
     }
      e.target.value = ""; 
   };
 
   const onSubmit = async (data: BookFormData) => {
     let bookId = isEditing && bookToEdit ? bookToEdit.id : Date.now().toString();
-    let finalCoverImageUrl = coverPreviewUrl; // This will be from new upload or bookToEdit in useEffect
-    let finalPdfDataUri = currentPdfDataUri; // This will be from new upload or bookToEdit in useEffect
-    let finalPdfFileName = pdfFileName; // This will be from new upload or bookToEdit in useEffect
+    let finalCoverImageUrl = coverPreviewUrl; 
+    let finalPdfDataUri = currentPdfDataUri; 
+    let finalPdfFileName = pdfFileName; 
     
-    // If editing, and no new cover file was selected, keep the existing one
     if (isEditing && bookToEdit && !coverImageFile) {
         finalCoverImageUrl = bookToEdit.coverImageUrl;
     }
-    // If editing, and no new PDF file was selected, keep the existing one
     if (isEditing && bookToEdit && !pdfFile) {
         finalPdfDataUri = bookToEdit.pdfDataUri;
         finalPdfFileName = bookToEdit.pdfFileName;
@@ -234,15 +283,10 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       });
       return;
     }
-     if (!isEditing && !coverImageFile) {
-      toast({ 
-        title: "Missing Cover Image", 
-        description: "Please ensure a cover image is uploaded for a new book.", 
-        variant: "destructive" 
-      });
-      return;
-    }
-
+    // For new books, if no user cover and no AI cover, we use placeholder.
+    // If editing, and cover was removed and not replaced, it might use original or placeholder.
+    // The finalCoverImageUrl will hold user-uploaded, AI-generated, or original (if editing).
+    // The || "placeholder" below handles if it's still null.
 
     const savedBook: Book = {
       id: bookId, 
@@ -253,8 +297,6 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     };
     onSaveBook(savedBook, isEditing);
     toast({ title: isEditing ? "Book Updated!" : "Book Added!", description: `${data.title} has been ${isEditing ? 'updated' : 'added'}.` });
-    
-    // resetFormState(); // ResetFormState is called by onOpenChange(false)
     onOpenChange(false); 
   };
   
@@ -289,7 +331,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
                   htmlFor="pdf-upload"
                   className="relative cursor-pointer rounded-md font-medium text-primary hover:text-accent focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-ring"
                 >
-                  <span>{pdfFile ? "Change PDF" : "Upload a PDF"}</span>
+                  <span>{pdfFile || (isEditing && bookToEdit?.pdfFileName) ? "Change PDF" : "Upload a PDF"}</span>
                   <Input id="pdf-upload" name="pdf-upload" type="file" className="sr-only" onChange={onPdfInputChange} accept="application/pdf" />
                 </Label>
                 <p className="pl-1">or drag and drop</p>
@@ -340,14 +382,24 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
                   </Label>
                 </Button>
             </div>
+            {isGeneratingCover && (
+              <div className="flex items-center text-sm text-muted-foreground mt-2">
+                <Sparkles className="h-4 w-4 animate-pulse mr-2 text-primary" />
+                <span>Generating AI cover... This may take a moment.</span>
+              </div>
+            )}
+            {!isEditing && !coverImageFile && !isGeneratingCover && pdfFile && !coverPreviewUrl && (
+              <p className="text-xs text-muted-foreground mt-1">AI cover generation failed or was skipped. A placeholder will be used if no cover is uploaded.</p>
+            )}
           </div>
           
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="outline" onClick={handleDialogClose}>Cancel</Button>
             </DialogClose>
-            <Button type="submit" disabled={isExtracting || (!isEditing && (!pdfFile || !coverImageFile)) }>
+            <Button type="submit" disabled={isExtracting || isGeneratingCover || (!isEditing && !pdfFile) }>
               {isExtracting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {isGeneratingCover ? <Sparkles className="h-4 w-4 animate-pulse mr-2" /> : null}
               {isEditing ? "Save Changes" : "Add Book"}
             </Button>
           </DialogFooter>
