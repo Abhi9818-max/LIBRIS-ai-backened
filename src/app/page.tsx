@@ -6,13 +6,13 @@ import BookCard from "@/components/BookCard";
 import UploadBookForm from "@/components/UploadBookForm";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, BookOpen, Sun, Moon } from "lucide-react";
-import { useTheme } from "next-themes"; // Updated import
+import { useTheme } from "@/components/theme-provider"; // Changed import
 
 export default function HomePage() {
   const [books, setBooks] = useState<Book[]>([]);
   const [isClient, setIsClient] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const { theme, setTheme } = useTheme(); // Updated to use next-themes
+  const { theme, setTheme } = useTheme(); // Now uses custom theme provider
 
   useEffect(() => {
     setIsClient(true);
