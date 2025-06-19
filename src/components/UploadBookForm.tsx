@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useCallback, ChangeEvent, DragEvent } from "react";
@@ -40,6 +41,7 @@ const readFileAsDataURL = (file: File): Promise<string> => {
 export default function UploadBookForm({ isOpen, onOpenChange, onAddBook }: UploadBookFormProps) {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfFileName, setPdfFileName] = useState<string>("");
+  const [currentPdfDataUri, setCurrentPdfDataUri] = useState<string | null>(null); // Added state for PDF data URI
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -54,20 +56,23 @@ export default function UploadBookForm({ isOpen, onOpenChange, onAddBook }: Uplo
     if (file) {
       setPdfFile(file);
       setPdfFileName(file.name);
-      form.reset(); // Reset form fields when new PDF is selected
+      form.reset(); 
       setIsExtracting(true);
+      setCurrentPdfDataUri(null); // Clear previous URI
       try {
-        const pdfDataUri = await readFileAsDataURL(file);
-        const metadata = await extractBookMetadata({ pdfDataUri });
+        const pdfDataUriForMeta = await readFileAsDataURL(file);
+        setCurrentPdfDataUri(pdfDataUriForMeta); // Store the data URI
+        const metadata = await extractBookMetadata({ pdfDataUri: pdfDataUriForMeta });
         form.setValue("title", metadata.title);
         form.setValue("author", metadata.author);
         form.setValue("summary", metadata.summary);
         toast({ title: "Metadata Extracted", description: "Review and edit the details below." });
       } catch (error) {
-        console.error("Failed to extract metadata:", error);
+        console.error("Failed to extract metadata or read PDF:", error);
+        setCurrentPdfDataUri(null); // Clear URI on error
         toast({
           title: "Extraction Error",
-          description: "Could not extract metadata from PDF. Please fill in manually.",
+          description: "Could not extract metadata or process PDF. Please try again or fill in manually.",
           variant: "destructive",
         });
       } finally {
@@ -76,6 +81,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onAddBook }: Uplo
     } else {
       setPdfFile(null);
       setPdfFileName("");
+      setCurrentPdfDataUri(null);
       form.reset();
     }
   };
@@ -123,32 +129,38 @@ export default function UploadBookForm({ isOpen, onOpenChange, onAddBook }: Uplo
   };
 
   const onSubmit = async (data: BookFormData) => {
-    if (!pdfFile || !coverImageFile) {
-      toast({ title: "Missing Files", description: "Please upload both PDF and cover image.", variant: "destructive" });
+    if (!pdfFile || !coverImageFile || !currentPdfDataUri) {
+      toast({ 
+        title: "Missing Files or Data", 
+        description: "Please ensure PDF and cover image are uploaded, and PDF data has been processed.", 
+        variant: "destructive" 
+      });
       return;
     }
 
     try {
       const coverImageUrl = await readFileAsDataURL(coverImageFile);
-      const pdfDataUri = await readFileAsDataURL(pdfFile); // Read PDF file as data URI
+      // const pdfDataUri = await readFileAsDataURL(pdfFile); // No longer needed, use currentPdfDataUri
       const newBook: Book = {
-        id: Date.now().toString(), // Simple unique ID
+        id: Date.now().toString(), 
         ...data,
         coverImageUrl,
         pdfFileName: pdfFile.name,
-        pdfDataUri, // Store the PDF data URI
+        pdfDataUri: currentPdfDataUri, // Use the stored PDF data URI
       };
       onAddBook(newBook);
       toast({ title: "Book Added!", description: `${data.title} has been added to your shelf.` });
+      
       form.reset();
       setPdfFile(null);
       setPdfFileName("");
+      setCurrentPdfDataUri(null);
       setCoverImageFile(null);
       setCoverPreviewUrl(null);
-      onOpenChange(false); // Close dialog
+      onOpenChange(false); 
     } catch (error) {
       console.error("Error adding book:", error);
-      toast({ title: "Error", description: "Failed to add book.", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to add book. Could not process image file.", variant: "destructive" });
     }
   };
 
@@ -229,7 +241,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onAddBook }: Uplo
             <DialogClose asChild>
               <Button type="button" variant="outline">Cancel</Button>
             </DialogClose>
-            <Button type="submit" disabled={isExtracting || !pdfFile || !coverImageFile}>
+            <Button type="submit" disabled={isExtracting || !pdfFile || !coverImageFile || !currentPdfDataUri}>
               {isExtracting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Add Book
             </Button>
@@ -239,3 +251,4 @@ export default function UploadBookForm({ isOpen, onOpenChange, onAddBook }: Uplo
     </Dialog>
   );
 }
+
