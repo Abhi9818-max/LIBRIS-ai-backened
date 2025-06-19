@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Book } from "@/types";
@@ -5,6 +6,7 @@ import Image from "next/image";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Trash2, FileText } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface BookCardProps {
   book: Book;
@@ -12,22 +14,44 @@ interface BookCardProps {
 }
 
 export default function BookCard({ book, onRemove }: BookCardProps) {
+  const { toast } = useToast();
+
   const handleOpenPdf = () => {
-    if (book.pdfDataUri) {
-      // Open in a new tab. Browsers will typically try to display the PDF or offer download.
-      const newWindow = window.open();
-      if (newWindow) {
-        newWindow.document.write(`<iframe src="${book.pdfDataUri}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
-        newWindow.document.title = book.title || "PDF Document";
-      } else {
-        // Fallback for browsers that block window.open without direct user interaction or if pop-ups are blocked
-        // This might directly download the file depending on browser settings for data URIs
+    if (!book.pdfDataUri) {
+      toast({
+        title: "Error",
+        description: "No PDF data found for this book.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Attempt to open the PDF data URI directly in a new tab.
+    // Most browsers will either display it or offer a download.
+    const newWindow = window.open(book.pdfDataUri, '_blank');
+
+    // If window.open() was blocked (e.g., by a popup blocker), newWindow will be null.
+    if (!newWindow) {
+      toast({
+        title: "Popup Issue",
+        description: "Could not open PDF in a new tab (popup may be blocked). Attempting to download instead.",
+        variant: "default",
+      });
+      // Fallback: create a temporary link and click it to trigger download.
+      try {
         const a = document.createElement('a');
         a.href = book.pdfDataUri;
         a.download = book.pdfFileName || 'document.pdf'; // Provide a filename for download
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+      } catch (error) {
+        console.error("PDF download fallback failed:", error);
+        toast({
+          title: "Download Error",
+          description: "Failed to initiate PDF download. Please check your browser's console.",
+          variant: "destructive",
+        });
       }
     }
   };
