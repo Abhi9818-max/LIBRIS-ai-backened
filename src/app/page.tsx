@@ -5,12 +5,14 @@ import type { Book } from "@/types";
 import BookCard from "@/components/BookCard";
 import UploadBookForm from "@/components/UploadBookForm";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, BookOpen } from "lucide-react";
+import { PlusCircle, BookOpen, Sun, Moon } from "lucide-react";
+import { useTheme } from "@/components/theme-provider";
 
 export default function HomePage() {
   const [books, setBooks] = useState<Book[]>([]);
   const [isClient, setIsClient] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const { theme, setTheme, toggleTheme } = useTheme();
 
   useEffect(() => {
     setIsClient(true);
@@ -21,8 +23,6 @@ export default function HomePage() {
       }
     } catch (error) {
       console.error("Failed to load books from localStorage:", error);
-      // Optionally clear corrupted data
-      // localStorage.removeItem("bookshelf_books");
     }
   }, []);
 
@@ -45,7 +45,6 @@ export default function HomePage() {
   };
 
   if (!isClient) {
-    // Basic loading state or skeleton screen to avoid hydration mismatch issues
     return (
       <div className="flex flex-col min-h-screen bg-background items-center justify-center">
         <BookOpen className="h-16 w-16 text-primary animate-pulse" />
@@ -62,9 +61,18 @@ export default function HomePage() {
             <BookOpen className="h-8 w-8 mr-3 text-accent" />
             BookShelf
           </h1>
-          <Button onClick={() => setIsUploadModalOpen(true)} aria-label="Add new book">
-            <PlusCircle className="mr-2 h-5 w-5" /> Add Book
-          </Button>
+          <div className="flex items-center space-x-2">
+            <Button onClick={() => setIsUploadModalOpen(true)} aria-label="Add new book">
+              <PlusCircle className="mr-2 h-5 w-5" /> Add Book
+            </Button>
+            <Button onClick={toggleTheme} variant="outline" size="icon" aria-label="Toggle theme">
+              {theme === "light" ? (
+                <Moon className="h-[1.2rem] w-[1.2rem]" />
+              ) : (
+                <Sun className="h-[1.2rem] w-[1.2rem]" />
+              )}
+            </Button>
+          </div>
         </div>
       </header>
 
