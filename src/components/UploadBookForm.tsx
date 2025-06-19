@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useCallback, ChangeEvent, DragEvent, useEffect } from "react";
@@ -140,11 +141,13 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
               setCoverPreviewUrl(coverResult.coverImageDataUri);
               toast({ title: "AI Cover Generated!", description: "A cover image has been generated." });
             } else {
-              toast({ title: "AI Cover Failed", description: "Could not generate cover. A placeholder will be used.", variant: "destructive" });
+              setCoverPreviewUrl(null);
+              toast({ title: "AI Cover Failed", description: "Could not generate cover. A placeholder will be used, you can still add the book.", variant: "destructive" });
             }
           } catch (genError: any) {
             console.error("Error generating cover image:", genError);
-            toast({ title: "AI Cover Error", description: `Cover generation failed: ${genError.message || "Unknown error"}.`, variant: "destructive" });
+            setCoverPreviewUrl(null);
+            toast({ title: "AI Cover Error", description: `Cover generation failed: ${genError.message || "Unknown error"}. A placeholder will be used, you can still add the book.`, variant: "destructive" });
           } finally {
             setIsGeneratingCover(false);
           }
@@ -189,7 +192,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     if (event.dataTransfer.files && event.dataTransfer.files[0]) {
       handlePdfFileChange(event.dataTransfer.files[0]);
     }
-  }, [isEditing, bookToEdit, form, coverImageFile]); // Added coverImageFile dependency
+  }, [isEditing, bookToEdit, form, coverImageFile]);
 
   const onDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -228,12 +231,9 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       }
     } else {
       setCoverImageFile(null);
-      // If removing a user-uploaded cover for a new book, and PDF was processed, AI might generate one.
-      // For editing, if user removes cover, it reverts to original or placeholder.
       if (isEditing) {
         setCoverPreviewUrl(bookToEdit.coverImageUrl);
       } else if (pdfFile && form.getValues("title") && form.getValues("summary")) { 
-        // If new book, PDF processed, title/summary exist, and user cleared cover: try AI gen
         setIsGeneratingCover(true);
         toast({ title: "AI Cover Generation", description: "Attempting to generate a cover image..." });
         const metadata = form.getValues();
@@ -244,18 +244,18 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
               setCoverPreviewUrl(coverResult.coverImageDataUri);
               toast({ title: "AI Cover Generated!", description: "A cover image has been generated." });
             } else {
-              setCoverPreviewUrl(null); // Explicitly null if AI fails after user clears
-              toast({ title: "AI Cover Failed", description: "Could not generate cover. A placeholder will be used.", variant: "destructive" });
+              setCoverPreviewUrl(null); 
+              toast({ title: "AI Cover Failed", description: "Could not generate cover. A placeholder will be used, you can still add the book.", variant: "destructive" });
             }
           })
           .catch(genError => {
             console.error("Error generating cover image:", genError);
             setCoverPreviewUrl(null);
-            toast({ title: "AI Cover Error", description: "Cover generation failed.", variant: "destructive" });
+            toast({ title: "AI Cover Error", description: "Cover generation failed. A placeholder will be used, you can still add the book.", variant: "destructive" });
           })
           .finally(() => setIsGeneratingCover(false));
       } else {
-         setCoverPreviewUrl(null); // Cleared user cover, no AI gen yet
+         setCoverPreviewUrl(null);
       }
     }
      e.target.value = ""; 
@@ -283,10 +283,6 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       });
       return;
     }
-    // For new books, if no user cover and no AI cover, we use placeholder.
-    // If editing, and cover was removed and not replaced, it might use original or placeholder.
-    // The finalCoverImageUrl will hold user-uploaded, AI-generated, or original (if editing).
-    // The || "placeholder" below handles if it's still null.
 
     const savedBook: Book = {
       id: bookId, 
@@ -389,7 +385,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
               </div>
             )}
             {!isEditing && !coverImageFile && !isGeneratingCover && pdfFile && !coverPreviewUrl && (
-              <p className="text-xs text-muted-foreground mt-1">AI cover generation failed or was skipped. A placeholder will be used if no cover is uploaded.</p>
+              <p className="text-xs text-muted-foreground mt-1">AI cover generation failed or was skipped. A placeholder will be used if no cover is uploaded. You can still add the book.</p>
             )}
           </div>
           
@@ -408,3 +404,6 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     </Dialog>
   );
 }
+
+
+    
