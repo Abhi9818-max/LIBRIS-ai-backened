@@ -5,6 +5,5 @@ export interface Book {
   summary: string;
   coverImageUrl: string; // This will be a data URL
   pdfFileName: string; 
-  // pdfDataUri is handled during upload/extraction, not necessarily stored with the book object long-term
-  // to save space, especially if using localStorage.
+  pdfDataUri: string; // Added to store the PDF content as a data URI
 }

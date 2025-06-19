@@ -130,11 +130,13 @@ export default function UploadBookForm({ isOpen, onOpenChange, onAddBook }: Uplo
 
     try {
       const coverImageUrl = await readFileAsDataURL(coverImageFile);
+      const pdfDataUri = await readFileAsDataURL(pdfFile); // Read PDF file as data URI
       const newBook: Book = {
         id: Date.now().toString(), // Simple unique ID
         ...data,
         coverImageUrl,
         pdfFileName: pdfFile.name,
+        pdfDataUri, // Store the PDF data URI
       };
       onAddBook(newBook);
       toast({ title: "Book Added!", description: `${data.title} has been added to your shelf.` });
