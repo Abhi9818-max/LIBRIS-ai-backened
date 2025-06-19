@@ -22,7 +22,10 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased bg-background text-foreground">
         <ThemeProvider
+          attribute="class"
           defaultTheme="light"
+          enableSystem
+          disableTransitionOnChange
           storageKey="bookshelf-theme"
         >
           {children}

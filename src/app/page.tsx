@@ -6,13 +6,13 @@ import BookCard from "@/components/BookCard";
 import UploadBookForm from "@/components/UploadBookForm";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, BookOpen, Sun, Moon } from "lucide-react";
-import { useTheme } from "@/components/theme-provider";
+import { useTheme } from "next-themes"; // Updated import
 
 export default function HomePage() {
   const [books, setBooks] = useState<Book[]>([]);
   const [isClient, setIsClient] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const { theme, setTheme, toggleTheme } = useTheme();
+  const { theme, setTheme } = useTheme(); // Updated to use next-themes
 
   useEffect(() => {
     setIsClient(true);
@@ -42,6 +42,10 @@ export default function HomePage() {
 
   const handleRemoveBook = (bookId: string) => {
     setBooks((prevBooks) => prevBooks.filter((book) => book.id !== bookId));
+  };
+
+  const toggleTheme = () => {
+    setTheme(theme === "light" ? "dark" : "light");
   };
 
   if (!isClient) {
