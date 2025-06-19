@@ -35,8 +35,7 @@ export default function BookCard({ book, onRemove }: BookCardProps) {
       const link = document.createElement('a');
       link.href = book.pdfDataUri;
       
-      // Attempt to sanitize and set the filename
-      let fileName = 'document.pdf'; // Default filename
+      let fileName = 'document.pdf'; 
       if (book.pdfFileName) {
         fileName = book.pdfFileName.replace(/[^\w\s.-]/g, '_').replace(/\s+/g, '_');
       } else if (book.title) {
@@ -55,7 +54,7 @@ export default function BookCard({ book, onRemove }: BookCardProps) {
         title: "PDF Download Initiated",
         description: `The download for "${link.download}" should start. If you see 'about:blank#blocked' and the file downloads as "untitled" or if the download doesn't begin at all, please check your browser's popup blocker and download settings. These often interfere with programmatic downloads. You may need to temporarily disable your popup blocker or adjust site permissions.`,
         variant: "default",
-        duration: 9000, // Longer duration for this important message
+        duration: 9000, 
       });
 
     } catch (error) {
@@ -78,7 +77,7 @@ export default function BookCard({ book, onRemove }: BookCardProps) {
             layout="fill"
             objectFit="cover"
             data-ai-hint="book cover"
-            className="transition-opacity opacity-0 duration-[500ms]"
+            className="transition-opacity opacity-0 duration-500"
             onLoadingComplete={(image) => image.classList.remove('opacity-0')}
           />
         </div>
