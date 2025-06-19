@@ -32,8 +32,15 @@ interface UploadBookFormProps {
 const readFileAsDataURL = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+      } else {
+        reject(new Error('Failed to read file as data URL: result is not a string.'));
+      }
+    };
+    reader.onerror = (errorEvent) => reject(errorEvent.target?.error || new Error('FileReader error.'));
+    reader.onabort = () => reject(new Error('File reading was aborted.'));
     reader.readAsDataURL(file);
   });
 };
@@ -41,7 +48,7 @@ const readFileAsDataURL = (file: File): Promise<string> => {
 export default function UploadBookForm({ isOpen, onOpenChange, onAddBook }: UploadBookFormProps) {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfFileName, setPdfFileName] = useState<string>("");
-  const [currentPdfDataUri, setCurrentPdfDataUri] = useState<string | null>(null); // Added state for PDF data URI
+  const [currentPdfDataUri, setCurrentPdfDataUri] = useState<string | null>(null);
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -52,42 +59,71 @@ export default function UploadBookForm({ isOpen, onOpenChange, onAddBook }: Uplo
     defaultValues: { title: "", author: "", summary: "" },
   });
 
+  const resetFormState = () => {
+    form.reset({ title: "", author: "", summary: "" });
+    setPdfFile(null);
+    setPdfFileName("");
+    setCurrentPdfDataUri(null);
+    setCoverImageFile(null);
+    setCoverPreviewUrl(null);
+    setIsExtracting(false);
+  };
+
   const handlePdfFileChange = async (file: File | null) => {
     if (file) {
+      if (file.type !== "application/pdf") {
+        toast({
+          title: "Invalid File Type",
+          description: "Please upload a PDF file (.pdf).",
+          variant: "destructive",
+        });
+        resetFormState(); // Reset relevant states
+        form.resetField("title"); // Clear fields potentially filled by a previous valid PDF
+        form.resetField("author");
+        form.resetField("summary");
+        return;
+      }
+
       setPdfFile(file);
       setPdfFileName(file.name);
-      form.reset(); 
+      form.reset({ title: "", author: "", summary: "" }); 
       setIsExtracting(true);
-      setCurrentPdfDataUri(null); // Clear previous URI
+      setCurrentPdfDataUri(null); 
       try {
         const pdfDataUriForMeta = await readFileAsDataURL(file);
-        setCurrentPdfDataUri(pdfDataUriForMeta); // Store the data URI
+        
+        if (!pdfDataUriForMeta || !pdfDataUriForMeta.startsWith('data:application/pdf;base64,')) {
+            throw new Error('Generated PDF Data URI is invalid. It might be empty or not correctly formatted.');
+        }
+        setCurrentPdfDataUri(pdfDataUriForMeta); 
+        
         const metadata = await extractBookMetadata({ pdfDataUri: pdfDataUriForMeta });
         form.setValue("title", metadata.title);
         form.setValue("author", metadata.author);
         form.setValue("summary", metadata.summary);
         toast({ title: "Metadata Extracted", description: "Review and edit the details below." });
-      } catch (error) {
+      } catch (error: any) { 
         console.error("Failed to extract metadata or read PDF:", error);
-        setCurrentPdfDataUri(null); // Clear URI on error
+        setCurrentPdfDataUri(null); 
         toast({
-          title: "Extraction Error",
-          description: "Could not extract metadata or process PDF. Please try again or fill in manually.",
+          title: "PDF Processing Error",
+          description: `Could not process PDF: ${error.message || "Unknown error"}. Please try again or fill in manually.`,
           variant: "destructive",
         });
+        setPdfFile(null); // Clear invalid PDF file
+        setPdfFileName("");
       } finally {
         setIsExtracting(false);
       }
     } else {
-      setPdfFile(null);
-      setPdfFileName("");
-      setCurrentPdfDataUri(null);
-      form.reset();
+      resetFormState(); // Full reset if file is null
     }
   };
 
   const onPdfInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     handlePdfFileChange(e.target.files ? e.target.files[0] : null);
+    // Clear the input value to allow re-uploading the same file if needed after an error
+    e.target.value = ""; 
   };
   
   const onDrop = useCallback((event: DragEvent<HTMLDivElement>) => {
@@ -95,11 +131,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onAddBook }: Uplo
     event.stopPropagation();
     event.currentTarget.classList.remove('border-primary');
     if (event.dataTransfer.files && event.dataTransfer.files[0]) {
-      if (event.dataTransfer.files[0].type === "application/pdf") {
-        handlePdfFileChange(event.dataTransfer.files[0]);
-      } else {
-        toast({ title: "Invalid File", description: "Please upload a PDF file.", variant: "destructive" });
-      }
+      handlePdfFileChange(event.dataTransfer.files[0]);
     }
   }, []);
 
@@ -119,53 +151,89 @@ export default function UploadBookForm({ isOpen, onOpenChange, onAddBook }: Uplo
   const handleCoverImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!file.type.startsWith('image/')) {
+        toast({
+            title: "Invalid File Type",
+            description: "Please upload an image file for the cover.",
+            variant: "destructive",
+        });
+        e.target.value = ""; // Clear the input
+        return;
+      }
       setCoverImageFile(file);
-      const dataUrl = await readFileAsDataURL(file);
-      setCoverPreviewUrl(dataUrl);
+      try {
+        const dataUrl = await readFileAsDataURL(file);
+        setCoverPreviewUrl(dataUrl);
+      } catch (error: any) {
+        console.error("Error reading cover image:", error);
+        toast({ title: "Cover Image Error", description: `Could not read cover image: ${error.message || "Unknown error"}.`, variant: "destructive"});
+        setCoverImageFile(null);
+        setCoverPreviewUrl(null);
+      }
     } else {
       setCoverImageFile(null);
       setCoverPreviewUrl(null);
     }
+     e.target.value = ""; // Clear the input value for cover image as well
   };
 
   const onSubmit = async (data: BookFormData) => {
-    if (!pdfFile || !coverImageFile || !currentPdfDataUri) {
+    if (!pdfFile || !coverImageFile) {
       toast({ 
-        title: "Missing Files or Data", 
-        description: "Please ensure PDF and cover image are uploaded, and PDF data has been processed.", 
+        title: "Missing Files", 
+        description: "Please ensure PDF and cover image are uploaded.", 
         variant: "destructive" 
       });
       return;
     }
 
+    if (!currentPdfDataUri || !currentPdfDataUri.startsWith('data:application/pdf;base64,')) {
+        toast({
+            title: "Invalid PDF Data",
+            description: "The PDF data could not be processed or is missing. Please re-upload the PDF.",
+            variant: "destructive",
+        });
+        return;
+    }
+    
+    // Ensure coverPreviewUrl which holds the data URI for the cover image is also present
+    if (!coverPreviewUrl) {
+      toast({
+          title: "Missing Cover Image Data",
+          description: "The cover image data is missing. Please re-upload the cover image.",
+          variant: "destructive",
+      });
+      return;
+    }
+
+
     try {
-      const coverImageUrl = await readFileAsDataURL(coverImageFile);
-      // const pdfDataUri = await readFileAsDataURL(pdfFile); // No longer needed, use currentPdfDataUri
+      // coverPreviewUrl already holds the data URI from handleCoverImageChange
       const newBook: Book = {
         id: Date.now().toString(), 
         ...data,
-        coverImageUrl,
+        coverImageUrl: coverPreviewUrl, // Use the stored data URI
         pdfFileName: pdfFile.name,
-        pdfDataUri: currentPdfDataUri, // Use the stored PDF data URI
+        pdfDataUri: currentPdfDataUri, 
       };
       onAddBook(newBook);
       toast({ title: "Book Added!", description: `${data.title} has been added to your shelf.` });
       
-      form.reset();
-      setPdfFile(null);
-      setPdfFileName("");
-      setCurrentPdfDataUri(null);
-      setCoverImageFile(null);
-      setCoverPreviewUrl(null);
+      resetFormState();
       onOpenChange(false); 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding book:", error);
-      toast({ title: "Error", description: "Failed to add book. Could not process image file.", variant: "destructive" });
+      toast({ title: "Error Adding Book", description: `Failed to add book: ${error.message || "Could not process files."}`, variant: "destructive" });
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+        if (!open) {
+            resetFormState(); // Reset form if dialog is closed
+        }
+        onOpenChange(open);
+    }}>
       <DialogContent className="sm:max-w-[525px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-headline">Add New Book</DialogTitle>
@@ -185,11 +253,11 @@ export default function UploadBookForm({ isOpen, onOpenChange, onAddBook }: Uplo
                   className="relative cursor-pointer rounded-md font-medium text-primary hover:text-accent focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-ring"
                 >
                   <span>Upload a PDF</span>
-                  <Input id="pdf-upload" name="pdf-upload" type="file" className="sr-only" onChange={onPdfInputChange} accept=".pdf" />
+                  <Input id="pdf-upload" name="pdf-upload" type="file" className="sr-only" onChange={onPdfInputChange} accept="application/pdf" />
                 </Label>
                 <p className="pl-1">or drag and drop</p>
               </div>
-              <p className="text-xs text-muted-foreground">{pdfFileName || "PDF up to 10MB"}</p>
+              <p className="text-xs text-muted-foreground">{pdfFileName || "PDF up to 10MB (approx)"}</p>
             </div>
           </div>
 
