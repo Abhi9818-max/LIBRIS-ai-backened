@@ -17,42 +17,44 @@ export default function BookCard({ book, onRemove }: BookCardProps) {
   const { toast } = useToast();
 
   const handleOpenPdf = () => {
-    if (!book.pdfDataUri) {
+    console.log("Attempting to open PDF for:", book.title);
+    console.log("PDF Data URI (first 100 chars):", book.pdfDataUri ? book.pdfDataUri.substring(0, 100) + "..." : "No PDF Data URI");
+    console.log("PDF File Name:", book.pdfFileName);
+
+    if (!book.pdfDataUri || !book.pdfDataUri.startsWith('data:application/pdf;base64,')) {
       toast({
-        title: "Error",
-        description: "No PDF data found for this book.",
+        title: "Error Opening PDF",
+        description: "No valid PDF data found for this book. Please try re-uploading.",
         variant: "destructive",
       });
+      console.error("Invalid or missing PDF Data URI for book:", book.title);
       return;
     }
 
-    // Attempt to open the PDF data URI directly in a new tab.
-    // Most browsers will either display it or offer a download.
-    const newWindow = window.open(book.pdfDataUri, '_blank');
-
-    // If window.open() was blocked (e.g., by a popup blocker), newWindow will be null.
-    if (!newWindow) {
+    try {
+      // Create a temporary link element to trigger the download
+      const link = document.createElement('a');
+      link.href = book.pdfDataUri;
+      link.download = book.pdfFileName || `${book.title.replace(/\s+/g, '_') || 'document'}.pdf`; // Provide a filename for download
+      
+      // Append to the document, click, and then remove
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
       toast({
-        title: "Popup Issue",
-        description: "Could not open PDF in a new tab (popup may be blocked). Attempting to download instead.",
+        title: "PDF Download Initiated",
+        description: `Your browser should start downloading "${link.download}". If not, please check your browser's download settings or pop-up blocker.`,
         variant: "default",
       });
-      // Fallback: create a temporary link and click it to trigger download.
-      try {
-        const a = document.createElement('a');
-        a.href = book.pdfDataUri;
-        a.download = book.pdfFileName || 'document.pdf'; // Provide a filename for download
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      } catch (error) {
-        console.error("PDF download fallback failed:", error);
-        toast({
-          title: "Download Error",
-          description: "Failed to initiate PDF download. Please check your browser's console.",
-          variant: "destructive",
-        });
-      }
+
+    } catch (error) {
+      console.error("Error attempting to download PDF:", error);
+      toast({
+        title: "PDF Download Failed",
+        description: "Could not initiate PDF download. Please check the browser console for more details.",
+        variant: "destructive",
+      });
     }
   };
 
