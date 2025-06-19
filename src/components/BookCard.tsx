@@ -17,14 +17,14 @@ export default function BookCard({ book, onRemove }: BookCardProps) {
   const { toast } = useToast();
 
   const handleOpenPdf = () => {
-    console.log("Attempting to open PDF for:", book.title);
+    console.log("Attempting to download PDF for:", book.title);
     console.log("PDF Data URI (first 100 chars):", book.pdfDataUri ? book.pdfDataUri.substring(0, 100) + "..." : "No PDF Data URI");
     console.log("PDF File Name:", book.pdfFileName);
 
     if (!book.pdfDataUri || !book.pdfDataUri.startsWith('data:application/pdf;base64,')) {
       toast({
-        title: "Error Opening PDF",
-        description: "No valid PDF data found for this book. Please try re-uploading.",
+        title: "Cannot Initiate Download",
+        description: "No valid PDF data is associated with this book. Please try re-uploading the book.",
         variant: "destructive",
       });
       console.error("Invalid or missing PDF Data URI for book:", book.title);
@@ -32,19 +32,18 @@ export default function BookCard({ book, onRemove }: BookCardProps) {
     }
 
     try {
-      // Create a temporary link element to trigger the download
       const link = document.createElement('a');
       link.href = book.pdfDataUri;
-      link.download = book.pdfFileName || `${book.title.replace(/\s+/g, '_') || 'document'}.pdf`; // Provide a filename for download
-      
-      // Append to the document, click, and then remove
+      link.download = book.pdfFileName || `${book.title.replace(/\s+/g, '_').replace(/[^\w.-]/g, '') || 'document'}.pdf`;
+      link.style.display = 'none'; // Ensure the link is not visible
+
       document.body.appendChild(link);
-      link.click();
+      link.click(); // This attempts to trigger the download
       document.body.removeChild(link);
       
       toast({
         title: "PDF Download Initiated",
-        description: `Your browser should start downloading "${link.download}". If not, please check your browser's download settings or pop-up blocker.`,
+        description: `The download for "${link.download}" should start. If you see 'about:blank#blocked' or the download doesn't begin, please check your browser's popup blocker and download settings, as they might be interfering.`,
         variant: "default",
       });
 
@@ -103,3 +102,5 @@ export default function BookCard({ book, onRemove }: BookCardProps) {
     </Card>
   );
 }
+
+    
