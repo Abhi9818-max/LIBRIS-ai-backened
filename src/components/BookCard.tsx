@@ -3,7 +3,7 @@
 
 import type { Book } from "@/types";
 import Image from "next/image";
-import { useState, ChangeEvent } from "react";
+import { useState, ChangeEvent, useEffect } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -85,6 +85,11 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: B
   const { toast } = useToast();
   const [currentPageInput, setCurrentPageInput] = useState<string>((book.currentPage || 1).toString());
 
+  // Effect to update currentPageInput when book.currentPage changes from props
+  useEffect(() => {
+    setCurrentPageInput((book.currentPage || 1).toString());
+  }, [book.currentPage]);
+
   const handleOpenPdf = () => {
     if (!book.pdfDataUri || !book.pdfDataUri.startsWith('data:application/pdf;base64,')) {
       toast({
@@ -153,22 +158,11 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: B
 
     if (newWindow && objectUrl) {
       newWindow.document.title = book.pdfFileName || book.title || "PDF Document";
-      // Try embedding in an iframe within the new window for better control.
-      // Or simply navigate the new window if iframe causes issues.
-      // For simplicity and common success, let's try direct navigation:
       newWindow.location.href = objectUrl;
-      // Alternatively, for iframe:
-      // newWindow.document.write('<html><head><title>' + (book.pdfFileName || book.title || "PDF Document") + '</title><style>body,html{margin:0;padding:0;overflow:hidden;}iframe{width:100%;height:100%;border:none;}</style></head><body>');
-      // newWindow.document.write('<iframe src="' + objectUrl + '"></iframe>');
-      // newWindow.document.write('</body></html>');
-      // newWindow.document.close(); // Important for iframe approach
-
       toast({
         title: "Opening PDF",
         description: `Attempting to open "${book.pdfFileName || book.title}" in a new tab.`,
       });
-      // The object URL should not be revoked here if the new tab is using it.
-      // Browsers typically manage the lifecycle of object URLs for open documents.
     } else {
       toast({
         title: "Could Not Open PDF Tab",
@@ -176,15 +170,14 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: B
         variant: "destructive",
         duration: 7000,
       });
-      // Fallback to download if opening new window failed
       try {
         const link = document.createElement('a');
-        link.href = objectUrl; // objectUrl should still be valid here
+        link.href = objectUrl; 
         link.download = book.pdfFileName || `${book.title || "book"}.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        URL.revokeObjectURL(objectUrl); // Revoke AFTER download initiated
+        URL.revokeObjectURL(objectUrl); 
         console.log("handleOpenPdf: Fallback to download initiated and object URL revoked.");
       } catch (downloadError: any) {
         console.error("handleOpenPdf: Error attempting to download PDF as fallback:", downloadError.message, downloadError);
@@ -194,7 +187,7 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: B
           variant: "destructive",
         });
         if (objectUrl) {
-          URL.revokeObjectURL(objectUrl); // Clean up if objectUrl was created but download failed
+          URL.revokeObjectURL(objectUrl); 
           console.log("handleOpenPdf: Object URL revoked after failed download attempt.");
         }
       }
@@ -246,10 +239,45 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: B
       </CardHeader>
       <CardContent className="p-4 pt-0 flex-grow">
         <p className="text-sm text-foreground/80 line-clamp-3">{book.summary || "No summary available."}</p>
+        
         {book.totalPages && book.totalPages > 0 && (
-          <div className="mt-2 text-xs text-muted-foreground">
-            <p>Progress: Page {book.currentPage || 1} of {book.totalPages} ({percentageRead}%)</p>
-            <div className="flex items-center space-x-2 mt-1">
+          <div className="mt-3 space-y-2">
+            <div className="flex items-center space-x-3">
+              <div className="relative h-12 w-12">
+                <svg className="h-full w-full" viewBox="0 0 36 36">
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="15.9155"
+                    fill="none"
+                    className="stroke-current text-muted/20" 
+                    strokeWidth="3"
+                  />
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="15.9155"
+                    fill="none"
+                    className="stroke-current text-primary" 
+                    strokeWidth="3"
+                    strokeDasharray={`${percentageRead}, 100`}
+                    strokeDashoffset="25" 
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-xs font-semibold text-foreground">
+                    {percentageRead}%
+                  </span>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">
+                  Page {book.currentPage || 1} of {book.totalPages}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
               <Input 
                 type="number" 
                 value={currentPageInput} 
