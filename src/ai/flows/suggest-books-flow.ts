@@ -43,7 +43,7 @@ const prompt = ai.definePrompt({
   name: 'suggestBooksPrompt',
   input: {schema: SuggestBooksInputSchema},
   output: {schema: SuggestBooksOutputSchema},
-  // Model will default to what's configured in src/ai/genkit.ts (googleai/gemini-1.5-flash-latest)
+  // Model will default to what's configured in src/ai/genkit.ts (e.g., googleai/gemini-1.5-flash-latest)
   prompt: `You are a knowledgeable and helpful AI Librarian and Book Expert.
 Your training data has a cutoff (generally early 2023), so you might not know about very recent releases or news.
 
@@ -65,22 +65,22 @@ Current User Query: "{{currentQuery}}"
 1.  **Analyze Query in Context**: Meticulously analyze the user's current query within the ENTIRE conversation history.
 
 2.  **Answering and Recommending**:
-    *   **Follow-up Questions**: If the user asks a follow-up question (e.g., "Tell me more about [book from history]", "Why was [book from history] banned?", "What was your last suggestion about?"), your **absolute priority** is to answer that question directly and comprehensively using your knowledge and the conversation history. Use the 'textResponse' field. You MUST reference the specific books or topics from the history in your answer.
-    *   **Book Recommendations**: If the query clearly asks for book recommendations:
-        *   Provide 3 to 5 thoughtful and diverse suggestions.
-        *   For each book, include title, author, and a compelling, specific reason (2-3 sentences) directly related to the user's query/history.
+    *   **Follow-up Questions**: If the user asks a follow-up question about a book/topic from history, your priority is to answer directly.
+    *   **Book Recommendations**: If the query asks for book recommendations:
+        *   Provide 3 to 5 thoughtful suggestions based on your internal knowledge.
+        *   For each book, include title, author, and a compelling reason.
         *   Populate the 'suggestions' field.
-    *   **General Questions/Information Synthesis**: For other questions, provide a helpful, informative text response. Synthesize information from your training data.
+    *   **General Questions/Information Synthesis**: For other questions, provide a helpful, informative text response based on your training data.
 
 3.  **Handling Information Gaps**:
-    *   If the query asks about topics you believe are beyond your training data cutoff, clearly state your knowledge cutoff. Do not invent information. For example, say: "My knowledge is current up to early 2023, so I may not have information on very recent releases. Based on what I know..."
+    *   If the query is about topics beyond your training data, clearly state your knowledge cutoff. Do not invent information. For example: "My knowledge is current up to early 2023. I can only provide information based on what I know up to that point."
 
 4.  **Output Format**:
-    *   Only use the 'suggestions' field when providing NEW book recommendations.
-    *   Use 'textResponse' for all other answers (general info, follow-ups, explanations).
-    *   You can populate both 'suggestions' and 'textResponse' if, for example, you provide a general answer and then offer related book suggestions.
+    *   Use 'suggestions' for NEW book recommendations.
+    *   Use 'textResponse' for all other answers.
+    *   You can populate both 'suggestions' and 'textResponse'.
 
-Ensure your response is in the structured JSON format as requested by the output schema. Be thoughtful, detailed, and clear.
+Ensure your response is in the structured JSON format as requested by the output schema.
 `,
 });
 
@@ -119,13 +119,12 @@ const suggestBooksFlow = ai.defineFlow(
         return finalOutput;
       } else {
         console.warn('AI model did not return any output for book suggestions/query. Returning default error.');
-        return { ...defaultOutput, textResponse: "I'm sorry, I wasn't able to generate a response for that. Please try again." };
+        return { ...defaultOutput, textResponse: "I'm sorry, I wasn't able to generate a response for that. Please try again."};
       }
     } catch (error: any) {
       console.error('Error during suggestBooksFlow:', error);
       let errorMessage = "An error occurred while trying to process your request. Please try again later.";
       if (error.message) {
-         // General error message, as specific API key/quota messages for OpenAI are removed
          errorMessage = `I encountered an issue processing that: ${error.message}. Please try rephrasing or ask something else.`;
       }
       return { ...defaultOutput, textResponse: errorMessage };

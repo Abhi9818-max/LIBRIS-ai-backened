@@ -19,7 +19,6 @@ interface Message {
   text?: string;
   suggestions?: SuggestBooksOutput["suggestions"];
   isLoading?: boolean;
-  // searchedWeb property removed
 }
 
 export default function AiRecommendationsPage() {
@@ -44,7 +43,7 @@ export default function AiRecommendationsPage() {
       {
         id: Date.now().toString(),
         sender: "ai",
-        text: "Hello! I'm your AI Librarian and Book Expert. I can help you find books, authors, and genres. My knowledge is current up to early 2023."
+        text: "Hello! I'm your AI Librarian and Book Expert. I can help you find books, authors, and genres based on my training data (up to early 2023)."
       }
     ]);
   }, []);
@@ -88,7 +87,6 @@ export default function AiRecommendationsPage() {
       const aiResponseMessage: Message = {
         id: loadingAiMessageId,
         sender: "ai",
-        // searchedWeb property removed
       };
       let hasContent = false;
 
@@ -205,7 +203,6 @@ export default function AiRecommendationsPage() {
                             ))}
                           </div>
                         )}
-                        {/* Removed searchedWeb indicator */}
                       </div>
                     </div>
                   </CardContent>
