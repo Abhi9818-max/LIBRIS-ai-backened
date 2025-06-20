@@ -1,143 +1,29 @@
 
 "use client";
 
-import { useState, useEffect, use } from "react";
-import type { Book } from "@/types";
-import BookCard from "@/components/BookCard";
-import UploadBookForm from "@/components/UploadBookForm";
+import { useState, useEffect } from "react";
+// import type { Book } from "@/types"; // Temporarily removed
+// import BookCard from "@/components/BookCard"; // Temporarily removed
+// import UploadBookForm from "@/components/UploadBookForm"; // Temporarily removed
 import { Button } from "@/components/ui/button";
 import { PlusCircle, BookOpen, Sun, Moon } from "lucide-react";
-import { useTheme } from "@/components/theme-provider";
-import { useToast } from "@/hooks/use-toast"; 
+// import { useTheme } from "@/components/theme-provider"; // Temporarily removed
+// import { useToast } from "@/hooks/use-toast"; // Temporarily removed
 
 export default function HomePage() {
-  const [books, setBooks] = useState<Book[]>([]);
+  // const [books, setBooks] = useState<Book[]>([]); // Temporarily removed
   const [isClient, setIsClient] = useState(false);
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [editingBook, setEditingBook] = useState<Book | null>(null);
-  const { theme, setTheme } = useTheme();
-  const { toast } = useToast();
+  // const [isUploadModalOpen, setIsUploadModalOpen] = useState(false); // Temporarily removed
+  // const [editingBook, setEditingBook] = useState<Book | null>(null); // Temporarily removed
+  // const { theme, setTheme } = useTheme(); // Temporarily removed
+  // const { toast } = useToast(); // Temporarily removed
 
   useEffect(() => {
     setIsClient(true);
-    let newBooks: Book[] = []; 
+    // All localStorage logic and other initial data loading effects temporarily removed
+  }, []);
 
-    try {
-      const storedBooksJson = localStorage.getItem("bookshelf_books");
-      if (storedBooksJson) {
-        const parsedData = JSON.parse(storedBooksJson);
-        if (Array.isArray(parsedData)) {
-          newBooks = parsedData.reduce((acc: Book[], item: any) => {
-            if (item && typeof item === 'object' && typeof item.id === 'string' && typeof item.title === 'string') {
-              acc.push({
-                id: item.id,
-                title: item.title,
-                author: typeof item.author === 'string' ? item.author : "Unknown Author",
-                summary: typeof item.summary === 'string' ? item.summary : "",
-                coverImageUrl: typeof item.coverImageUrl === 'string' ? item.coverImageUrl : "", 
-                pdfFileName: typeof item.pdfFileName === 'string' ? item.pdfFileName : "",
-                pdfDataUri: "", 
-                currentPage: typeof item.currentPage === 'number' ? item.currentPage : 1,
-                totalPages: typeof item.totalPages === 'number' ? item.totalPages : undefined,
-              });
-            } else {
-              console.warn("Skipping malformed book item from localStorage:", item);
-            }
-            return acc;
-          }, []);
-        } else if (parsedData !== null) { 
-          console.warn("Stored book data is not an array. Resetting to empty. Data was:", parsedData);
-        }
-      }
-    } catch (error) {
-      console.error("Failed to load or parse books from localStorage:", error);
-      toast({
-        title: "Loading Error",
-        description: "Could not load book data from your previous session. Your bookshelf data may have been corrupted and has been reset.",
-        variant: "destructive",
-      });
-      try {
-        localStorage.removeItem("bookshelf_books"); // Attempt to clear corrupted data
-      } catch (removeError) {
-        console.error("Failed to remove corrupted bookshelf_books from localStorage:", removeError);
-      }
-      // newBooks is already [], which is the correct fallback state
-    }
-    setBooks(newBooks); 
-  }, [toast]);
-
-
-  useEffect(() => {
-    if (isClient) {
-      try {
-        const booksToStore = books.map(book => {
-          const isCoverDataUri = typeof book.coverImageUrl === 'string' && book.coverImageUrl.startsWith('data:image');
-          
-          return {
-            id: book.id,
-            title: book.title,
-            author: book.author,
-            summary: book.summary,
-            coverImageUrl: isCoverDataUri ? "" : (book.coverImageUrl || ""),
-            pdfFileName: book.pdfFileName || "",
-            currentPage: book.currentPage,
-            totalPages: book.totalPages,
-          };
-        });
-        localStorage.setItem("bookshelf_books", JSON.stringify(booksToStore));
-      } catch (error: any) {
-        console.error("Failed to save books to localStorage:", error);
-        let description = "An error occurred while saving your books. Some data may not persist.";
-        if (error.name === 'QuotaExceededError' || (error.message && error.message.toLowerCase().includes('quota'))) {
-          description = "Could not save all book details due to browser storage limits. PDFs and custom cover images are not stored persistently. Metadata and reading progress are saved if possible.";
-        }
-        toast({
-          title: "Storage Error",
-          description: description,
-          variant: "destructive",
-          duration: 9000,
-        });
-      }
-    }
-  }, [books, isClient, toast]);
-
-  const handleSaveBook = (savedBook: Book, isEditingMode: boolean) => {
-    setBooks((prevBooks) =>
-      isEditingMode
-        ? prevBooks.map((book) => (book.id === savedBook.id ? savedBook : book))
-        : [...prevBooks, savedBook]
-    );
-    setIsUploadModalOpen(false);
-    setEditingBook(null); 
-  };
-
-  const handleOpenEditModal = (book: Book) => {
-    setEditingBook(book);
-    setIsUploadModalOpen(true);
-  };
-
-  const handleRemoveBook = (bookId: string) => {
-    setBooks((prevBooks) => prevBooks.filter((book) => book.id !== bookId));
-  };
-
-  const handleUpdateBookProgress = (bookId: string, newCurrentPage: number) => {
-    setBooks((prevBooks) =>
-      prevBooks.map((book) =>
-        book.id === bookId ? { ...book, currentPage: newCurrentPage } : book
-      )
-    );
-  };
-
-  const toggleTheme = () => {
-    setTheme(theme === "light" ? "dark" : "light");
-  };
-  
-  const handleModalOpenChange = (open: boolean) => {
-    setIsUploadModalOpen(open);
-    if (!open) {
-      setEditingBook(null); 
-    }
-  };
+  // All event handlers and other useEffects temporarily removed
 
   if (!isClient) {
     return (
@@ -154,54 +40,29 @@ export default function HomePage() {
         <div className="container mx-auto flex justify-between items-center">
           <h1 className="text-3xl font-headline text-primary flex items-center">
             <BookOpen className="h-8 w-8 mr-3 text-accent" />
-            BookShelf
+            BookShelf (Simplified Debug View)
           </h1>
           <div className="flex items-center space-x-2">
-            <Button onClick={() => { setEditingBook(null); setIsUploadModalOpen(true); }} aria-label="Add new book">
+            <Button aria-label="Add new book (disabled)">
               <PlusCircle className="mr-2 h-5 w-5" /> Add Book
             </Button>
-            <Button onClick={toggleTheme} variant="outline" size="icon" aria-label="Toggle theme">
-              {theme === "light" ? (
-                <Moon className="h-[1.2rem] w-[1.2rem]" />
-              ) : (
-                <Sun className="h-[1.2rem] w-[1.2rem]" />
-              )}
+            <Button variant="outline" size="icon" aria-label="Toggle theme (disabled)">
+              <Sun className="h-[1.2rem] w-[1.2rem]" /> {/* Placeholder icon */}
             </Button>
           </div>
         </div>
       </header>
 
       <main className="flex-grow container mx-auto p-4 md:p-8">
-        {(!Array.isArray(books) || books.length === 0) ? (
-          <div className="flex flex-col items-center justify-center text-center h-[60vh]">
-            <BookOpen className="h-24 w-24 text-muted-foreground mb-6" />
-            <h2 className="text-2xl font-headline text-foreground mb-2">Your bookshelf is empty.</h2>
-            <p className="text-muted-foreground mb-6">Click "Add Book" to start building your collection.</p>
-            <Button onClick={() => { setEditingBook(null); setIsUploadModalOpen(true);}} size="lg">
-              <PlusCircle className="mr-2 h-5 w-5" /> Add Your First Book
-            </Button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-            {books.map((book) => (
-              <BookCard 
-                key={book.id} 
-                book={book} 
-                onRemove={handleRemoveBook} 
-                onEdit={handleOpenEditModal}
-                onUpdateProgress={handleUpdateBookProgress} 
-              />
-            ))}
-          </div>
-        )}
+        <div className="flex flex-col items-center justify-center text-center h-[60vh]">
+          <BookOpen className="h-24 w-24 text-muted-foreground mb-6" />
+          <h2 className="text-2xl font-headline text-foreground mb-2">Simplified Page Content</h2>
+          <p className="text-muted-foreground mb-6">If you see this, the basic page structure is working. The error is in the removed logic.</p>
+          <p className="text-muted-foreground mb-6">If you still see a blank page, the error is likely outside this file.</p>
+        </div>
       </main>
 
-      <UploadBookForm
-        isOpen={isUploadModalOpen}
-        onOpenChange={handleModalOpenChange}
-        onSaveBook={handleSaveBook}
-        bookToEdit={editingBook}
-      />
+      {/* UploadBookForm component temporarily removed from render */}
 
       <footer className="py-4 px-4 md:px-8 border-t border-border mt-auto">
         <div className="container mx-auto text-center text-sm text-muted-foreground">
