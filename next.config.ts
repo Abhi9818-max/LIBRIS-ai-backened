@@ -19,6 +19,11 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  devIndicators: {
+    allowedDevOrigins: [
+      '6000-firebase-studio-1750350116247.cluster-xpmcxs2fjnhg6xvn446ubtgpio.cloudworkstations.dev',
+    ],
+  },
   async headers() {
     const scriptSrcDirectives = ["'self'", "https://cdnjs.cloudflare.com"];
     if (process.env.NODE_ENV === "development") {
