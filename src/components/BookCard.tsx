@@ -38,7 +38,6 @@ function dataURIToBlob(dataURI: string): Blob | null {
     return null;
   }
   const mimeType = mimeMatch[1];
-  console.log("dataURIToBlob: Extracted MIME type:", mimeType);
 
   let base64Data = base64DataDirty.trim(); 
 
@@ -46,7 +45,6 @@ function dataURIToBlob(dataURI: string): Blob | null {
     console.error("dataURIToBlob: Base64 data part is empty after trim.");
     return null;
   }
-  console.log("dataURIToBlob: Base64 data length (approx):", base64Data.length);
 
   try {
     const byteString = atob(base64Data);
@@ -54,7 +52,6 @@ function dataURIToBlob(dataURI: string): Blob | null {
     for (let i = 0; i < byteString.length; i++) {
       ia[i] = byteString.charCodeAt(i);
     }
-    console.log("dataURIToBlob: Successfully converted base64 to Blob (1st attempt). Blob type:", mimeType, "Actual Blob size:", ia.byteLength);
     return new Blob([ia], { type: mimeType });
   } catch (error: any) {
     console.error("dataURIToBlob: Error converting base64 to Blob (1st attempt):", error.name, error.message);
@@ -62,14 +59,12 @@ function dataURIToBlob(dataURI: string): Blob | null {
     if (error instanceof DOMException && error.name === 'InvalidCharacterError') {
       console.warn("dataURIToBlob: InvalidCharacterError encountered. Trying to decode URI components in base64 string.");
       try {
-        // Common fix: if base64 string was URL encoded (e.g. '+' became '%2B' or space)
         const decodedBase64 = decodeURIComponent(base64Data);
         const byteStringDecoded = atob(decodedBase64); 
         const iaDecoded = new Uint8Array(byteStringDecoded.length);
         for (let i = 0; i < byteStringDecoded.length; i++) {
           iaDecoded[i] = byteStringDecoded.charCodeAt(i);
         }
-        console.log("dataURIToBlob: Successfully converted to Blob after URI decoding (2nd attempt). Blob type:", mimeType, "Actual Blob size:", iaDecoded.byteLength);
         return new Blob([iaDecoded], { type: mimeType });
       } catch (decodeError: any) {
         console.error("dataURIToBlob: Error converting base64 to Blob after URI decoding (2nd attempt failed):", decodeError.name, decodeError.message);
@@ -84,11 +79,20 @@ function dataURIToBlob(dataURI: string): Blob | null {
 export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: BookCardProps) {
   const { toast } = useToast();
   const [currentPageInput, setCurrentPageInput] = useState<string>((book.currentPage || 1).toString());
+  const [progressColor, setProgressColor] = useState<string>('hsl(var(--primary))'); // Default to primary theme color
 
   // Effect to update currentPageInput when book.currentPage changes from props
   useEffect(() => {
     setCurrentPageInput((book.currentPage || 1).toString());
   }, [book.currentPage]);
+
+  // Effect to set a random color for the progress circle on mount (client-side only)
+  useEffect(() => {
+    const randomHue = Math.floor(Math.random() * 360);
+    const randomSaturation = Math.floor(Math.random() * 30) + 70; // Saturation between 70% and 100%
+    const randomLightness = Math.floor(Math.random() * 20) + 50; // Lightness between 50% and 70%
+    setProgressColor(`hsl(${randomHue}, ${randomSaturation}%, ${randomLightness}%)`);
+  }, []); // Empty dependency array ensures this runs once on mount on the client
 
   const handleOpenPdf = () => {
     if (!book.pdfDataUri || !book.pdfDataUri.startsWith('data:application/pdf;base64,')) {
@@ -100,7 +104,6 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: B
       console.error("handleOpenPdf: Invalid or missing PDF Data URI for book:", book.title, "URI Start:", book.pdfDataUri?.substring(0,100) + "...");
       return;
     }
-    console.log("handleOpenPdf: Attempting to process PDF for", book.title);
 
     let pdfBlob: Blob | null = null;
     try {
@@ -134,7 +137,6 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: B
       console.error("handleOpenPdf: Blob type is not application/pdf. Type:", pdfBlob.type);
       return;
     }
-    console.log("handleOpenPdf: PDF Blob created successfully. Size:", pdfBlob.size, "Type:", pdfBlob.type);
 
     let objectUrl: string | null = null;
     try {
@@ -142,7 +144,6 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: B
         if (!objectUrl) {
             throw new Error("URL.createObjectURL returned null or empty string.");
         }
-        console.log("handleOpenPdf: Created Object URL:", objectUrl);
     } catch (createUrlError: any) {
         console.error("handleOpenPdf: Error creating Object URL:", createUrlError.message, createUrlError);
         toast({
@@ -154,7 +155,6 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: B
     }
 
     const newWindow = window.open('', '_blank');
-    console.log("handleOpenPdf: window.open attempt. newWindow object:", newWindow);
 
     if (newWindow && objectUrl) {
       newWindow.document.title = book.pdfFileName || book.title || "PDF Document";
@@ -178,7 +178,6 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: B
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(objectUrl); 
-        console.log("handleOpenPdf: Fallback to download initiated and object URL revoked.");
       } catch (downloadError: any) {
         console.error("handleOpenPdf: Error attempting to download PDF as fallback:", downloadError.message, downloadError);
         toast({
@@ -188,7 +187,6 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: B
         });
         if (objectUrl) {
           URL.revokeObjectURL(objectUrl); 
-          console.log("handleOpenPdf: Object URL revoked after failed download attempt.");
         }
       }
     }
@@ -258,7 +256,7 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: B
                     cy="18"
                     r="15.9155"
                     fill="none"
-                    className="stroke-current text-primary" 
+                    stroke={progressColor}
                     strokeWidth="3"
                     strokeDasharray={`${percentageRead}, 100`}
                     strokeDashoffset="25" 
