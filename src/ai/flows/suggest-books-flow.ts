@@ -14,7 +14,7 @@ import {z} from 'genkit';
 const BookSuggestionSchema = z.object({
   title: z.string().describe('The title of the suggested book.'),
   author: z.string().describe('The author of the suggested book.'),
-  reason: z.string().describe('A brief reason why this book is recommended based on the user query and conversation history.'),
+  reason: z.string().describe('A compelling and specific reason (2-3 sentences) why this book is recommended, directly related to the user\'s query and conversation history. Avoid generic reasons; explain the book\'s relevance clearly.'),
 });
 
 const ChatMessageSchema = z.object({
@@ -30,7 +30,7 @@ export type SuggestBooksInput = z.infer<typeof SuggestBooksInputSchema>;
 
 const SuggestBooksOutputSchema = z.object({
   textResponse: z.string().optional().describe('A general text response from the AI if not providing specific book suggestions.'),
-  suggestions: z.array(BookSuggestionSchema).optional().describe('A list of 3 to 5 book suggestions, if applicable.'),
+  suggestions: z.array(BookSuggestionSchema).optional().describe('A list of 3 to 5 thoughtful and diverse book suggestions, if applicable.'),
 });
 export type SuggestBooksOutput = z.infer<typeof SuggestBooksOutputSchema>;
 
@@ -59,7 +59,7 @@ Current User Query: "{{currentQuery}}"
 
 Your task is to:
 1.  Analyze the user's current query in the context of the conversation history.
-2.  If the query clearly asks for book recommendations (e.g., "suggest books about...", "I'm looking for...", "recommend me...", "find books like..."), provide 3 to 5 book suggestions. For each book, include the title, the author, and a brief reason (1-2 sentences) why it's a good recommendation. Populate the 'suggestions' field in the JSON output.
+2.  If the query clearly asks for book recommendations (e.g., "suggest books about...", "I'm looking for...", "recommend me...", "find books like..."), provide 3 to 5 thoughtful and diverse book suggestions. For each book, include the title, the author, and a compelling and specific reason (2-3 sentences) why it's a good recommendation *directly related to the user's query and conversation history*. Avoid generic reasons; explain the book's relevance clearly. Populate the 'suggestions' field in the JSON output. If the user's query is specific, try to match that specificity. If it's broad, offer a range that touches on different aspects of their interest.
 3.  If the user asks a general question (e.g., "Tell me about Ernest Hemingway", "Why was 'To Kill a Mockingbird' banned?", "What are common themes in dystopian fiction?", "What was your last suggestion about?"), provide a helpful and informative text response. Populate the 'textResponse' field in the JSON output. Use the conversation history to understand follow-up questions.
 4.  If the query is ambiguous, you can ask for clarification or offer a relevant general response in the 'textResponse' field.
 5.  Prioritize providing a direct text answer in 'textResponse' if the query is a question not explicitly asking for recommendations.

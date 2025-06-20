@@ -64,7 +64,7 @@ export default function AiRecommendationsPage() {
 
     try {
       const historyForAI = currentMessages
-        .filter(msg => !msg.isLoading && (msg.text || (msg.suggestions && msg.suggestions.length > 0))) // Only include messages with content
+        .filter(msg => !msg.isLoading && (msg.text || (msg.suggestions && msg.suggestions.length > 0))) 
         .map(msg => {
           let content = msg.text || "";
           if (!content && msg.suggestions && msg.suggestions.length > 0) {
@@ -76,7 +76,6 @@ export default function AiRecommendationsPage() {
             content: content,
           };
         })
-        // Remove the last message from history if it's the current user query, as it's passed separately
         .slice(0, -1);
 
 
@@ -187,16 +186,15 @@ export default function AiRecommendationsPage() {
                         {message.text && <p className="whitespace-pre-wrap">{message.text}</p>}
                         {message.suggestions && message.suggestions.length > 0 && (
                           <div className="space-y-3 mt-2">
-                            {message.text && <div className="mb-2 border-b pb-2"></div>} 
+                            {message.text && <div className="mb-2 border-b border-border/50 pb-2"></div>} 
                             {message.suggestions.map((book, index) => (
-                              <Card key={index} className="bg-background/70 dark:bg-muted/70 shadow-inner">
-                                <CardHeader className="pb-1 pt-3 px-3">
-                                  <CardTitle className="text-base font-headline">{book.title}</CardTitle>
-                                  <CardDescription className="text-xs">By: {book.author}</CardDescription>
+                              <Card key={index} className="bg-muted/50 dark:bg-muted/30 shadow-sm border border-border/50">
+                                <CardHeader className="p-3 pb-2">
+                                  <CardTitle className="text-md font-semibold font-headline text-primary">{book.title}</CardTitle>
+                                  <CardDescription className="text-sm text-muted-foreground">By: {book.author}</CardDescription>
                                 </CardHeader>
-                                <CardContent className="text-sm px-3 pb-3">
-                                  <p className="text-xs italic mb-1">AI Recommendation:</p>
-                                  <p>{book.reason}</p>
+                                <CardContent className="text-sm p-3 pt-0">
+                                  <p className="text-foreground/90">{book.reason}</p>
                                 </CardContent>
                               </Card>
                             ))}
