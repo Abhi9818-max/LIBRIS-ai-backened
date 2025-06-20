@@ -125,7 +125,12 @@ const suggestBooksFlow = ai.defineFlow(
       console.error('Error during suggestBooksFlow:', error);
       let errorMessage = "An error occurred while trying to process your request. Please try again later.";
       if (error.message) {
-         errorMessage = `I encountered an issue processing that: ${error.message}. Please try rephrasing or ask something else.`;
+         // Check if the error message already indicates an API key issue to avoid redundancy.
+         if (error.message.includes('API key') || error.message.includes('GEMINI_API_KEY') || error.message.includes('GOOGLE_API_KEY')) {
+            errorMessage = `There seems to be an issue with the AI service configuration: ${error.message}. Please check the API key and environment setup.`;
+         } else {
+            errorMessage = `I encountered an issue processing that: ${error.message}. Please try rephrasing or ask something else.`;
+         }
       }
       return { ...defaultOutput, textResponse: errorMessage };
     }
