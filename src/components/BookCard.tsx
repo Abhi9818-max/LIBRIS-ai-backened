@@ -221,7 +221,11 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: B
   return (
     <Card className="flex flex-col overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out animate-fade-in">
       <CardHeader className="p-4">
-        <div className="aspect-[2/3] w-full relative mb-2 rounded-md overflow-hidden">
+        <div 
+          className="aspect-[2/3] w-full relative mb-2 rounded-md overflow-hidden cursor-pointer"
+          onDoubleClick={book.pdfDataUri ? handleOpenPdf : undefined}
+          title={book.pdfDataUri ? "Double-click to open PDF" : "No PDF available"}
+        >
           <Image
             src={book.coverImageUrl || "https://placehold.co/200x300.png"}
             alt={`Cover of ${book.title}`}
