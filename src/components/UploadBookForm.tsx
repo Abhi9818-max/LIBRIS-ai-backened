@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { UploadCloud, ImageUp, Loader2, Sparkles } from "lucide-react";
+import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from 'pdfjs-dist';
 
 const BookFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -54,7 +55,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
   const [currentPdfDataUri, setCurrentPdfDataUri] = useState<string | null>(null);
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
-  const [isExtracting, setIsExtracting] = useState(false);
+  const [isProcessingPdf, setIsProcessingPdf] = useState(false); // Unified state for PDF processing
   const [isGeneratingCover, setIsGeneratingCover] = useState(false);
   const { toast } = useToast();
   const isEditing = !!bookToEdit;
@@ -64,6 +65,12 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     defaultValues: { title: "", author: "", summary: "", totalPages: null },
   });
 
+  useEffect(() => {
+    // Set up pdf.js worker. Version comes from package.json for pdfjs-dist.
+    // Downgraded to 3.11.174 to fix "Promise.withResolvers is not a function"
+    GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+  }, []);
+
   const resetFormState = useCallback(() => {
     form.reset({ title: "", author: "", summary: "", totalPages: null });
     setPdfFile(null);
@@ -71,7 +78,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     setCurrentPdfDataUri(null);
     setCoverImageFile(null);
     setCoverPreviewUrl(null);
-    setIsExtracting(false);
+    setIsProcessingPdf(false);
     setIsGeneratingCover(false);
   }, [form]);
 
@@ -123,7 +130,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
          if (!isEditing) setCoverPreviewUrl(null); 
       }
       
-      setIsExtracting(true);
+      setIsProcessingPdf(true);
       let pdfDataUriForMeta = "";
 
       try {
@@ -147,10 +154,28 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
             setPdfFileName("");
             setCurrentPdfDataUri(null);
         }
-        setIsExtracting(false);
+        setIsProcessingPdf(false);
         return;
       }
 
+      // Try to get page count
+      try {
+        const loadingTask = getDocument(pdfDataUriForMeta);
+        const pdfDoc: PDFDocumentProxy = await loadingTask.promise;
+        if (pdfDoc.numPages > 0) {
+            form.setValue("totalPages", pdfDoc.numPages);
+            toast({ title: "Page Count Detected", description: `Automatically filled total pages: ${pdfDoc.numPages}.` });
+        }
+      } catch (pageCountError: any) {
+          console.error("Error getting page count:", pageCountError);
+          toast({
+              title: "Page Count Error",
+              description: "Could not automatically determine page count. Please enter manually.",
+              variant: "destructive",
+          });
+      }
+
+      // Try to extract metadata
       try {
         const metadata = await extractBookMetadata({ pdfDataUri: pdfDataUriForMeta });
         form.setValue("title", metadata.title || form.getValues("title"));
@@ -192,7 +217,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
             setCoverPreviewUrl(null);
         }
       } finally {
-        setIsExtracting(false);
+        setIsProcessingPdf(false);
          if (!isEditing && !coverImageFile && !isGeneratingCover && currentPdfDataUri) { 
              if (!form.getValues("title") && !form.getValues("summary")) { 
                 setCoverPreviewUrl(null); 
@@ -399,10 +424,10 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
             </div>
           </div>
 
-          {isExtracting && (
+          {isProcessingPdf && ( // Unified loading indicator
             <div className="flex items-center justify-center p-4 text-primary">
               <Loader2 className="h-5 w-5 animate-spin mr-2" />
-              <span>Extracting metadata...</span>
+              <span>Processing PDF...</span>
             </div>
           )}
 
@@ -469,8 +494,8 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
             <DialogClose asChild>
               <Button type="button" variant="outline" onClick={handleDialogClose}>Cancel</Button>
             </DialogClose>
-            <Button type="submit" disabled={isExtracting || isGeneratingCover || (!isEditing && !currentPdfDataUri && !pdfFile) }>
-              {(isExtracting || isGeneratingCover) ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            <Button type="submit" disabled={isProcessingPdf || isGeneratingCover || (!isEditing && !currentPdfDataUri && !pdfFile) }>
+              {(isProcessingPdf || isGeneratingCover) ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {isEditing ? "Save Changes" : "Add Book"}
             </Button>
           </DialogFooter>
@@ -479,4 +504,3 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     </Dialog>
   );
 }
-
