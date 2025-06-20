@@ -2,12 +2,12 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import type { Book } from "@/types";
 import BookCard from "@/components/BookCard";
 import UploadBookForm from "@/components/UploadBookForm";
-import BookSuggestionsDialog from "@/components/BookSuggestionsDialog"; // Import new dialog
 import { Button } from "@/components/ui/button";
-import { PlusCircle, BookOpen, Sun, Moon, SearchX, Lightbulb } from "lucide-react"; // Added Lightbulb
+import { PlusCircle, BookOpen, Sun, Moon, SearchX, Lightbulb } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { useToast } from "@/hooks/use-toast";
 
@@ -16,7 +16,6 @@ export default function HomePage() {
   const [isClient, setIsClient] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [editingBook, setEditingBook] = useState<Book | null>(null);
-  const [isSuggestionsModalOpen, setIsSuggestionsModalOpen] = useState(false); // State for new dialog
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
 
@@ -151,17 +150,19 @@ export default function HomePage() {
     <div className="flex flex-col min-h-screen bg-background">
       <header className="py-6 px-4 md:px-8 border-b border-border shadow-sm sticky top-0 bg-background/95 backdrop-blur-sm z-10">
         <div className="container mx-auto flex justify-between items-center">
-          <h1 className="text-3xl font-headline text-primary flex items-center">
+          <Link href="/" className="text-3xl font-headline text-primary flex items-center">
             <BookOpen className="h-8 w-8 mr-3 text-accent" />
             BookShelf
-          </h1>
+          </Link>
           <div className="flex items-center space-x-2">
             <Button 
               variant="outline"
               aria-label="Get AI book recommendations" 
-              onClick={() => setIsSuggestionsModalOpen(true)}
+              asChild
             >
-              <Lightbulb className="mr-2 h-5 w-5" /> AI Recommends
+              <Link href="/ai-recommendations">
+                <Lightbulb className="mr-2 h-5 w-5" /> AI Recommends
+              </Link>
             </Button>
             <Button aria-label="Add new book" onClick={() => handleOpenUploadModal()}>
               <PlusCircle className="mr-2 h-5 w-5" /> Add Book
@@ -213,13 +214,6 @@ export default function HomePage() {
           onOpenChange={setIsUploadModalOpen}
           onSaveBook={handleSaveBook}
           bookToEdit={editingBook}
-        />
-      )}
-
-      {isSuggestionsModalOpen && (
-        <BookSuggestionsDialog
-          isOpen={isSuggestionsModalOpen}
-          onOpenChange={setIsSuggestionsModalOpen}
         />
       )}
 
