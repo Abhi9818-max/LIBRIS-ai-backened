@@ -9,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { suggestBooks, SuggestBooksOutput, SuggestBooksInput } from "@/ai/flows/suggest-books-flow";
-import { Loader2, Sparkles, Send, User, Bot, BookOpen, ChevronLeft } from "lucide-react"; // Globe removed
+import { Loader2, Sparkles, Send, User, Bot, BookOpen, ChevronLeft } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { Sun, Moon } from "lucide-react";
 
@@ -19,7 +19,6 @@ interface Message {
   text?: string;
   suggestions?: SuggestBooksOutput["suggestions"];
   isLoading?: boolean;
-  // searchedWeb?: boolean; // Removed searchedWeb
 }
 
 export default function AiRecommendationsPage() {
@@ -44,7 +43,7 @@ export default function AiRecommendationsPage() {
       {
         id: Date.now().toString(),
         sender: "ai",
-        text: "Hello! I'm your AI Librarian and Book Expert. I can help you find books, authors, and genres based on my training data (up to early 2023)."
+        text: "Hello! I'm your AI Librarian and Book Expert. I can help you find books, authors, and genres."
       }
     ]);
   }, []);
@@ -72,9 +71,6 @@ export default function AiRecommendationsPage() {
             const bookTitles = msg.suggestions.map(s => s.title).join(", ");
             content = `I suggested the following books: ${bookTitles}.`;
           }
-          // if (msg.searchedWeb) { // Removed searchedWeb logic
-          //   content += " (Note: previous response involved a web search)";
-          // }
           return {
             role: msg.sender === "user" ? "user" : "model",
             content: content,
@@ -91,7 +87,6 @@ export default function AiRecommendationsPage() {
       const aiResponseMessage: Message = {
         id: loadingAiMessageId,
         sender: "ai",
-        // searchedWeb: result.searchedWeb || false, // Removed searchedWeb
       };
       let hasContent = false;
 
@@ -124,7 +119,7 @@ export default function AiRecommendationsPage() {
       setMessages((prevMessages) =>
          prevMessages.map(msg =>
           msg.id === loadingAiMessageId
-          ? { id: loadingAiMessageId, sender: "ai", text: errorMessageText } // Removed searchedWeb
+          ? { id: loadingAiMessageId, sender: "ai", text: errorMessageText }
           : msg
         )
       );
@@ -184,9 +179,6 @@ export default function AiRecommendationsPage() {
                       {message.sender === "ai" && (
                         <div className="flex-shrink-0 mt-0.5 relative">
                            <Bot className="h-5 w-5 text-accent" />
-                           {/* {message.searchedWeb && ( // Removed Globe icon for web search
-                             <Globe className="h-3 w-3 text-blue-500 absolute -top-1 -right-1" title="Web search used" />
-                           )} */}
                         </div>
                       )}
                       {message.sender === "user" && <User className="h-5 w-5 text-primary-foreground flex-shrink-0 mt-0.5" />}

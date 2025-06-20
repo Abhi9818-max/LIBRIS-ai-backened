@@ -10,7 +10,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'genkit/zod';
 
 const BookSuggestionSchema = z.object({
   title: z.string().describe('The title of the suggested book.'),
@@ -19,20 +19,19 @@ const BookSuggestionSchema = z.object({
 });
 
 const ChatMessageSchema = z.object({
-  role: z.enum(['user', 'model']).describe("The role of the message sender, either 'user' or 'model' (for AI)."),
+  role: z.enum(['user', 'model']).describe("The role of the message sender: 'user' or 'model' (for AI)."),
   content: z.string().describe("The text content of the message."),
 });
 
 const SuggestBooksInputSchema = z.object({
   currentQuery: z.string().describe("The user's current query or message in the conversation."),
-  history: z.array(ChatMessageSchema).optional().describe('The conversation history up to this point, ordered from oldest to newest.'),
+  history: z.array(ChatMessageSchema).optional().describe('The conversation history up to this point, ordered from oldest to newest. Includes user and model messages.'),
 });
 export type SuggestBooksInput = z.infer<typeof SuggestBooksInputSchema>;
 
 const SuggestBooksOutputSchema = z.object({
   textResponse: z.string().optional().describe('A general text response from the AI if not providing specific book suggestions.'),
   suggestions: z.array(BookSuggestionSchema).optional().describe('A list of 3 to 5 thoughtful and diverse book suggestions, if applicable.'),
-  // searchedWeb: z.boolean().optional().default(false).describe('Indicates if a web search was performed by any tool to generate this response.'),
 });
 export type SuggestBooksOutput = z.infer<typeof SuggestBooksOutputSchema>;
 
@@ -44,7 +43,6 @@ const prompt = ai.definePrompt({
   name: 'suggestBooksPrompt',
   input: {schema: SuggestBooksInputSchema},
   output: {schema: SuggestBooksOutputSchema},
-  // tools: [performWebSearchTool], // Web search tool removed
   // Model will default to what's configured in src/ai/genkit.ts (e.g., googleai/gemini-1.5-flash-latest)
   prompt: `You are a knowledgeable and helpful AI Librarian and Book Expert.
 Your training data has a cutoff (generally early 2023).
@@ -75,7 +73,7 @@ Current User Query: "{{currentQuery}}"
     *   **General Questions/Information Synthesis**: For other questions, provide a helpful, informative text response.
 
 3.  **Handling Information Gaps**:
-    *   If the query is about topics beyond your training data, clearly state your knowledge cutoff. Do not invent information. For example: "My knowledge is current up to early 2023. I can only provide information based on what I know up to that point."
+    *   If you can't find relevant information state your limitations or knowledge cutoff. For example: "My knowledge is current up to early 2023. I couldn't find specific information on that topic." Do not invent information.
 
 4.  **Output Format**:
     *   Use 'suggestions' for NEW book recommendations.
@@ -89,7 +87,6 @@ Ensure your response is in the structured JSON format as requested by the output
 const defaultOutput: SuggestBooksOutput = {
   textResponse: "I'm sorry, I couldn't process that request. Please try again or rephrase your query.",
   suggestions: [],
-  // searchedWeb: false, // Removed searchedWeb
 };
 
 const suggestBooksFlow = ai.defineFlow(
@@ -100,13 +97,13 @@ const suggestBooksFlow = ai.defineFlow(
   },
   async (input): Promise<SuggestBooksOutput> => {
     try {
-      const filteredHistory = input.history?.filter(item => item.content && item.content.trim() !== "") || [];
+      const filteredHistory = input.history?.filter(item => (item.content && item.content.trim() !== "")) || [];
       const promptInput = { ...input, history: filteredHistory };
 
-      const {output} = await prompt(promptInput); // Removed flowHistory as tool usage is no longer tracked here
+      const {output} = await prompt(promptInput);
       
       if (output) {
-        const finalOutput: SuggestBooksOutput = { }; // searchedWeb removed
+        const finalOutput: SuggestBooksOutput = { };
 
         if (output.suggestions && output.suggestions.length > 0) {
             finalOutput.suggestions = output.suggestions;
@@ -122,7 +119,7 @@ const suggestBooksFlow = ai.defineFlow(
         return finalOutput;
       } else {
         console.warn('AI model did not return any output for book suggestions/query. Returning default error.');
-        return { ...defaultOutput, textResponse: "I'm sorry, I wasn't able to generate a response for that. Please try again." };
+        return { ...defaultOutput, textResponse: "I'm sorry, I wasn't able to generate a response for that. Please try again."};
       }
     } catch (error: any) {
       console.error('Error during suggestBooksFlow:', error);
