@@ -86,7 +86,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         });
         setCoverPreviewUrl(bookToEdit.coverImageUrl);
         setPdfFileName(bookToEdit.pdfFileName || "");
-        setCurrentPdfDataUri(bookToEdit.pdfDataUri || null);
+        setCurrentPdfDataUri(bookToEdit.pdfDataUri || null); 
         setPdfFile(null); 
         setCoverImageFile(null);
       } else {
@@ -118,7 +118,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       setPdfFile(file); 
       setPdfFileName(file.name);
       
-      if (!isEditing || (isEditing && file)) {
+      if (!isEditing || (isEditing && file)) { 
          form.reset({ title: bookToEdit?.title || "", author: bookToEdit?.author || "", summary: bookToEdit?.summary || "", totalPages: bookToEdit?.totalPages || null }); 
          if (!isEditing) setCoverPreviewUrl(null); 
       }
@@ -183,19 +183,19 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         console.error("Failed to extract metadata or generate cover:", aiError);
         toast({
           title: "AI Processing Error",
-          description: `AI processing failed: ${aiError.message || "Unknown error"}. Please fill in details manually. PDF is still attached.`,
+          description: `AI processing failed: ${aiError.message || "Unknown error"}. Please fill in details manually. PDF is still attached if it was read successfully.`,
           variant: "destructive",
         });
          if (isEditing && !coverImageFile && bookToEdit?.coverImageUrl) {
             setCoverPreviewUrl(bookToEdit.coverImageUrl); 
-        } else {
-            setCoverPreviewUrl(null); 
+        } else if (!currentPdfDataUri) { // if PDF itself failed to read, no cover
+            setCoverPreviewUrl(null);
         }
       } finally {
         setIsExtracting(false);
-         if (!isEditing && !coverImageFile && !isGeneratingCover) { // Handle case where AI cover gen was skipped or failed for new book
-             if (!form.getValues("title") || !form.getValues("summary")) { // And no title/summary was extracted or manually entered
-                setCoverPreviewUrl(null); // Then no basis for AI cover, so ensure placeholder
+         if (!isEditing && !coverImageFile && !isGeneratingCover && currentPdfDataUri) { 
+             if (!form.getValues("title") && !form.getValues("summary")) { 
+                setCoverPreviewUrl(null); 
              }
         }
       }
@@ -303,6 +303,8 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     let finalCoverImageUrl = "https://placehold.co/200x300.png";
 
     if (isEditing && bookToEdit) {
+      // For PDF: if a new pdfFile is staged (meaning currentPdfDataUri was updated from it), use it.
+      // Otherwise, preserve the existing pdfDataUri from bookToEdit.
       if (pdfFile && currentPdfDataUri) { 
         finalPdfDataUri = currentPdfDataUri;
         finalPdfFileName = pdfFileName || (pdfFile.name);
@@ -311,20 +313,29 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         finalPdfFileName = bookToEdit.pdfFileName || "";
       }
 
-      if (coverImageFile && coverPreviewUrl) { 
+      // For Cover Image: if a new coverImageFile is staged (meaning coverPreviewUrl was updated from it), use it.
+      // Else if coverPreviewUrl exists and is a data URI (AI generated or re-generated), use it.
+      // Else if coverPreviewUrl is a non-data URI (e.g. placeholder or external URL that was manually entered/kept), use it.
+      // Else, if bookToEdit had a coverImageUrl, keep it.
+      // Default to placeholder if nothing else.
+      if (coverImageFile && coverPreviewUrl && coverPreviewUrl.startsWith('data:image')) { 
         finalCoverImageUrl = coverPreviewUrl;
-      } else if (coverPreviewUrl && coverPreviewUrl.startsWith('data:image') && coverPreviewUrl !== bookToEdit.coverImageUrl) {
+      } else if (coverPreviewUrl && coverPreviewUrl.startsWith('data:image')) { // AI generated during this edit
         finalCoverImageUrl = coverPreviewUrl;
-      } else if (coverPreviewUrl && !coverPreviewUrl.startsWith('data:image') && coverPreviewUrl !== bookToEdit.coverImageUrl ) { 
-        finalCoverImageUrl = coverPreviewUrl;
-      } else if (coverPreviewUrl === null && bookToEdit.coverImageUrl && !coverPreviewUrl?.startsWith('data:image')) {
-        // User might have cleared an uploaded/AI image to revert to placeholder
-        finalCoverImageUrl = "https://placehold.co/200x300.png";
+      } else if (coverPreviewUrl && !coverPreviewUrl.startsWith('data:image')) { // Manual URL or placeholder entered
+         finalCoverImageUrl = coverPreviewUrl;
+      } else if (!coverPreviewUrl && coverImageFile) { // This case should not happen if readFileAsDataURL worked for coverImageFile
+         finalCoverImageUrl = bookToEdit.coverImageUrl || "https://placehold.co/200x300.png"; // fallback
       }
-      else {
-        finalCoverImageUrl = bookToEdit.coverImageUrl || "https://placehold.co/200x300.png";
+      else if (!coverPreviewUrl && !coverImageFile && bookToEdit.coverImageUrl) { // User cleared image or no new image uploaded
+         finalCoverImageUrl = bookToEdit.coverImageUrl;
       }
-    } else { 
+       else { // Fallback if all else fails or user explicitly removed cover
+        finalCoverImageUrl = bookToEdit.coverImageUrl && !coverImageFile ? bookToEdit.coverImageUrl : "https://placehold.co/200x300.png";
+      }
+
+
+    } else { // Adding a new book
       finalPdfDataUri = currentPdfDataUri || "";
       finalPdfFileName = pdfFileName || (pdfFile ? pdfFile.name : "");
       finalCoverImageUrl = coverPreviewUrl || "https://placehold.co/200x300.png";
@@ -391,7 +402,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
                 </Label>
                 {!pdfFileName && <p className="pl-1">or drag and drop</p>}
               </div>
-              <p className="text-xs text-muted-foreground">{pdfFileName || (isEditing && bookToEdit?.pdfFileName ? "Keep existing PDF" : "PDF up to 10MB (approx)")}</p>
+              <p className="text-xs text-muted-foreground">{pdfFileName || (isEditing && bookToEdit?.pdfFileName ? "Keep existing PDF" : "PDF up to 100MB (Note: Processing very large files may be slow or fail due to browser/server limits)")}</p>
             </div>
           </div>
 
