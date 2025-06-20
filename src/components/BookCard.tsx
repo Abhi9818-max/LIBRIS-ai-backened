@@ -19,7 +19,7 @@ export default function BookCard({ book, onRemove, onEdit }: BookCardProps) {
   const handleOpenPdf = () => {
     if (!book.pdfDataUri || !book.pdfDataUri.startsWith('data:application/pdf;base64,')) {
       toast({
-        title: "Cannot Initiate Download",
+        title: "Cannot Open PDF",
         description: "No valid PDF data is associated with this book. Please re-upload or edit the book to add a PDF.",
         variant: "destructive",
       });
@@ -28,31 +28,40 @@ export default function BookCard({ book, onRemove, onEdit }: BookCardProps) {
     }
 
     try {
-      const link = document.createElement('a');
-      link.href = book.pdfDataUri;
-      
-      let fileName = book.pdfFileName || `${book.title.replace(/[^\w\s.-]/g, '_').replace(/\s+/g, '_') || 'document'}.pdf`;
-      link.download = fileName;
-      
-      console.log("Attempting to download with filename:", link.download);
-
-      link.style.display = 'none'; 
-      document.body.appendChild(link);
-      link.click(); 
-      document.body.removeChild(link);
-      
-      toast({
-        title: "PDF Download Initiated",
-        description: `The download for "${link.download}" should start. If you see 'about:blank#blocked' or the file downloads as "untitled", please check your browser's popup blocker and download settings. These can interfere with downloads from data URIs. You might need to adjust site permissions.`,
-        variant: "default",
-        duration: 9000, 
-      });
-
+      // Attempt to open in a new tab
+      const pdfWindow = window.open("");
+      if (pdfWindow) {
+        pdfWindow.document.write(
+          `<iframe width='100%' height='100%' src='${book.pdfDataUri}'></iframe>`
+        );
+        pdfWindow.document.title = book.pdfFileName || book.title || "Book";
+        toast({
+            title: "Opening PDF",
+            description: `Attempting to open "${book.pdfFileName || book.title}" in a new tab. If it doesn't open, check your browser's popup blocker.`,
+            variant: "default",
+        });
+      } else {
+        // Fallback if window.open is blocked, try direct link click (might download)
+        const link = document.createElement('a');
+        link.href = book.pdfDataUri;
+        link.target = "_blank"; // Try to open in new tab
+        link.rel = "noopener noreferrer"; // Security best practice
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast({
+            title: "Opening PDF",
+            description: `Attempting to open "${book.pdfFileName || book.title}". If a new tab didn't appear, your browser might have blocked it or started a download. Please check your popup blocker settings.`,
+            variant: "default",
+            duration: 7000,
+        });
+      }
     } catch (error) {
-      console.error("Error attempting to download PDF:", error);
+      console.error("Error attempting to open PDF:", error);
       toast({
-        title: "PDF Download Failed",
-        description: "Could not initiate PDF download. Please check the browser console for more details.",
+        title: "PDF Open Failed",
+        description: "Could not open PDF. Please check the browser console for more details.",
         variant: "destructive",
       });
     }
