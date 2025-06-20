@@ -22,19 +22,23 @@ if (typeof window !== 'undefined') {
   const localWorkerUrl = '/pdf.worker.min.js';
   const cdnWorkerUrl = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${KNOWN_PDFJS_VERSION}/pdf.worker.min.js`;
 
+  console.log("Attempting to configure PDF.js worker...");
   fetch(localWorkerUrl)
     .then(response => {
+      console.log(`Local PDF worker fetch response status: ${response.status}, ok: ${response.ok}, statusText: ${response.statusText}`);
       if (response.ok) {
         pdfjsLib.GlobalWorkerOptions.workerSrc = localWorkerUrl;
-        console.log(`PDF.js worker will be loaded from local: ${localWorkerUrl}`);
+        console.log(`PDF.js worker successfully configured to use local: ${localWorkerUrl}`);
       } else {
-        console.warn(`Local pdf.worker.min.js not found or not accessible (status: ${response.status}). Falling back to CDN: ${cdnWorkerUrl}`);
+        console.warn(`Local pdf.worker.min.js not found or not accessible (status: ${response.status}, statusText: ${response.statusText}). Falling back to CDN: ${cdnWorkerUrl}`);
         pdfjsLib.GlobalWorkerOptions.workerSrc = cdnWorkerUrl;
+        console.log(`PDF.js worker configured to use CDN: ${cdnWorkerUrl}`);
       }
     })
     .catch((error) => {
-        console.warn(`Error fetching local pdf.worker.min.js: ${error}. Falling back to CDN: ${cdnWorkerUrl}`);
+        console.error(`Error fetching local pdf.worker.min.js: ${error}. Falling back to CDN: ${cdnWorkerUrl}`);
         pdfjsLib.GlobalWorkerOptions.workerSrc = cdnWorkerUrl;
+        console.log(`PDF.js worker configured to use CDN due to fetch error: ${cdnWorkerUrl}`);
     });
 }
 
@@ -166,8 +170,8 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       console.error("Error extracting page as cover:", error);
       if (error.name === 'PasswordException' || error.message?.includes('password')) {
           toast({ title: "PDF Locked", description: "Cannot extract cover from a password-protected PDF.", variant: "destructive" });
-      } else if (error.message?.includes("Setting up fake worker") || error.message?.includes("Failed to fetch dynamically imported module")) {
-          toast({ title: "PDF Processing Error", description: "Could not initialize the PDF processing worker. The PDF might be incompatible or there could be a configuration issue.", variant: "destructive", duration: 7000 });
+      } else if (error.message?.includes("Setting up fake worker") || error.message?.includes("Failed to fetch dynamically imported module") || error.message?.includes("Worker was not found")) {
+          toast({ title: "PDF Processing Error", description: "Could not initialize the PDF processing worker. The PDF might be incompatible, the worker script might be missing, or there could be a configuration/CSP issue. Check console for details.", variant: "destructive", duration: 8000 });
       }
       else {
           toast({ title: "Cover Extraction Failed", description: "Could not extract page as cover. The PDF might be corrupted or incompatible.", variant: "destructive" });
@@ -307,7 +311,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     if (event.dataTransfer.files && event.dataTransfer.files[0]) {
       handlePdfFileChange(event.dataTransfer.files[0]);
     }
-  }, [isEditing, bookToEdit, form, coverImageFile, handlePdfFileChange]); // Re-added handlePdfFileChange to dependencies
+  }, [isEditing, bookToEdit, form, coverImageFile, handlePdfFileChange]); 
 
   const onDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -606,3 +610,4 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     </Dialog>
   );
 }
+
