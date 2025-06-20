@@ -43,9 +43,9 @@ const prompt = ai.definePrompt({
   name: 'suggestBooksPrompt',
   input: {schema: SuggestBooksInputSchema},
   output: {schema: SuggestBooksOutputSchema},
-  model: 'googleai/gemini-1.5-flash-latest',
+  // Model will default to what's configured in src/ai/genkit.ts (googleai/gemini-1.5-flash-latest)
   prompt: `You are a knowledgeable and helpful AI Librarian and Book Expert.
-Your training data has a cutoff, so you might not know about very recent releases or news (after early 2023).
+Your training data has a cutoff (generally early 2023), so you might not know about very recent releases or news.
 
 **Conversation Context and History**
 {{#if history.length}}
@@ -73,7 +73,7 @@ Current User Query: "{{currentQuery}}"
     *   **General Questions/Information Synthesis**: For other questions, provide a helpful, informative text response. Synthesize information from your training data.
 
 3.  **Handling Information Gaps**:
-    *   If the query asks about topics you believe are beyond your training data cutoff (e.g., very recent book releases, authors who became prominent after early 2023, or current literary events), clearly state your knowledge cutoff. Do not invent information. For example, say: "My knowledge is current up to early 2023, so I may not have information on very recent releases. Based on what I know..."
+    *   If the query asks about topics you believe are beyond your training data cutoff, clearly state your knowledge cutoff. Do not invent information. For example, say: "My knowledge is current up to early 2023, so I may not have information on very recent releases. Based on what I know..."
 
 4.  **Output Format**:
     *   Only use the 'suggestions' field when providing NEW book recommendations.
@@ -125,16 +125,8 @@ const suggestBooksFlow = ai.defineFlow(
       console.error('Error during suggestBooksFlow:', error);
       let errorMessage = "An error occurred while trying to process your request. Please try again later.";
       if (error.message) {
-        if (error.message.includes("API key not valid") || error.message.includes("authentication")) {
-            errorMessage = "There's an issue with an AI service configuration. Please contact support.";
-        } else if (error.message.includes("quota") || error.message.includes("rate limit") || error.message.includes("429")) {
-            errorMessage = "The AI service is temporarily busy or rate limits have been reached. Please try again in a few moments.";
-        } else if (error.message.toLowerCase().includes("model not found") || error.message.toLowerCase().includes("invalid model")) {
-            errorMessage = "The configured AI model is currently unavailable or invalid. Please check the AI service status or configuration."
-        }
-         else {
-            errorMessage = `I encountered an issue processing that: ${error.message}. Please try rephrasing or ask something else.`;
-        }
+         // General error message, as specific API key/quota messages for OpenAI are removed
+         errorMessage = `I encountered an issue processing that: ${error.message}. Please try rephrasing or ask something else.`;
       }
       return { ...defaultOutput, textResponse: errorMessage };
     }
