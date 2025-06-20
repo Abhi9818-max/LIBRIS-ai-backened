@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -7,7 +8,7 @@ import UploadBookForm from "@/components/UploadBookForm";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, BookOpen, Sun, Moon } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
-import { useToast } from "@/hooks/use-toast"; // Import useToast
+import { useToast } from "@/hooks/use-toast"; 
 
 export default function HomePage() {
   const [books, setBooks] = useState<Book[]>([]);
@@ -15,7 +16,7 @@ export default function HomePage() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [editingBook, setEditingBook] = useState<Book | null>(null);
   const { theme, setTheme } = useTheme();
-  const { toast } = useToast(); // Initialize useToast
+  const { toast } = useToast();
 
   useEffect(() => {
     setIsClient(true);
@@ -23,7 +24,6 @@ export default function HomePage() {
       const storedBooks = localStorage.getItem("bookshelf_books");
       if (storedBooks) {
         const loadedBooks = JSON.parse(storedBooks) as Book[];
-        // Ensure loaded books have appropriate fallbacks if data URIs were stripped
         setBooks(loadedBooks.map(book => ({
           ...book,
           pdfDataUri: book.pdfDataUri || "", 
@@ -32,26 +32,23 @@ export default function HomePage() {
       }
     } catch (error) {
       console.error("Failed to load books from localStorage:", error);
-      // Optionally inform user about loading error
       toast({
         title: "Loading Error",
-        description: "Could not load all book data from previous session.",
+        description: "Could not load all book data from previous session. PDFs and custom covers may be missing.",
         variant: "destructive",
       });
     }
-  }, []); // Removed isClient from dependency to run only once on mount
+  }, [toast]); 
 
   useEffect(() => {
     if (isClient) {
       try {
         const booksToStore = books.map(book => {
-          // Create a "light" version of the book for localStorage
-          // Exclude pdfDataUri and data-URI coverImageUrls
           const { pdfDataUri, coverImageUrl, ...restOfBook } = book;
           return {
             ...restOfBook,
-            pdfDataUri: "", // Always strip PDF data for localStorage
-            coverImageUrl: coverImageUrl?.startsWith('data:image') ? "" : coverImageUrl, // Keep placeholder URLs, strip data:image URLs
+            pdfDataUri: "", 
+            coverImageUrl: coverImageUrl?.startsWith('data:image') ? "" : coverImageUrl, 
           };
         });
         localStorage.setItem("bookshelf_books", JSON.stringify(booksToStore));
@@ -60,7 +57,7 @@ export default function HomePage() {
         if (error.name === 'QuotaExceededError') {
           toast({
             title: "Storage Limit Reached",
-            description: "Could not save all book details due to browser storage limits. PDFs and custom covers won't persist. Metadata is saved.",
+            description: "Could not save all book details due to browser storage limits. PDFs and custom cover images will not persist across sessions. Metadata is saved.",
             variant: "destructive",
             duration: 9000,
           });
@@ -73,10 +70,10 @@ export default function HomePage() {
         }
       }
     }
-  }, [books, isClient, toast]); // Added toast to dependency array
+  }, [books, isClient, toast]);
 
-  const handleSaveBook = (savedBook: Book, isEditing: boolean) => {
-    if (isEditing) {
+  const handleSaveBook = (savedBook: Book, isEditingMode: boolean) => {
+    if (isEditingMode) {
       setBooks((prevBooks) =>
         prevBooks.map((book) => (book.id === savedBook.id ? savedBook : book))
       );
