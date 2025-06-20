@@ -55,7 +55,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
   const [currentPdfDataUri, setCurrentPdfDataUri] = useState<string | null>(null);
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
-  const [isProcessingPdf, setIsProcessingPdf] = useState(false); // Unified state for PDF processing
+  const [isProcessingPdf, setIsProcessingPdf] = useState(false);
   const [isGeneratingCover, setIsGeneratingCover] = useState(false);
   const { toast } = useToast();
   const isEditing = !!bookToEdit;
@@ -66,10 +66,19 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
   });
 
   useEffect(() => {
-    // Set up pdf.js worker. Version comes from package.json for pdfjs-dist.
-    // Downgraded to 3.11.174 to fix "Promise.withResolvers is not a function"
-    GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
-  }, []);
+    if (typeof window !== 'undefined') {
+      try {
+        GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+      } catch (e) {
+        console.error("Error setting pdf.js worker source:", e);
+        toast({
+          title: "PDF Worker Error",
+          description: "Could not initialize the PDF processing worker. Page counting and metadata extraction might fail.",
+          variant: "destructive",
+        });
+      }
+    }
+  }, [toast]);
 
   const resetFormState = useCallback(() => {
     form.reset({ title: "", author: "", summary: "", totalPages: null });
@@ -131,14 +140,14 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       }
       
       setIsProcessingPdf(true);
-      let pdfDataUriForMeta = "";
+      let pdfDataUriForProcessing = "";
 
       try {
-        pdfDataUriForMeta = await readFileAsDataURL(file);
-        if (!pdfDataUriForMeta || !pdfDataUriForMeta.startsWith('data:application/pdf;base64,')) {
+        pdfDataUriForProcessing = await readFileAsDataURL(file);
+        if (!pdfDataUriForProcessing || !pdfDataUriForProcessing.startsWith('data:application/pdf;base64,')) {
             throw new Error('Generated PDF Data URI is invalid.');
         }
-        setCurrentPdfDataUri(pdfDataUriForMeta); 
+        setCurrentPdfDataUri(pdfDataUriForProcessing); 
       } catch (readError: any) {
         console.error("Failed to read PDF:", readError);
         toast({
@@ -160,24 +169,25 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
 
       // Try to get page count
       try {
-        const loadingTask = getDocument(pdfDataUriForMeta);
+        if (!GlobalWorkerOptions.workerSrc) throw new Error("PDF worker source not set.");
+        const loadingTask = getDocument({data: atob(pdfDataUriForProcessing.substring(pdfDataUriForProcessing.indexOf(',') + 1))});
         const pdfDoc: PDFDocumentProxy = await loadingTask.promise;
         if (pdfDoc.numPages > 0) {
             form.setValue("totalPages", pdfDoc.numPages);
             toast({ title: "Page Count Detected", description: `Automatically filled total pages: ${pdfDoc.numPages}.` });
         }
       } catch (pageCountError: any) {
-          console.error("Error getting page count:", pageCountError);
+          console.error("Error getting page count from PDF:", pageCountError);
           toast({
               title: "Page Count Error",
-              description: "Could not automatically determine page count. Please enter manually.",
+              description: `Could not automatically determine page count: ${pageCountError.message || "Unknown error"}. Please enter manually.`,
               variant: "destructive",
           });
       }
 
       // Try to extract metadata
       try {
-        const metadata = await extractBookMetadata({ pdfDataUri: pdfDataUriForMeta });
+        const metadata = await extractBookMetadata({ pdfDataUri: pdfDataUriForProcessing });
         form.setValue("title", metadata.title || form.getValues("title"));
         form.setValue("author", metadata.author || form.getValues("author"));
         form.setValue("summary", metadata.summary || form.getValues("summary"));
@@ -424,7 +434,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
             </div>
           </div>
 
-          {isProcessingPdf && ( // Unified loading indicator
+          {isProcessingPdf && (
             <div className="flex items-center justify-center p-4 text-primary">
               <Loader2 className="h-5 w-5 animate-spin mr-2" />
               <span>Processing PDF...</span>
@@ -504,3 +514,4 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     </Dialog>
   );
 }
+
