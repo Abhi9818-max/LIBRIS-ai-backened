@@ -62,7 +62,7 @@ Your task is to:
 2.  If the query clearly asks for book recommendations based on themes, genres, or older books (well within your training knowledge):
     Provide 3 to 5 thoughtful and diverse book suggestions. For each book, include the title, the author, and a compelling, specific, and insightful reason (2-3 sentences) why it's a good recommendation *directly related to the user's query and the ongoing conversation*. Populate the 'suggestions' field. Ensure these reasons are rich and detailed, not generic.
 3.  If the user asks a general question or a follow-up question (e.g., "Tell me more about [book from history]", "Why was [book from history] banned?", "What are common themes in dystopian fiction?", "What was your last suggestion about?"):
-    **Crucially, if the user's query is a follow-up question about books, authors, or topics mentioned previously in the conversation history (either by you or the user), your absolute priority is to answer that question directly and comprehensively using the 'textResponse' field. You MUST reference the specific books or topics from the history in your answer.** Provide a helpful, informative, and detailed text response. Do not offer new suggestions unless the current query explicitly asks for new or different ones. Use the conversation history as your primary guide.
+    **Crucially, if the user's query is a follow-up question about books, authors, or topics mentioned previously in the conversation history (either by you or the user), your absolute priority is to answer that question directly and comprehensively using the 'textResponse' field. You MUST reference the specific books or topics from the history in your answer.** Provide a helpful, informative, and detailed text response. Do not offer new suggestions unless the current query explicitly asks for new or different ones. Use the conversation history as your primary guide. If the follow-up asks for information you might not have (e.g., "Why was [specific, obscure detail about a book] banned?"), state what you know and acknowledge if your knowledge base might not cover that specific detail.
 4.  If the query is ambiguous:
     You can ask for clarification or offer a relevant general response in the 'textResponse' field, always considering the history.
 5.  Output Format:
@@ -84,6 +84,9 @@ const suggestBooksFlow = ai.defineFlow(
     name: 'suggestBooksFlow',
     inputSchema: SuggestBooksInputSchema,
     outputSchema: SuggestBooksOutputSchema,
+    // Using gemini-1.5-pro for potentially better understanding of nuanced follow-ups
+    // Be mindful of API quota/costs if using this model frequently.
+    // model: 'googleai/gemini-1.5-pro-latest', 
   },
   async (input): Promise<SuggestBooksOutput> => {
     try {
@@ -99,10 +102,14 @@ const suggestBooksFlow = ai.defineFlow(
         if (output.textResponse && (!output.suggestions || output.suggestions.length === 0)) {
             return { textResponse: output.textResponse };
         }
+        // If the AI somehow returns both, and the prompt asks it not to,
+        // we might prioritize textResponse if it's substantial, or if suggestions seem like a fallback.
+        // For now, adhering to the prompt, which implies one or the other should be dominant.
+        // If both are present, returning as-is for now, but ideally prompt should prevent this.
         if (output.textResponse && output.suggestions && output.suggestions.length > 0) {
-            // Per prompt, this should be rare. If AI gives both, prioritize textResponse if it's substantial,
-            // or if suggestions seem like a fallback. For now, returning both if AI insists.
-            return output; 
+            console.warn("AI returned both textResponse and suggestions. Prompt may need further refinement. Prioritizing textResponse if it's substantive.");
+            // Simple heuristic: if textResponse is more than just a placeholder.
+            return output.textResponse.length > 50 ? { textResponse: output.textResponse } : output;
         }
         if (Object.keys(output).length === 0) {
            console.warn('AI model returned an empty object. This might be intentional or an issue.');
@@ -111,6 +118,7 @@ const suggestBooksFlow = ai.defineFlow(
         return output; 
       } else {
         console.warn('AI model did not return any output for book suggestions/query. Returning default error.');
+        // This indicates a more fundamental issue with the AI call, not just an empty valid response.
         return { textResponse: "I'm sorry, I wasn't able to generate a response for that. Please try again." };
       }
     } catch (error: any) {
@@ -119,9 +127,13 @@ const suggestBooksFlow = ai.defineFlow(
       if (error.message) {
         if (error.message.includes("API key not valid") || error.message.includes("authentication")) {
             errorMessage = "There's an issue with an AI service configuration. Please contact support.";
-        } else if (error.message.includes("quota") || error.message.includes("rate limit")) {
-            errorMessage = "An AI service is temporarily unavailable due to high demand. Please try again in a few moments.";
-        } else {
+        } else if (error.message.includes("quota") || error.message.includes("rate limit") || error.message.includes("429")) {
+            errorMessage = "The AI service is temporarily busy or rate limits have been reached. Please try again in a few moments.";
+        } else if (error.message.toLowerCase().includes("model not found") || error.message.toLowerCase().includes("invalid model")) {
+            errorMessage = "The configured AI model is currently unavailable or invalid. Please check the AI service status or configuration."
+        }
+         else {
+            // General error message for other cases
             errorMessage = `I encountered an issue processing that: ${error.message}. Please try rephrasing or ask something else.`;
         }
       }
