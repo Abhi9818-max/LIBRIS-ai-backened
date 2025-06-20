@@ -20,48 +20,60 @@ interface BookCardProps {
 // Helper function to convert data URI to Blob
 function dataURIToBlob(dataURI: string): Blob | null {
   if (!dataURI.includes(',')) {
-    console.error("Invalid data URI format");
+    console.error("Invalid data URI format: missing comma separator.");
     return null;
   }
-  const [header, base64Data] = dataURI.split(',');
-  if (!header || !base64Data) {
-    console.error("Invalid data URI format");
+  const parts = dataURI.split(',');
+  const header = parts[0];
+  const base64DataDirty = parts[1];
+
+  if (!header || typeof base64DataDirty === 'undefined') {
+    console.error("Invalid data URI format: header or data part is missing.");
     return null;
   }
   
   const mimeMatch = header.match(/:(.*?);/);
   if (!mimeMatch || mimeMatch.length < 2) {
-    console.error("Could not extract MIME type from data URI");
+    console.error("Could not extract MIME type from data URI header:", header);
     return null;
   }
   const mimeType = mimeMatch[1];
+  const base64Data = base64DataDirty.trim(); // Trim whitespace from base64 data
+
+  if (!base64Data) {
+    console.error("Invalid data URI: base64 data part is empty after trim.");
+    return null;
+  }
 
   try {
+    // Attempt to decode with standard atob
     const byteString = atob(base64Data);
     const ia = new Uint8Array(byteString.length);
     for (let i = 0; i < byteString.length; i++) {
       ia[i] = byteString.charCodeAt(i);
     }
+    console.log("Successfully converted base64 to Blob (1st attempt). Blob type:", mimeType);
     return new Blob([ia], { type: mimeType });
   } catch (error) {
-    console.error("Error converting base64 to Blob:", error);
-    // This can happen if base64Data is malformed
+    console.error("Error converting base64 to Blob (1st attempt):", error, "Base64 length (approx):", base64Data.length);
+    // Check if it's an InvalidCharacterError, often due to URL encoding or other non-base64 chars
     if (error instanceof DOMException && error.name === 'InvalidCharacterError') {
-      // Try to recover if there are URL-encoded characters like %0A
+      console.warn("Attempting to decode URI components in base64 string due to InvalidCharacterError.");
       try {
         const decodedBase64 = decodeURIComponent(base64Data);
-        const byteStringDecoded = atob(decodedBase64);
+        const byteStringDecoded = atob(decodedBase64); // Try atob again on the cleaned string
         const iaDecoded = new Uint8Array(byteStringDecoded.length);
         for (let i = 0; i < byteStringDecoded.length; i++) {
           iaDecoded[i] = byteStringDecoded.charCodeAt(i);
         }
+        console.log("Successfully converted to Blob after URI decoding (2nd attempt). Blob type:", mimeType);
         return new Blob([iaDecoded], { type: mimeType });
       } catch (decodeError) {
-        console.error("Error converting base64 to Blob after URI decoding:", decodeError);
-        return null;
+        console.error("Error converting base64 to Blob after URI decoding (2nd attempt failed):", decodeError);
+        return null; // Return null if the second attempt also fails
       }
     }
-    return null;
+    return null; // Return null for other types of errors from the first attempt
   }
 }
 
@@ -77,63 +89,91 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: B
         description: "No valid PDF data is associated with this book. Please re-upload or edit the book to add a PDF.",
         variant: "destructive",
       });
-      console.error("Invalid or missing PDF Data URI for book:", book.title);
+      console.error("Invalid or missing PDF Data URI for book:", book.title, "URI:", book.pdfDataUri?.substring(0,100) + "...");
       return;
     }
 
+    let pdfBlob: Blob | null = null;
     try {
-      const pdfBlob = dataURIToBlob(book.pdfDataUri);
-      if (!pdfBlob) {
+      pdfBlob = dataURIToBlob(book.pdfDataUri);
+    } catch (conversionError) {
+        console.error("Catastrophic error during dataURIToBlob call:", conversionError);
         toast({
-          title: "PDF Processing Error",
-          description: "Could not process the PDF data. It might be corrupted or in an invalid format.",
-          variant: "destructive",
+            title: "PDF Conversion Failed",
+            description: "An unexpected error occurred while preparing the PDF data.",
+            variant: "destructive",
         });
         return;
-      }
+    }
 
-      const objectUrl = URL.createObjectURL(pdfBlob);
-      
-      const pdfWindow = window.open(objectUrl, '_blank');
-      
-      if (pdfWindow) {
-        pdfWindow.focus(); // Try to focus the new tab
-        // It's good practice to revoke the object URL when it's no longer needed,
-        // but for a new tab, it's tricky to know when. The browser usually handles cleanup on tab close.
-        // For very long-lived single-page apps with many such operations without tab closes,
-        // one might need a more complex cleanup strategy.
-        // URL.revokeObjectURL(objectUrl); // Revoking immediately would break the new tab.
-        
+
+    if (!pdfBlob) {
+      toast({
+        title: "PDF Processing Error",
+        description: "Could not process the PDF data. It might be corrupted or in an invalid format. Check console for details.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    console.log("PDF Blob created successfully. Size:", pdfBlob.size, "Type:", pdfBlob.type);
+
+    let objectUrl: string | null = null;
+    try {
+        objectUrl = URL.createObjectURL(pdfBlob);
+        console.log("Created Object URL:", objectUrl);
+    } catch (createUrlError) {
+        console.error("Error creating Object URL:", createUrlError);
         toast({
-            title: "Opening PDF",
-            description: `Attempting to open "${book.pdfFileName || book.title}" in a new tab.`,
-            variant: "default",
-        });
-      } else {
-        // Fallback or if popup was blocked
-        toast({
-            title: "Popup Blocked or Failed",
-            description: `Could not open PDF in a new tab automatically. Your browser might have blocked it. Try allowing popups for this site.`,
+            title: "PDF Display Error",
+            description: "Could not create a displayable URL for the PDF.",
             variant: "destructive",
-            duration: 7000,
         });
-        // As a last resort, offer download if opening fails.
+        return;
+    }
+
+
+    const pdfWindow = window.open(objectUrl, '_blank');
+    
+    if (pdfWindow) {
+      // pdfWindow.focus(); // Sometimes focus can be problematic or unnecessary
+      toast({
+          title: "Opening PDF",
+          description: `Attempting to open "${book.pdfFileName || book.title}" in a new tab.`,
+          variant: "default",
+      });
+      // For new tabs, it's generally safer to let the browser manage object URL lifecycle,
+      // or revoke it much later if possible. Revoking too soon causes `about:blank`.
+      // URL.revokeObjectURL(objectUrl); 
+    } else {
+      // Fallback or if popup was blocked
+      toast({
+          title: "Popup Possibly Blocked",
+          description: `Could not open PDF in a new tab directly. Your browser might have blocked it. Trying to initiate download as a fallback.`,
+          variant: "destructive",
+          duration: 7000,
+      });
+      // As a last resort, offer download if opening fails.
+      try {
         const link = document.createElement('a');
-        link.href = objectUrl; // Use object URL for download as well
+        link.href = objectUrl; 
         link.download = book.pdfFileName || `${book.title || "book"}.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(objectUrl); // Revoke after download initiated
+      } catch (downloadError) {
+          console.error("Error attempting to download PDF as fallback:", downloadError);
+          toast({
+              title: "Download Failed",
+              description: "Could not even initiate a download for the PDF.",
+              variant: "destructive",
+          });
+          if (objectUrl) URL.revokeObjectURL(objectUrl); // Clean up if objectUrl was created
       }
-    } catch (error) {
-      console.error("Error attempting to open PDF:", error);
-      toast({
-        title: "PDF Open Failed",
-        description: "An unexpected error occurred while trying to open the PDF. Please check the browser console.",
-        variant: "destructive",
-      });
     }
+    // Note: Do not revoke objectUrl here if pdfWindow was successfully opened,
+    // as the new tab needs it. It will be cleaned up when the tab closes or browser session ends.
   };
 
   const handleProgressChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -237,4 +277,3 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: B
     </Card>
   );
 }
-
