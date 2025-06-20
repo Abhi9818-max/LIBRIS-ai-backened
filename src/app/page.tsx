@@ -20,45 +20,71 @@ export default function HomePage() {
 
   useEffect(() => {
     setIsClient(true);
-    try {
-      const storedBooks = localStorage.getItem("bookshelf_books");
-      if (storedBooks) {
-        let loadedBooksData = JSON.parse(storedBooks);
-        
-        // Ensure loadedBooksData is an array before trying to map it
-        if (!Array.isArray(loadedBooksData)) {
-          console.warn("Stored book data is not an array. Resetting to empty. Data was:", loadedBooksData);
-          loadedBooksData = [];
-        }
+    let newBooks: Book[] = []; // Start with a guaranteed empty array
 
-        setBooks(loadedBooksData.map((book: Book) => ({ // Ensure 'book' is properly typed if not already
-          ...book,
-          pdfDataUri: book.pdfDataUri || "", 
-          coverImageUrl: book.coverImageUrl || "",
-          currentPage: book.currentPage || 1,
-          totalPages: book.totalPages || undefined,
-        })));
+    try {
+      const storedBooksJson = localStorage.getItem("bookshelf_books");
+      if (storedBooksJson) {
+        const parsedData = JSON.parse(storedBooksJson);
+        if (Array.isArray(parsedData)) {
+          newBooks = parsedData.reduce((acc: Book[], item: any) => {
+            // Defensively create each book object
+            if (item && typeof item === 'object' && typeof item.id === 'string' && typeof item.title === 'string') {
+              acc.push({
+                id: item.id,
+                title: item.title,
+                author: typeof item.author === 'string' ? item.author : "Unknown Author",
+                summary: typeof item.summary === 'string' ? item.summary : "",
+                // coverImageUrl from localStorage is either a placeholder URL or "" (if it was a stripped data URI)
+                coverImageUrl: typeof item.coverImageUrl === 'string' ? item.coverImageUrl : "", 
+                pdfFileName: typeof item.pdfFileName === 'string' ? item.pdfFileName : "",
+                pdfDataUri: "", // pdfDataUri is not stored in localStorage, so re-initialize as empty
+                currentPage: typeof item.currentPage === 'number' ? item.currentPage : 1,
+                totalPages: typeof item.totalPages === 'number' ? item.totalPages : undefined,
+              });
+            } else {
+              console.warn("Skipping malformed book item from localStorage:", item);
+            }
+            return acc;
+          }, []);
+        } else if (parsedData !== null) { 
+          // storedBooksJson was valid JSON, but not an array (and not null)
+          console.warn("Stored book data is not an array. Resetting to empty. Data was:", parsedData);
+          // newBooks remains []
+        }
+        // If parsedData was null, newBooks remains []
       }
+      // If storedBooksJson was null (no data stored), newBooks remains []
     } catch (error) {
-      console.error("Failed to load books from localStorage:", error);
+      console.error("Failed to load or parse books from localStorage:", error);
       toast({
         title: "Loading Error",
-        description: "Could not load book data from previous session. Data may be reset.",
+        description: "Could not load book data from your previous session. Your bookshelf may appear empty or reset.",
         variant: "destructive",
       });
-      setBooks([]); // Reset to a known good state on error
+      // newBooks is already [], which is the correct fallback state
     }
-  }, [toast]); 
+    setBooks(newBooks); // Set books state once after all processing
+  }, [toast]); // isClient removed to prevent re-triggering; toast is fine.
+
 
   useEffect(() => {
     if (isClient) {
       try {
         const booksToStore = books.map(book => {
-          const { pdfDataUri, coverImageUrl, ...restOfBook } = book;
+          // Ensure book and book.coverImageUrl are defined before accessing startsWith
+          const isCoverDataUri = typeof book.coverImageUrl === 'string' && book.coverImageUrl.startsWith('data:image');
+          
           return {
-            ...restOfBook, 
-            pdfDataUri: "", 
-            coverImageUrl: coverImageUrl?.startsWith('data:image') ? "" : coverImageUrl, 
+            id: book.id,
+            title: book.title,
+            author: book.author,
+            summary: book.summary,
+            coverImageUrl: isCoverDataUri ? "" : (book.coverImageUrl || ""),
+            pdfFileName: book.pdfFileName || "",
+            // pdfDataUri is intentionally NOT stored
+            currentPage: book.currentPage,
+            totalPages: book.totalPages,
           };
         });
         localStorage.setItem("bookshelf_books", JSON.stringify(booksToStore));
@@ -188,4 +214,3 @@ export default function HomePage() {
     </div>
   );
 }
-
