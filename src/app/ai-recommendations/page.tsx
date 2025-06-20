@@ -9,16 +9,18 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { suggestBooks, SuggestBooksOutput, SuggestBooksInput } from "@/ai/flows/suggest-books-flow";
-import { Loader2, Sparkles, Send, User, Bot, BookOpen, ChevronLeft } from "lucide-react";
-import { useTheme } from "@/components/theme-provider"; 
-import { Sun, Moon } from "lucide-react"; 
+import { Loader2, Sparkles, Send, User, Bot, BookOpen, ChevronLeft } from "lucide-react"; // Removed Search icon
+import { useTheme } from "@/components/theme-provider";
+import { Sun, Moon } from "lucide-react";
+// import { Badge } from "@/components/ui/badge"; // Removed Badge import
 
 interface Message {
   id: string;
   sender: "user" | "ai";
-  text?: string; 
-  suggestions?: SuggestBooksOutput["suggestions"]; 
+  text?: string;
+  suggestions?: SuggestBooksOutput["suggestions"];
   isLoading?: boolean;
+  // searchedWeb?: boolean; // Removed searchedWeb
 }
 
 export default function AiRecommendationsPage() {
@@ -27,7 +29,7 @@ export default function AiRecommendationsPage() {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const { theme, setTheme } = useTheme(); 
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -37,13 +39,13 @@ export default function AiRecommendationsPage() {
       }
     }
   }, [messages]);
-  
+
   useEffect(() => {
     setMessages([
       {
         id: Date.now().toString(),
         sender: "ai",
-        text: "Hello! I'm your AI Librarian and Book Expert. Ask me for book recommendations, or anything else about books, authors, and genres!"
+        text: "Hello! I'm your AI Librarian and Book Expert. I can help you find books, authors, and genres based on my knowledge up to early 2023."
       }
     ]);
   }, []);
@@ -58,13 +60,13 @@ export default function AiRecommendationsPage() {
     setMessages(currentMessages);
     setInputValue("");
     setIsAiLoading(true);
-    
+
     const loadingAiMessageId = (Date.now() + 1).toString();
     setMessages((prev) => [...prev, {id: loadingAiMessageId, sender: "ai", isLoading: true}]);
 
     try {
       const historyForAI = currentMessages
-        .filter(msg => !msg.isLoading && (msg.text || (msg.suggestions && msg.suggestions.length > 0))) 
+        .filter(msg => !msg.isLoading && (msg.text || (msg.suggestions && msg.suggestions.length > 0)))
         .map(msg => {
           let content = msg.text || "";
           if (!content && msg.suggestions && msg.suggestions.length > 0) {
@@ -79,12 +81,16 @@ export default function AiRecommendationsPage() {
         .slice(0, -1);
 
 
-      const result: SuggestBooksOutput = await suggestBooks({ 
+      const result: SuggestBooksOutput = await suggestBooks({
         currentQuery: queryText,
-        history: historyForAI 
+        history: historyForAI
       });
-      
-      const aiResponseMessage: Message = { id: loadingAiMessageId, sender: "ai" };
+
+      const aiResponseMessage: Message = {
+        id: loadingAiMessageId,
+        sender: "ai",
+        // searchedWeb: result.searchedWeb || false, // Removed searchedWeb
+      };
       let hasContent = false;
 
       if (result.textResponse) {
@@ -103,9 +109,9 @@ export default function AiRecommendationsPage() {
           description: "The AI couldn't generate a specific response. Try rephrasing!",
         });
       }
-      
-      setMessages((prevMessages) => 
-        prevMessages.map(msg => 
+
+      setMessages((prevMessages) =>
+        prevMessages.map(msg =>
           msg.id === loadingAiMessageId ? aiResponseMessage : msg
         )
       );
@@ -113,9 +119,9 @@ export default function AiRecommendationsPage() {
     } catch (error: any) {
       console.error("Error getting AI response:", error);
       const errorMessageText = `Sorry, I encountered an error: ${error.message || "Unknown error"}. Please try again.`;
-      setMessages((prevMessages) => 
-         prevMessages.map(msg => 
-          msg.id === loadingAiMessageId 
+      setMessages((prevMessages) =>
+         prevMessages.map(msg =>
+          msg.id === loadingAiMessageId
           ? { id: loadingAiMessageId, sender: "ai", text: errorMessageText }
           : msg
         )
@@ -175,7 +181,7 @@ export default function AiRecommendationsPage() {
                     <div className="flex items-start space-x-2">
                       {message.sender === "ai" && <Bot className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />}
                       {message.sender === "user" && <User className="h-5 w-5 text-primary-foreground flex-shrink-0 mt-0.5" />}
-                      
+
                       <div className="flex-grow">
                         {message.isLoading && (
                           <div className="flex items-center space-x-2 text-muted-foreground">
@@ -186,7 +192,7 @@ export default function AiRecommendationsPage() {
                         {message.text && <p className="whitespace-pre-wrap">{message.text}</p>}
                         {message.suggestions && message.suggestions.length > 0 && (
                           <div className="space-y-3 mt-2">
-                            {message.text && <div className="mb-2 border-b border-border/50 pb-2"></div>} 
+                            {message.text && <div className="mb-2 border-b border-border/50 pb-2"></div>}
                             {message.suggestions.map((book, index) => (
                               <Card key={index} className="bg-muted/50 dark:bg-muted/30 shadow-sm border border-border/50">
                                 <CardHeader className="p-3 pb-2">
@@ -200,6 +206,16 @@ export default function AiRecommendationsPage() {
                             ))}
                           </div>
                         )}
+                        {/* Removed searchedWeb badge display
+                        {message.sender === "ai" && message.searchedWeb && !message.isLoading && (
+                           <div className="mt-2">
+                            <Badge variant="secondary" className="text-xs py-0.5 px-1.5">
+                                <Search className="h-3 w-3 mr-1" />
+                                Web search used
+                            </Badge>
+                           </div>
+                        )}
+                        */}
                       </div>
                     </div>
                   </CardContent>
