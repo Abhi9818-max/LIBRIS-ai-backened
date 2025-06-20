@@ -5,8 +5,9 @@ import type { Book } from "@/types";
 import BookCard from "@/components/BookCard";
 import UploadBookForm from "@/components/UploadBookForm";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, BookOpen, Sun, Moon, Pencil } from "lucide-react";
+import { PlusCircle, BookOpen, Sun, Moon } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
+import { useToast } from "@/hooks/use-toast"; // Import useToast
 
 export default function HomePage() {
   const [books, setBooks] = useState<Book[]>([]);
@@ -14,28 +15,65 @@ export default function HomePage() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [editingBook, setEditingBook] = useState<Book | null>(null);
   const { theme, setTheme } = useTheme();
+  const { toast } = useToast(); // Initialize useToast
 
   useEffect(() => {
     setIsClient(true);
     try {
       const storedBooks = localStorage.getItem("bookshelf_books");
       if (storedBooks) {
-        setBooks(JSON.parse(storedBooks));
+        const loadedBooks = JSON.parse(storedBooks) as Book[];
+        // Ensure loaded books have appropriate fallbacks if data URIs were stripped
+        setBooks(loadedBooks.map(book => ({
+          ...book,
+          pdfDataUri: book.pdfDataUri || "", 
+          coverImageUrl: book.coverImageUrl || "", 
+        })));
       }
     } catch (error) {
       console.error("Failed to load books from localStorage:", error);
+      // Optionally inform user about loading error
+      toast({
+        title: "Loading Error",
+        description: "Could not load all book data from previous session.",
+        variant: "destructive",
+      });
     }
-  }, []);
+  }, []); // Removed isClient from dependency to run only once on mount
 
   useEffect(() => {
     if (isClient) {
       try {
-        localStorage.setItem("bookshelf_books", JSON.stringify(books));
-      } catch (error) {
+        const booksToStore = books.map(book => {
+          // Create a "light" version of the book for localStorage
+          // Exclude pdfDataUri and data-URI coverImageUrls
+          const { pdfDataUri, coverImageUrl, ...restOfBook } = book;
+          return {
+            ...restOfBook,
+            pdfDataUri: "", // Always strip PDF data for localStorage
+            coverImageUrl: coverImageUrl?.startsWith('data:image') ? "" : coverImageUrl, // Keep placeholder URLs, strip data:image URLs
+          };
+        });
+        localStorage.setItem("bookshelf_books", JSON.stringify(booksToStore));
+      } catch (error: any) {
         console.error("Failed to save books to localStorage:", error);
+        if (error.name === 'QuotaExceededError') {
+          toast({
+            title: "Storage Limit Reached",
+            description: "Could not save all book details due to browser storage limits. PDFs and custom covers won't persist. Metadata is saved.",
+            variant: "destructive",
+            duration: 9000,
+          });
+        } else {
+          toast({
+            title: "Storage Error",
+            description: "An error occurred while saving your books.",
+            variant: "destructive",
+          });
+        }
       }
     }
-  }, [books, isClient]);
+  }, [books, isClient, toast]); // Added toast to dependency array
 
   const handleSaveBook = (savedBook: Book, isEditing: boolean) => {
     if (isEditing) {
@@ -46,7 +84,7 @@ export default function HomePage() {
       setBooks((prevBooks) => [...prevBooks, savedBook]);
     }
     setIsUploadModalOpen(false);
-    setEditingBook(null); // Clear editing state
+    setEditingBook(null); 
   };
 
   const handleOpenEditModal = (book: Book) => {
@@ -65,10 +103,9 @@ export default function HomePage() {
   const handleModalOpenChange = (open: boolean) => {
     setIsUploadModalOpen(open);
     if (!open) {
-      setEditingBook(null); // Reset editingBook when modal closes
+      setEditingBook(null); 
     }
   };
-
 
   if (!isClient) {
     return (
