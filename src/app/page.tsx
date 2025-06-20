@@ -7,7 +7,7 @@ import { useState, useEffect } from "react";
 // import UploadBookForm from "@/components/UploadBookForm"; // Temporarily removed
 import { Button } from "@/components/ui/button";
 import { PlusCircle, BookOpen, Sun, Moon } from "lucide-react";
-// import { useTheme } from "@/components/theme-provider"; // Temporarily removed
+import { useTheme } from "@/components/theme-provider";
 // import { useToast } from "@/hooks/use-toast"; // Temporarily removed
 
 export default function HomePage() {
@@ -15,7 +15,7 @@ export default function HomePage() {
   const [isClient, setIsClient] = useState(false);
   // const [isUploadModalOpen, setIsUploadModalOpen] = useState(false); // Temporarily removed
   // const [editingBook, setEditingBook] = useState<Book | null>(null); // Temporarily removed
-  // const { theme, setTheme } = useTheme(); // Temporarily removed
+  const { theme, setTheme } = useTheme();
   // const { toast } = useToast(); // Temporarily removed
 
   useEffect(() => {
@@ -46,8 +46,17 @@ export default function HomePage() {
             <Button aria-label="Add new book (disabled)">
               <PlusCircle className="mr-2 h-5 w-5" /> Add Book
             </Button>
-            <Button variant="outline" size="icon" aria-label="Toggle theme (disabled)">
-              <Sun className="h-[1.2rem] w-[1.2rem]" /> {/* Placeholder icon */}
+            <Button 
+              variant="outline" 
+              size="icon" 
+              aria-label="Toggle theme"
+              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+            >
+              {theme === "light" ? (
+                <Moon className="h-[1.2rem] w-[1.2rem]" />
+              ) : (
+                <Sun className="h-[1.2rem] w-[1.2rem]" />
+              )}
             </Button>
           </div>
         </div>
