@@ -7,7 +7,7 @@ import type { Book } from "@/types";
 import BookCard from "@/components/BookCard";
 import UploadBookForm from "@/components/UploadBookForm";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, BookOpen, Sun, Moon, SearchX, Lightbulb } from "lucide-react";
+import { PlusCircle, BookOpen, Sun, Moon, SearchX } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { useToast } from "@/hooks/use-toast";
 
@@ -155,15 +155,6 @@ export default function HomePage() {
             BookShelf
           </Link>
           <div className="flex items-center space-x-2">
-            <Button 
-              variant="outline"
-              aria-label="Get AI book recommendations" 
-              asChild
-            >
-              <Link href="/ai-recommendations">
-                <Lightbulb className="mr-2 h-5 w-5" /> AI Recommends
-              </Link>
-            </Button>
             <Button aria-label="Add new book" onClick={() => handleOpenUploadModal()}>
               <PlusCircle className="mr-2 h-5 w-5" /> Add Book
             </Button>
