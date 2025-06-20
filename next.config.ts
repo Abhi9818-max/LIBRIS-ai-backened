@@ -20,23 +20,21 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
-    const scriptSrcDirectives = ["'self'"];
+    const scriptSrcDirectives = ["'self'", "https://cdnjs.cloudflare.com"];
     if (process.env.NODE_ENV === "development") {
       scriptSrcDirectives.push("'unsafe-eval'");
-      scriptSrcDirectives.push("'unsafe-inline'"); // Added for development to allow inline scripts
+      scriptSrcDirectives.push("'unsafe-inline'");
     }
 
     const cspHeader = [
       `default-src 'self'`,
       `script-src ${scriptSrcDirectives.join(' ')}`,
-      // ShadCN UI and global styles might use inline styles
       `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
       `font-src 'self' https://fonts.gstatic.com`,
       `img-src 'self' data: https://placehold.co`,
-      // This is key for allowing PDFs from blob URLs to be displayed
-      `object-src 'self' blob:`,
-      // For Genkit calls to Google AI
-      `connect-src 'self' https://generativelanguage.googleapis.com`,
+      `object-src 'self' blob:`, // For viewing PDFs from blob URLs
+      `worker-src 'self' blob: https://cdnjs.cloudflare.com`, // Allow worker scripts from self, blob, and CDN
+      `connect-src 'self' https://generativelanguage.googleapis.com https://firebasehosting.googleapis.com`, // For Genkit and Firebase
     ].join('; ');
 
     return [
