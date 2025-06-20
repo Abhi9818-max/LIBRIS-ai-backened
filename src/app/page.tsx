@@ -23,8 +23,15 @@ export default function HomePage() {
     try {
       const storedBooks = localStorage.getItem("bookshelf_books");
       if (storedBooks) {
-        const loadedBooks = JSON.parse(storedBooks) as Book[];
-        setBooks(loadedBooks.map(book => ({
+        let loadedBooksData = JSON.parse(storedBooks);
+        
+        // Ensure loadedBooksData is an array before trying to map it
+        if (!Array.isArray(loadedBooksData)) {
+          console.warn("Stored book data is not an array. Resetting to empty. Data was:", loadedBooksData);
+          loadedBooksData = [];
+        }
+
+        setBooks(loadedBooksData.map((book: Book) => ({ // Ensure 'book' is properly typed if not already
           ...book,
           pdfDataUri: book.pdfDataUri || "", 
           coverImageUrl: book.coverImageUrl || "",
@@ -36,9 +43,10 @@ export default function HomePage() {
       console.error("Failed to load books from localStorage:", error);
       toast({
         title: "Loading Error",
-        description: "Could not load all book data from previous session. PDFs, custom covers, and progress may be missing or reset.",
+        description: "Could not load book data from previous session. Data may be reset.",
         variant: "destructive",
       });
+      setBooks([]); // Reset to a known good state on error
     }
   }, [toast]); 
 
@@ -48,7 +56,7 @@ export default function HomePage() {
         const booksToStore = books.map(book => {
           const { pdfDataUri, coverImageUrl, ...restOfBook } = book;
           return {
-            ...restOfBook, // currentPage and totalPages are preserved here
+            ...restOfBook, 
             pdfDataUri: "", 
             coverImageUrl: coverImageUrl?.startsWith('data:image') ? "" : coverImageUrl, 
           };
@@ -180,3 +188,4 @@ export default function HomePage() {
     </div>
   );
 }
+
