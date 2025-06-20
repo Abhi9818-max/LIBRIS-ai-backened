@@ -7,7 +7,7 @@ import { useState, ChangeEvent, useEffect } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, FileText, Pencil, Save } from "lucide-react";
+import { Trash2, FileText, Pencil, Save, Eye } from "lucide-react"; // Added Eye icon
 import { useToast } from "@/hooks/use-toast";
 
 interface BookCardProps {
@@ -15,6 +15,7 @@ interface BookCardProps {
   onRemove: (id: string) => void;
   onEdit: (book: Book) => void;
   onUpdateProgress: (bookId: string, currentPage: number) => void;
+  onOpenDetailView: (book: Book) => void; // New prop
 }
 
 // Helper function to convert data URI to Blob
@@ -76,23 +77,21 @@ function dataURIToBlob(dataURI: string): Blob | null {
 }
 
 
-export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: BookCardProps) {
+export default function BookCard({ book, onRemove, onEdit, onUpdateProgress, onOpenDetailView }: BookCardProps) {
   const { toast } = useToast();
   const [currentPageInput, setCurrentPageInput] = useState<string>((book.currentPage || 1).toString());
-  const [progressColor, setProgressColor] = useState<string>('hsl(var(--primary))'); // Default to primary theme color
+  const [progressColor, setProgressColor] = useState<string>('hsl(var(--primary))');
 
-  // Effect to update currentPageInput when book.currentPage changes from props
   useEffect(() => {
     setCurrentPageInput((book.currentPage || 1).toString());
   }, [book.currentPage]);
 
-  // Effect to set a random color for the progress circle on mount (client-side only)
   useEffect(() => {
     const randomHue = Math.floor(Math.random() * 360);
-    const randomSaturation = Math.floor(Math.random() * 30) + 70; // Saturation between 70% and 100%
-    const randomLightness = Math.floor(Math.random() * 20) + 50; // Lightness between 50% and 70%
+    const randomSaturation = Math.floor(Math.random() * 30) + 70; 
+    const randomLightness = Math.floor(Math.random() * 20) + 50; 
     setProgressColor(`hsl(${randomHue}, ${randomSaturation}%, ${randomLightness}%)`);
-  }, []); // Empty dependency array ensures this runs once on mount on the client
+  }, []); 
 
   const handleOpenPdf = () => {
     if (!book.pdfDataUri || !book.pdfDataUri.startsWith('data:application/pdf;base64,')) {
@@ -320,6 +319,15 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: B
           </Button>
         </div>
         <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onOpenDetailView(book)}
+          aria-label={`View details for ${book.title}`}
+          className="w-full"
+        >
+          <Eye className="mr-2 h-4 w-4" /> View Details
+        </Button>
+        <Button
           variant="destructive"
           size="sm"
           onClick={() => onRemove(book.id)}
@@ -332,4 +340,3 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: B
     </Card>
   );
 }
-    

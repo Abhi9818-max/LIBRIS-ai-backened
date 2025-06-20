@@ -6,6 +6,7 @@ import Link from "next/link";
 import type { Book } from "@/types";
 import BookCard from "@/components/BookCard";
 import UploadBookForm from "@/components/UploadBookForm";
+import BookDetailView from "@/components/BookDetailView"; // New import
 import { Button } from "@/components/ui/button";
 import { PlusCircle, BookOpen, Sun, Moon, SearchX } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
@@ -18,6 +19,10 @@ export default function HomePage() {
   const [editingBook, setEditingBook] = useState<Book | null>(null);
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
+
+  // State for Book Detail View
+  const [selectedBookForDetail, setSelectedBookForDetail] = useState<Book | null>(null);
+  const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -136,6 +141,20 @@ export default function HomePage() {
     );
   }, []);
 
+  // Handlers for Book Detail View
+  const handleOpenDetailView = useCallback((book: Book) => {
+    setSelectedBookForDetail(book);
+    setIsDetailViewOpen(true);
+  }, []);
+
+  const handleCloseDetailView = useCallback(() => {
+    setIsDetailViewOpen(false);
+    // It's good practice to clear the selected book after closing,
+    // though the BookDetailView handles book being null.
+    // Setting a timeout can prevent a flicker if re-opening immediately.
+    setTimeout(() => setSelectedBookForDetail(null), 300); 
+  }, []);
+
 
   if (!isClient) {
     return (
@@ -193,6 +212,7 @@ export default function HomePage() {
                 onRemove={handleRemoveBook}
                 onEdit={handleEditBook}
                 onUpdateProgress={handleUpdateProgress}
+                onOpenDetailView={handleOpenDetailView} // Pass handler to BookCard
               />
             ))}
           </div>
@@ -208,6 +228,13 @@ export default function HomePage() {
         />
       )}
 
+      {/* Render BookDetailView conditionally */}
+      <BookDetailView
+        book={selectedBookForDetail}
+        isOpen={isDetailViewOpen}
+        onClose={handleCloseDetailView}
+      />
+
       <footer className="py-4 px-4 md:px-8 border-t border-border mt-auto">
         <div className="container mx-auto text-center text-sm text-muted-foreground">
           &copy; {new Date().getFullYear()} BookShelf App. All rights reserved.
@@ -216,5 +243,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-    
