@@ -14,7 +14,28 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { UploadCloud, ImageUp, Loader2, Sparkles } from "lucide-react";
+import { UploadCloud, ImageUp, Loader2, Sparkles, BookImage } from "lucide-react";
+import * as pdfjsLib from 'pdfjs-dist/build/pdf';
+
+if (typeof window !== 'undefined') {
+  // Check if pdf.worker.min.js is accessible, otherwise use CDN as fallback
+  // This helps ensure pdfjs works even if postinstall script fails or public dir isn't served correctly initially.
+  const workerUrl = '/pdf.worker.min.js';
+  fetch(workerUrl)
+    .then(response => {
+      if (response.ok) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+      } else {
+        console.warn('Local pdf.worker.min.js not found or accessible, falling back to CDN version.');
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+      }
+    })
+    .catch(() => {
+        console.warn('Error checking local pdf.worker.min.js, falling back to CDN version.');
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+    });
+}
+
 
 const BookFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -56,6 +77,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [isGeneratingCover, setIsGeneratingCover] = useState(false);
+  const [isExtractingPageCover, setIsExtractingPageCover] = useState(false);
   const { toast } = useToast();
   const isEditing = !!bookToEdit;
 
@@ -73,6 +95,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     setCoverPreviewUrl(null);
     setIsExtracting(false);
     setIsGeneratingCover(false);
+    setIsExtractingPageCover(false);
   }, [form]);
 
   useEffect(() => {
@@ -94,6 +117,59 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       }
     }
   }, [isOpen, bookToEdit, form, resetFormState]);
+
+  const extractPageAsCover = async (pdfDataUri: string, pageNumber: number): Promise<string | null> => {
+    try {
+      // PDF.js expects a Uint8Array or base64 string without the data URI prefix
+      const base64Pdf = pdfDataUri.substring(pdfDataUri.indexOf(',') + 1);
+      const pdfBinary = atob(base64Pdf);
+      const len = pdfBinary.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = pdfBinary.charCodeAt(i);
+      }
+
+      const loadingTask = pdfjsLib.getDocument({ data: bytes });
+      const pdf = await loadingTask.promise;
+
+      if (pageNumber < 1 || pageNumber > pdf.numPages) {
+        toast({
+          title: "Page Not Found",
+          description: `Page ${pageNumber} does not exist. The PDF has ${pdf.numPages} pages.`,
+          variant: "destructive",
+        });
+        return null;
+      }
+
+      const page = await pdf.getPage(pageNumber);
+      const viewport = page.getViewport({ scale: 1.5 }); // Adjust scale for quality
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+
+      if (!context) {
+        console.error("Could not get canvas context for PDF page rendering.");
+        toast({ title: "Render Error", description: "Failed to prepare canvas for cover extraction.", variant: "destructive" });
+        return null;
+      }
+
+      const renderContext = {
+        canvasContext: context,
+        viewport: viewport,
+      };
+      await page.render(renderContext).promise;
+      return canvas.toDataURL('image/png');
+    } catch (error: any) {
+      console.error("Error extracting page as cover:", error);
+      if (error.name === 'PasswordException' || error.message?.includes('password')) {
+          toast({ title: "PDF Locked", description: "Cannot extract cover from a password-protected PDF.", variant: "destructive" });
+      } else {
+          toast({ title: "Cover Extraction Failed", description: "Could not extract page as cover. The PDF might be corrupted, incompatible, or the worker script may not have loaded correctly.", variant: "destructive" });
+      }
+      return null;
+    }
+  };
 
 
   const handlePdfFileChange = async (file: File | null) => {
@@ -188,7 +264,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         });
          if (isEditing && !coverImageFile && bookToEdit?.coverImageUrl) {
             setCoverPreviewUrl(bookToEdit.coverImageUrl); 
-        } else if (!currentPdfDataUri) { // if PDF itself failed to read, no cover
+        } else if (!currentPdfDataUri) { 
             setCoverPreviewUrl(null);
         }
       } finally {
@@ -303,8 +379,6 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     let finalCoverImageUrl = "https://placehold.co/200x300.png";
 
     if (isEditing && bookToEdit) {
-      // For PDF: if a new pdfFile is staged (meaning currentPdfDataUri was updated from it), use it.
-      // Otherwise, preserve the existing pdfDataUri from bookToEdit.
       if (pdfFile && currentPdfDataUri) { 
         finalPdfDataUri = currentPdfDataUri;
         finalPdfFileName = pdfFileName || (pdfFile.name);
@@ -313,29 +387,24 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         finalPdfFileName = bookToEdit.pdfFileName || "";
       }
 
-      // For Cover Image: if a new coverImageFile is staged (meaning coverPreviewUrl was updated from it), use it.
-      // Else if coverPreviewUrl exists and is a data URI (AI generated or re-generated), use it.
-      // Else if coverPreviewUrl is a non-data URI (e.g. placeholder or external URL that was manually entered/kept), use it.
-      // Else, if bookToEdit had a coverImageUrl, keep it.
-      // Default to placeholder if nothing else.
       if (coverImageFile && coverPreviewUrl && coverPreviewUrl.startsWith('data:image')) { 
         finalCoverImageUrl = coverPreviewUrl;
-      } else if (coverPreviewUrl && coverPreviewUrl.startsWith('data:image')) { // AI generated during this edit
+      } else if (coverPreviewUrl && coverPreviewUrl.startsWith('data:image')) { 
         finalCoverImageUrl = coverPreviewUrl;
-      } else if (coverPreviewUrl && !coverPreviewUrl.startsWith('data:image')) { // Manual URL or placeholder entered
+      } else if (coverPreviewUrl && !coverPreviewUrl.startsWith('data:image')) { 
          finalCoverImageUrl = coverPreviewUrl;
-      } else if (!coverPreviewUrl && coverImageFile) { // This case should not happen if readFileAsDataURL worked for coverImageFile
-         finalCoverImageUrl = bookToEdit.coverImageUrl || "https://placehold.co/200x300.png"; // fallback
+      } else if (!coverPreviewUrl && coverImageFile) { 
+         finalCoverImageUrl = bookToEdit.coverImageUrl || "https://placehold.co/200x300.png"; 
       }
-      else if (!coverPreviewUrl && !coverImageFile && bookToEdit.coverImageUrl) { // User cleared image or no new image uploaded
+      else if (!coverPreviewUrl && !coverImageFile && bookToEdit.coverImageUrl) { 
          finalCoverImageUrl = bookToEdit.coverImageUrl;
       }
-       else { // Fallback if all else fails or user explicitly removed cover
+       else { 
         finalCoverImageUrl = bookToEdit.coverImageUrl && !coverImageFile ? bookToEdit.coverImageUrl : "https://placehold.co/200x300.png";
       }
 
 
-    } else { // Adding a new book
+    } else { 
       finalPdfDataUri = currentPdfDataUri || "";
       finalPdfFileName = pdfFileName || (pdfFile ? pdfFile.name : "");
       finalCoverImageUrl = coverPreviewUrl || "https://placehold.co/200x300.png";
@@ -458,6 +527,52 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
                   </Label>
                 </Button>
             </div>
+            {currentPdfDataUri && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    if (!currentPdfDataUri) return;
+                    setIsExtractingPageCover(true);
+                    const coverDataUrl = await extractPageAsCover(currentPdfDataUri, 1);
+                    if (coverDataUrl) {
+                        setCoverPreviewUrl(coverDataUrl);
+                        setCoverImageFile(null); // Clear any manually uploaded file
+                        toast({ title: "Cover Set", description: "1st page of PDF set as cover."});
+                    }
+                    setIsExtractingPageCover(false);
+                  }}
+                  disabled={isExtractingPageCover || isExtracting || isGeneratingCover}
+                  className="flex-grow sm:flex-grow-0"
+                >
+                  {isExtractingPageCover ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <BookImage className="h-4 w-4 mr-2" />}
+                  Use 1st Page 
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    if (!currentPdfDataUri) return;
+                    setIsExtractingPageCover(true);
+                    const coverDataUrl = await extractPageAsCover(currentPdfDataUri, 2);
+                    if (coverDataUrl) {
+                        setCoverPreviewUrl(coverDataUrl);
+                        setCoverImageFile(null); // Clear any manually uploaded file
+                        toast({ title: "Cover Set", description: "2nd page of PDF set as cover."});
+                    }
+                    setIsExtractingPageCover(false);
+                  }}
+                  disabled={isExtractingPageCover || isExtracting || isGeneratingCover}
+                  className="flex-grow sm:flex-grow-0"
+                >
+                  {isExtractingPageCover ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <BookImage className="h-4 w-4 mr-2" />}
+                  Use 2nd Page
+                </Button>
+              </div>
+            )}
             {isGeneratingCover && (
               <div className="flex items-center text-sm text-muted-foreground mt-2">
                 <Sparkles className="h-4 w-4 animate-pulse mr-2 text-primary" />
@@ -476,9 +591,8 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
             <DialogClose asChild>
               <Button type="button" variant="outline" onClick={handleDialogClose}>Cancel</Button>
             </DialogClose>
-            <Button type="submit" disabled={isExtracting || isGeneratingCover || (!isEditing && !currentPdfDataUri && !pdfFile) }>
-              {isExtracting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              {isGeneratingCover ? <Sparkles className="h-4 w-4 animate-pulse mr-2" /> : null}
+            <Button type="submit" disabled={isExtracting || isGeneratingCover || isExtractingPageCover || (!isEditing && !currentPdfDataUri && !pdfFile) }>
+              {(isExtracting || isGeneratingCover || isExtractingPageCover) ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {isEditing ? "Save Changes" : "Add Book"}
             </Button>
           </DialogFooter>
