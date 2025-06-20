@@ -8,16 +8,16 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { suggestBooks, SuggestBooksOutput } from "@/ai/flows/suggest-books-flow";
+import { suggestBooks, SuggestBooksOutput, SuggestBooksInput } from "@/ai/flows/suggest-books-flow";
 import { Loader2, Sparkles, Send, User, Bot, BookOpen, ChevronLeft } from "lucide-react";
-import { useTheme } from "@/components/theme-provider"; // For header consistency
-import { Sun, Moon } from "lucide-react"; // For header consistency
+import { useTheme } from "@/components/theme-provider"; 
+import { Sun, Moon } from "lucide-react"; 
 
 interface Message {
   id: string;
   sender: "user" | "ai";
-  text?: string;
-  suggestions?: SuggestBooksOutput["suggestions"];
+  text?: string; // For user's query AND AI's general text response
+  suggestions?: SuggestBooksOutput["suggestions"]; // For AI's book suggestions
   isLoading?: boolean;
 }
 
@@ -27,10 +27,9 @@ export default function AiRecommendationsPage() {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const { theme, setTheme } = useTheme(); // For header consistency
+  const { theme, setTheme } = useTheme(); 
 
   useEffect(() => {
-    // Scroll to bottom when new messages are added
     if (scrollAreaRef.current) {
       const scrollableViewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
       if (scrollableViewport) {
@@ -40,22 +39,21 @@ export default function AiRecommendationsPage() {
   }, [messages]);
   
   useEffect(() => {
-    // Initial AI message
     setMessages([
       {
         id: Date.now().toString(),
         sender: "ai",
-        text: "Hello! I'm your AI Librarian. What kind of books are you looking for today? (e.g., 'Sci-fi adventures', 'cozy mysteries', 'books about ancient civilizations')"
+        text: "Hello! I'm your AI Librarian and Book Expert. Ask me for book recommendations, or anything else about books, authors, and genres!"
       }
     ]);
   }, []);
 
   const handleSubmitQuery = async (e?: FormEvent<HTMLFormElement>) => {
     if (e) e.preventDefault();
-    const query = inputValue.trim();
-    if (!query) return;
+    const queryText = inputValue.trim();
+    if (!queryText) return;
 
-    const userMessage: Message = { id: Date.now().toString(), sender: "user", text: query };
+    const userMessage: Message = { id: Date.now().toString(), sender: "user", text: queryText };
     setMessages((prev) => [...prev, userMessage]);
     setInputValue("");
     setIsAiLoading(true);
@@ -64,33 +62,47 @@ export default function AiRecommendationsPage() {
     setMessages((prev) => [...prev, {id: loadingAiMessageId, sender: "ai", isLoading: true}]);
 
     try {
-      const result = await suggestBooks({ query });
-      setMessages((prevMessages) => 
-        prevMessages.map(msg => 
-          msg.id === loadingAiMessageId 
-          ? { id: loadingAiMessageId, sender: "ai", suggestions: result.suggestions }
-          : msg
-        )
-      );
-      if (!result.suggestions || result.suggestions.length === 0 || (result.suggestions.length === 1 && result.suggestions[0].title === "No suggestions available")) {
-         toast({
+      const result: SuggestBooksOutput = await suggestBooks({ query: queryText });
+      
+      const aiResponseMessage: Message = { id: loadingAiMessageId, sender: "ai" };
+      let hasContent = false;
+
+      if (result.textResponse) {
+        aiResponseMessage.text = result.textResponse;
+        hasContent = true;
+      }
+      if (result.suggestions && result.suggestions.length > 0) {
+        aiResponseMessage.suggestions = result.suggestions;
+        hasContent = true;
+      }
+
+      if (!hasContent) {
+        aiResponseMessage.text = "I'm sorry, I don't have a specific response for that right now. Could you try rephrasing your query?";
+        toast({
           title: "AI Response",
-          description: "The AI couldn't find specific matches. Try rephrasing or a different query!",
+          description: "The AI couldn't generate a specific response. Try rephrasing!",
         });
       }
+      
+      setMessages((prevMessages) => 
+        prevMessages.map(msg => 
+          msg.id === loadingAiMessageId ? aiResponseMessage : msg
+        )
+      );
+
     } catch (error: any) {
-      console.error("Error getting book suggestions:", error);
-      const errorMessage = `Sorry, I encountered an error: ${error.message || "Unknown error"}. Please try again.`;
+      console.error("Error getting AI response:", error);
+      const errorMessageText = `Sorry, I encountered an error: ${error.message || "Unknown error"}. Please try again.`;
       setMessages((prevMessages) => 
          prevMessages.map(msg => 
           msg.id === loadingAiMessageId 
-          ? { id: loadingAiMessageId, sender: "ai", text: errorMessage }
+          ? { id: loadingAiMessageId, sender: "ai", text: errorMessageText }
           : msg
         )
       );
       toast({
         title: "AI Error",
-        description: errorMessage,
+        description: errorMessageText,
         variant: "destructive",
       });
     } finally {
@@ -105,7 +117,7 @@ export default function AiRecommendationsPage() {
           <Link href="/" className="text-primary flex items-center hover:text-accent transition-colors">
             <ChevronLeft className="h-7 w-7 mr-1" />
             <BookOpen className="h-8 w-8 mr-2 text-accent" />
-            <h1 className="text-2xl md:text-3xl font-headline">AI Book Recommendations</h1>
+            <h1 className="text-2xl md:text-3xl font-headline">AI Book Expert</h1>
           </Link>
            <Button
               variant="outline"
@@ -152,8 +164,9 @@ export default function AiRecommendationsPage() {
                           </div>
                         )}
                         {message.text && <p className="whitespace-pre-wrap">{message.text}</p>}
-                        {message.suggestions && (
+                        {message.suggestions && message.suggestions.length > 0 && (
                           <div className="space-y-3 mt-2">
+                            {message.text && <div className="mb-2 border-b pb-2"></div>} 
                             {message.suggestions.map((book, index) => (
                               <Card key={index} className="bg-background/70 dark:bg-muted/70 shadow-inner">
                                 <CardHeader className="pb-1 pt-3 px-3">
@@ -181,7 +194,7 @@ export default function AiRecommendationsPage() {
           <Input
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Ask for book recommendations..."
+            placeholder="Ask for recommendations or about books..."
             className="flex-grow"
             disabled={isAiLoading}
             aria-label="Your book query"
