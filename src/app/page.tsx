@@ -47,7 +47,7 @@ export default function HomePage() {
           }, []);
         } else if (parsedBooks !== null) {
           console.warn("Stored bookshelf_books is not an array, resetting. Data:", parsedBooks);
-          localStorage.removeItem("bookshelf_books"); 
+          localStorage.removeItem("bookshelf_books");
         }
       }
     } catch (error) {
@@ -67,7 +67,7 @@ export default function HomePage() {
   }, [toast]);
 
   useEffect(() => {
-    if (isClient) { 
+    if (isClient) {
       try {
         const booksToStore = books.map(book => ({
           id: book.id,
@@ -127,10 +127,10 @@ export default function HomePage() {
   const handleEditBook = useCallback((book: Book) => {
     handleOpenUploadModal(book);
   }, []);
-  
+
   const handleUpdateProgress = useCallback((bookId: string, currentPage: number) => {
-    setBooks(prevBooks => 
-      prevBooks.map(book => 
+    setBooks(prevBooks =>
+      prevBooks.map(book =>
         book.id === bookId ? { ...book, currentPage } : book
       )
     );
@@ -187,10 +187,10 @@ export default function HomePage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
             {Array.isArray(books) && books.map((book) => (
-              <BookCard 
-                key={book.id} 
-                book={book} 
-                onRemove={handleRemoveBook} 
+              <BookCard
+                key={book.id}
+                book={book}
+                onRemove={handleRemoveBook}
                 onEdit={handleEditBook}
                 onUpdateProgress={handleUpdateProgress}
               />
@@ -216,3 +216,5 @@ export default function HomePage() {
     </div>
   );
 }
+
+    
