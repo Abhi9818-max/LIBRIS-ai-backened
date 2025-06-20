@@ -18,21 +18,23 @@ import { UploadCloud, ImageUp, Loader2, Sparkles, BookImage } from "lucide-react
 import * as pdfjsLib from 'pdfjs-dist/build/pdf';
 
 if (typeof window !== 'undefined') {
-  // Check if pdf.worker.min.js is accessible, otherwise use CDN as fallback
-  // This helps ensure pdfjs works even if postinstall script fails or public dir isn't served correctly initially.
-  const workerUrl = '/pdf.worker.min.js';
-  fetch(workerUrl)
+  const KNOWN_PDFJS_VERSION = "4.4.168"; // Version from package.json
+  const localWorkerUrl = '/pdf.worker.min.js';
+  const cdnWorkerUrl = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${KNOWN_PDFJS_VERSION}/pdf.worker.min.js`;
+
+  fetch(localWorkerUrl)
     .then(response => {
       if (response.ok) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = localWorkerUrl;
+        console.log(`PDF.js worker set to local: ${localWorkerUrl}`);
       } else {
-        console.warn('Local pdf.worker.min.js not found or accessible, falling back to CDN version.');
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+        console.warn(`Local pdf.worker.min.js not found or accessible (status: ${response.status}), falling back to CDN version: ${cdnWorkerUrl}`);
+        pdfjsLib.GlobalWorkerOptions.workerSrc = cdnWorkerUrl;
       }
     })
-    .catch(() => {
-        console.warn('Error checking local pdf.worker.min.js, falling back to CDN version.');
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+    .catch((error) => {
+        console.warn(`Error checking local pdf.worker.min.js: ${error}. Falling back to CDN version: ${cdnWorkerUrl}`);
+        pdfjsLib.GlobalWorkerOptions.workerSrc = cdnWorkerUrl;
     });
 }
 
@@ -164,7 +166,10 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       console.error("Error extracting page as cover:", error);
       if (error.name === 'PasswordException' || error.message?.includes('password')) {
           toast({ title: "PDF Locked", description: "Cannot extract cover from a password-protected PDF.", variant: "destructive" });
-      } else {
+      } else if (error.message?.includes("Setting up fake worker") || error.message?.includes("Failed to fetch dynamically imported module")) {
+          toast({ title: "PDF Worker Error", description: "Failed to set up PDF processing worker. Please ensure your internet connection is stable and try again. If this persists, the PDF might be incompatible.", variant: "destructive", duration: 7000 });
+      }
+      else {
           toast({ title: "Cover Extraction Failed", description: "Could not extract page as cover. The PDF might be corrupted, incompatible, or the worker script may not have loaded correctly.", variant: "destructive" });
       }
       return null;
