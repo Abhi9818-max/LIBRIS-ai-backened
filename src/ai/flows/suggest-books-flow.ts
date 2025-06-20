@@ -10,7 +10,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit/zod';
+import {z} from 'genkit';
 
 const BookSuggestionSchema = z.object({
   title: z.string().describe('The title of the suggested book.'),
