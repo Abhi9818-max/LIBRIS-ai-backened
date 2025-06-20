@@ -32,6 +32,7 @@ export type SuggestBooksInput = z.infer<typeof SuggestBooksInputSchema>;
 const SuggestBooksOutputSchema = z.object({
   textResponse: z.string().optional().describe('A general text response from the AI if not providing specific book suggestions.'),
   suggestions: z.array(BookSuggestionSchema).optional().describe('A list of 3 to 5 thoughtful and diverse book suggestions, if applicable.'),
+  // searchedWeb: z.boolean().optional().default(false).describe('Indicates if a web search was performed by any tool to generate this response.'),
 });
 export type SuggestBooksOutput = z.infer<typeof SuggestBooksOutputSchema>;
 
@@ -43,9 +44,10 @@ const prompt = ai.definePrompt({
   name: 'suggestBooksPrompt',
   input: {schema: SuggestBooksInputSchema},
   output: {schema: SuggestBooksOutputSchema},
+  // tools: [performWebSearchTool], // Web search tool removed
   // Model will default to what's configured in src/ai/genkit.ts (e.g., googleai/gemini-1.5-flash-latest)
   prompt: `You are a knowledgeable and helpful AI Librarian and Book Expert.
-Your training data has a cutoff (generally early 2023), so you might not know about very recent releases or news.
+Your training data has a cutoff (generally early 2023).
 
 **Conversation Context and History**
 {{#if history.length}}
@@ -67,10 +69,10 @@ Current User Query: "{{currentQuery}}"
 2.  **Answering and Recommending**:
     *   **Follow-up Questions**: If the user asks a follow-up question about a book/topic from history, your priority is to answer directly.
     *   **Book Recommendations**: If the query asks for book recommendations:
-        *   Provide 3 to 5 thoughtful suggestions based on your internal knowledge.
+        *   Provide 3 to 5 thoughtful suggestions.
         *   For each book, include title, author, and a compelling reason.
         *   Populate the 'suggestions' field.
-    *   **General Questions/Information Synthesis**: For other questions, provide a helpful, informative text response based on your training data.
+    *   **General Questions/Information Synthesis**: For other questions, provide a helpful, informative text response.
 
 3.  **Handling Information Gaps**:
     *   If the query is about topics beyond your training data, clearly state your knowledge cutoff. Do not invent information. For example: "My knowledge is current up to early 2023. I can only provide information based on what I know up to that point."
@@ -87,6 +89,7 @@ Ensure your response is in the structured JSON format as requested by the output
 const defaultOutput: SuggestBooksOutput = {
   textResponse: "I'm sorry, I couldn't process that request. Please try again or rephrase your query.",
   suggestions: [],
+  // searchedWeb: false, // Removed searchedWeb
 };
 
 const suggestBooksFlow = ai.defineFlow(
@@ -100,10 +103,10 @@ const suggestBooksFlow = ai.defineFlow(
       const filteredHistory = input.history?.filter(item => item.content && item.content.trim() !== "") || [];
       const promptInput = { ...input, history: filteredHistory };
 
-      const {output} = await prompt(promptInput);
+      const {output} = await prompt(promptInput); // Removed flowHistory as tool usage is no longer tracked here
       
       if (output) {
-        const finalOutput: SuggestBooksOutput = {};
+        const finalOutput: SuggestBooksOutput = { }; // searchedWeb removed
 
         if (output.suggestions && output.suggestions.length > 0) {
             finalOutput.suggestions = output.suggestions;
@@ -119,13 +122,12 @@ const suggestBooksFlow = ai.defineFlow(
         return finalOutput;
       } else {
         console.warn('AI model did not return any output for book suggestions/query. Returning default error.');
-        return { ...defaultOutput, textResponse: "I'm sorry, I wasn't able to generate a response for that. Please try again."};
+        return { ...defaultOutput, textResponse: "I'm sorry, I wasn't able to generate a response for that. Please try again." };
       }
     } catch (error: any) {
       console.error('Error during suggestBooksFlow:', error);
       let errorMessage = "An error occurred while trying to process your request. Please try again later.";
       if (error.message) {
-         // Check if the error message already indicates an API key issue to avoid redundancy.
          if (error.message.includes('API key') || error.message.includes('GEMINI_API_KEY') || error.message.includes('GOOGLE_API_KEY')) {
             errorMessage = `There seems to be an issue with the AI service configuration: ${error.message}. Please check the API key and environment setup.`;
          } else {

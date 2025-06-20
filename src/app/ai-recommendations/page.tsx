@@ -9,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { suggestBooks, SuggestBooksOutput, SuggestBooksInput } from "@/ai/flows/suggest-books-flow";
-import { Loader2, Sparkles, Send, User, Bot, BookOpen, ChevronLeft } from "lucide-react";
+import { Loader2, Sparkles, Send, User, Bot, BookOpen, ChevronLeft } from "lucide-react"; // Globe removed
 import { useTheme } from "@/components/theme-provider";
 import { Sun, Moon } from "lucide-react";
 
@@ -19,6 +19,7 @@ interface Message {
   text?: string;
   suggestions?: SuggestBooksOutput["suggestions"];
   isLoading?: boolean;
+  // searchedWeb?: boolean; // Removed searchedWeb
 }
 
 export default function AiRecommendationsPage() {
@@ -71,6 +72,9 @@ export default function AiRecommendationsPage() {
             const bookTitles = msg.suggestions.map(s => s.title).join(", ");
             content = `I suggested the following books: ${bookTitles}.`;
           }
+          // if (msg.searchedWeb) { // Removed searchedWeb logic
+          //   content += " (Note: previous response involved a web search)";
+          // }
           return {
             role: msg.sender === "user" ? "user" : "model",
             content: content,
@@ -87,6 +91,7 @@ export default function AiRecommendationsPage() {
       const aiResponseMessage: Message = {
         id: loadingAiMessageId,
         sender: "ai",
+        // searchedWeb: result.searchedWeb || false, // Removed searchedWeb
       };
       let hasContent = false;
 
@@ -119,7 +124,7 @@ export default function AiRecommendationsPage() {
       setMessages((prevMessages) =>
          prevMessages.map(msg =>
           msg.id === loadingAiMessageId
-          ? { id: loadingAiMessageId, sender: "ai", text: errorMessageText }
+          ? { id: loadingAiMessageId, sender: "ai", text: errorMessageText } // Removed searchedWeb
           : msg
         )
       );
@@ -176,7 +181,14 @@ export default function AiRecommendationsPage() {
                 >
                   <CardContent className="p-3">
                     <div className="flex items-start space-x-2">
-                      {message.sender === "ai" && <Bot className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />}
+                      {message.sender === "ai" && (
+                        <div className="flex-shrink-0 mt-0.5 relative">
+                           <Bot className="h-5 w-5 text-accent" />
+                           {/* {message.searchedWeb && ( // Removed Globe icon for web search
+                             <Globe className="h-3 w-3 text-blue-500 absolute -top-1 -right-1" title="Web search used" />
+                           )} */}
+                        </div>
+                      )}
                       {message.sender === "user" && <User className="h-5 w-5 text-primary-foreground flex-shrink-0 mt-0.5" />}
 
                       <div className="flex-grow">
