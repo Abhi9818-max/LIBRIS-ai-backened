@@ -43,7 +43,7 @@ export default function AiRecommendationsPage() {
       {
         id: Date.now().toString(),
         sender: "ai",
-        text: "Hello! I'm your AI Librarian and Book Expert. I can help you find books, authors, and genres."
+        text: "Hello! I'm your AI Librarian and Book Expert. I can help you find books, authors, and genres based on my knowledge."
       }
     ]);
   }, []);

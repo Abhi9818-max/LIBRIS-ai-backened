@@ -73,7 +73,7 @@ Current User Query: "{{currentQuery}}"
     *   **General Questions/Information Synthesis**: For other questions, provide a helpful, informative text response.
 
 3.  **Handling Information Gaps**:
-    *   If you can't find relevant information state your limitations or knowledge cutoff. For example: "My knowledge is current up to early 2023. I couldn't find specific information on that topic." Do not invent information.
+    *   If you can't find relevant information, state your limitations or knowledge cutoff. For example: "My knowledge is current up to early 2023. I couldn't find specific information on that topic." Do not invent information.
 
 4.  **Output Format**:
     *   Use 'suggestions' for NEW book recommendations.
@@ -103,7 +103,7 @@ const suggestBooksFlow = ai.defineFlow(
       const {output} = await prompt(promptInput);
       
       if (output) {
-        const finalOutput: SuggestBooksOutput = { };
+        const finalOutput: SuggestBooksOutput = {};
 
         if (output.suggestions && output.suggestions.length > 0) {
             finalOutput.suggestions = output.suggestions;
@@ -126,7 +126,7 @@ const suggestBooksFlow = ai.defineFlow(
       let errorMessage = "An error occurred while trying to process your request. Please try again later.";
       if (error.message) {
          if (error.message.includes('API key') || error.message.includes('GEMINI_API_KEY') || error.message.includes('GOOGLE_API_KEY')) {
-            errorMessage = `There seems to be an issue with the AI service configuration: ${error.message}. Please check the API key and environment setup.`;
+            errorMessage = `There seems to be an issue with the AI service configuration: ${error.message}. Please check the API key(s) and environment setup.`;
          } else {
             errorMessage = `I encountered an issue processing that: ${error.message}. Please try rephrasing or ask something else.`;
          }
