@@ -85,6 +85,7 @@ export default function BookCard({ book, onUpdateProgress, onOpenDetailView }: B
   }, [book.currentPage]);
 
   useEffect(() => {
+    // Generate random color on client mount to avoid hydration mismatch
     const randomHue = Math.floor(Math.random() * 360);
     const randomSaturation = Math.floor(Math.random() * 30) + 70; 
     const randomLightness = Math.floor(Math.random() * 20) + 50; 
@@ -237,12 +238,10 @@ export default function BookCard({ book, onUpdateProgress, onOpenDetailView }: B
         <CardDescription className="text-sm text-muted-foreground truncate" title={book.author}>By: {book.author || "Unknown Author"}</CardDescription>
       </CardHeader>
       <CardContent className="p-4 pt-0 flex-grow">
-        {/* Summary removed from here */}
-        
         {book.totalPages && book.totalPages > 0 && (
           <div className="mt-3 space-y-2">
             <div className="flex items-center space-x-3">
-              <div className="relative h-12 w-12">
+              <div className="relative h-12 w-12 flex-shrink-0">
                 <svg className="h-full w-full" viewBox="0 0 36 36">
                   <circle
                     cx="18"
@@ -262,6 +261,7 @@ export default function BookCard({ book, onUpdateProgress, onOpenDetailView }: B
                     strokeDasharray={`${percentageRead}, 100`}
                     strokeDashoffset="25" 
                     strokeLinecap="round"
+                    className="transition-all duration-300 ease-in-out"
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
@@ -270,11 +270,9 @@ export default function BookCard({ book, onUpdateProgress, onOpenDetailView }: B
                   </span>
                 </div>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">
-                  Page {book.currentPage || 1} of {book.totalPages}
-                </p>
-              </div>
+              <p className="text-sm font-medium text-foreground">
+                Reading Progress
+              </p>
             </div>
             <div className="flex items-center space-x-2">
               <Input 
@@ -283,10 +281,19 @@ export default function BookCard({ book, onUpdateProgress, onOpenDetailView }: B
                 onChange={handleProgressChange} 
                 min="1"
                 max={book.totalPages}
-                className="h-8 text-xs w-20"
+                className="h-8 text-xs w-16"
                 aria-label="Current page"
               />
-              <Button size="xs" variant="outline" onClick={handleSaveProgress} aria-label="Save progress">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                / {book.totalPages} pages
+              </span>
+              <Button 
+                size="xs" 
+                variant="outline" 
+                onClick={handleSaveProgress} 
+                aria-label="Save progress"
+                className="ml-auto"
+              >
                 <Save className="h-3 w-3 mr-1" /> Save
               </Button>
             </div>
