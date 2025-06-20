@@ -17,6 +17,55 @@ interface BookCardProps {
   onUpdateProgress: (bookId: string, currentPage: number) => void;
 }
 
+// Helper function to convert data URI to Blob
+function dataURIToBlob(dataURI: string): Blob | null {
+  if (!dataURI.includes(',')) {
+    console.error("Invalid data URI format");
+    return null;
+  }
+  const [header, base64Data] = dataURI.split(',');
+  if (!header || !base64Data) {
+    console.error("Invalid data URI format");
+    return null;
+  }
+  
+  const mimeMatch = header.match(/:(.*?);/);
+  if (!mimeMatch || mimeMatch.length < 2) {
+    console.error("Could not extract MIME type from data URI");
+    return null;
+  }
+  const mimeType = mimeMatch[1];
+
+  try {
+    const byteString = atob(base64Data);
+    const ia = new Uint8Array(byteString.length);
+    for (let i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([ia], { type: mimeType });
+  } catch (error) {
+    console.error("Error converting base64 to Blob:", error);
+    // This can happen if base64Data is malformed
+    if (error instanceof DOMException && error.name === 'InvalidCharacterError') {
+      // Try to recover if there are URL-encoded characters like %0A
+      try {
+        const decodedBase64 = decodeURIComponent(base64Data);
+        const byteStringDecoded = atob(decodedBase64);
+        const iaDecoded = new Uint8Array(byteStringDecoded.length);
+        for (let i = 0; i < byteStringDecoded.length; i++) {
+          iaDecoded[i] = byteStringDecoded.charCodeAt(i);
+        }
+        return new Blob([iaDecoded], { type: mimeType });
+      } catch (decodeError) {
+        console.error("Error converting base64 to Blob after URI decoding:", decodeError);
+        return null;
+      }
+    }
+    return null;
+  }
+}
+
+
 export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: BookCardProps) {
   const { toast } = useToast();
   const [currentPageInput, setCurrentPageInput] = useState<string>((book.currentPage || 1).toString());
@@ -33,30 +82,55 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: B
     }
 
     try {
-      const pdfWindow = window.open("");
+      const pdfBlob = dataURIToBlob(book.pdfDataUri);
+      if (!pdfBlob) {
+        toast({
+          title: "PDF Processing Error",
+          description: "Could not process the PDF data. It might be corrupted or in an invalid format.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const objectUrl = URL.createObjectURL(pdfBlob);
+      
+      const pdfWindow = window.open(objectUrl, '_blank');
+      
       if (pdfWindow) {
-        pdfWindow.document.write(
-          `<iframe width='100%' height='100%' src='${book.pdfDataUri}'></iframe>`
-        );
-        pdfWindow.document.title = book.pdfFileName || book.title || "Book";
+        pdfWindow.focus(); // Try to focus the new tab
+        // It's good practice to revoke the object URL when it's no longer needed,
+        // but for a new tab, it's tricky to know when. The browser usually handles cleanup on tab close.
+        // For very long-lived single-page apps with many such operations without tab closes,
+        // one might need a more complex cleanup strategy.
+        // URL.revokeObjectURL(objectUrl); // Revoking immediately would break the new tab.
+        
         toast({
             title: "Opening PDF",
-            description: `Attempting to open "${book.pdfFileName || book.title}" in a new tab. If it doesn't open, check your browser's popup blocker.`,
+            description: `Attempting to open "${book.pdfFileName || book.title}" in a new tab.`,
             variant: "default",
         });
       } else {
+        // Fallback or if popup was blocked
         toast({
-            title: "Popup Blocked",
-            description: `Could not open PDF in a new tab. Please disable your popup blocker for this site and try again. The download was attempted, but the browser prevented it.`,
+            title: "Popup Blocked or Failed",
+            description: `Could not open PDF in a new tab automatically. Your browser might have blocked it. Try allowing popups for this site.`,
             variant: "destructive",
             duration: 7000,
         });
+        // As a last resort, offer download if opening fails.
+        const link = document.createElement('a');
+        link.href = objectUrl; // Use object URL for download as well
+        link.download = book.pdfFileName || `${book.title || "book"}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(objectUrl); // Revoke after download initiated
       }
     } catch (error) {
       console.error("Error attempting to open PDF:", error);
       toast({
         title: "PDF Open Failed",
-        description: "Could not open PDF. Please check the browser console for more details.",
+        description: "An unexpected error occurred while trying to open the PDF. Please check the browser console.",
         variant: "destructive",
       });
     }
@@ -68,10 +142,10 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: B
 
   const handleSaveProgress = () => {
     const newPage = parseInt(currentPageInput, 10);
-    if (isNaN(newPage) || newPage < 0 || (book.totalPages && newPage > book.totalPages)) {
+    if (isNaN(newPage) || newPage < 1 || (book.totalPages && newPage > book.totalPages)) {
       toast({
         title: "Invalid Page Number",
-        description: `Please enter a valid page number between 0 and ${book.totalPages || 'the total pages'}.`,
+        description: `Please enter a valid page number between 1 and ${book.totalPages || 'the total pages'}.`,
         variant: "destructive",
       });
       return;
@@ -163,3 +237,4 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: B
     </Card>
   );
 }
+
