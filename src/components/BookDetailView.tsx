@@ -191,3 +191,4 @@ export default function BookDetailView({ book, isOpen, onClose }: BookDetailView
     </Dialog>
   );
 }
+

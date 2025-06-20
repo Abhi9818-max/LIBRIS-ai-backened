@@ -340,3 +340,4 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress, onO
     </Card>
   );
 }
+
