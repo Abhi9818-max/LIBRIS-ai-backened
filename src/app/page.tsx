@@ -6,7 +6,7 @@ import Link from "next/link";
 import type { Book } from "@/types";
 import BookCard from "@/components/BookCard";
 import UploadBookForm from "@/components/UploadBookForm";
-import BookDetailView from "@/components/BookDetailView"; // New import
+import BookDetailView from "@/components/BookDetailView";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, BookOpen, Sun, Moon, SearchX } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
@@ -20,7 +20,6 @@ export default function HomePage() {
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
 
-  // State for Book Detail View
   const [selectedBookForDetail, setSelectedBookForDetail] = useState<Book | null>(null);
   const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
 
@@ -81,7 +80,6 @@ export default function HomePage() {
           summary: book.summary,
           coverImageUrl: book.coverImageUrl,
           pdfFileName: book.pdfFileName,
-          // pdfDataUri is intentionally not stored in localStorage due to size
           currentPage: book.currentPage,
           totalPages: book.totalPages,
         }));
@@ -110,7 +108,11 @@ export default function HomePage() {
   const handleSaveBook = (book: Book, isEditing: boolean) => {
     setBooks((prevBooks) => {
       if (isEditing) {
-        return prevBooks.map((b) => (b.id === book.id ? book : b));
+        const updatedBooks = prevBooks.map((b) => (b.id === book.id ? book : b));
+        if (selectedBookForDetail && selectedBookForDetail.id === book.id) {
+          setSelectedBookForDetail(book); // Update detail view if current book is edited
+        }
+        return updatedBooks;
       }
       const newBookWithProgress = {
         ...book,
@@ -120,6 +122,11 @@ export default function HomePage() {
     });
     handleCloseUploadModal();
   };
+  
+  const handleCloseDetailView = useCallback(() => {
+    setIsDetailViewOpen(false);
+    setTimeout(() => setSelectedBookForDetail(null), 300); 
+  }, []);
 
   const handleRemoveBook = useCallback((id: string) => {
     setBooks((prevBooks) => prevBooks.filter((book) => book.id !== id));
@@ -127,32 +134,35 @@ export default function HomePage() {
       title: "Book Removed",
       description: "The book has been removed from your shelf.",
     });
-  }, [toast]);
+    if (selectedBookForDetail && selectedBookForDetail.id === id) {
+      handleCloseDetailView();
+    }
+  }, [toast, selectedBookForDetail, handleCloseDetailView]);
 
-  const handleEditBook = useCallback((book: Book) => {
-    handleOpenUploadModal(book);
-  }, []);
+
+  const handleEditBookInDetailView = useCallback((book: Book) => {
+    handleCloseDetailView(); // Close detail view first
+    setTimeout(() => handleOpenUploadModal(book), 150); // Open edit modal after a short delay
+  }, [handleCloseDetailView]);
 
   const handleUpdateProgress = useCallback((bookId: string, currentPage: number) => {
     setBooks(prevBooks =>
-      prevBooks.map(book =>
-        book.id === bookId ? { ...book, currentPage } : book
-      )
+      prevBooks.map(book => {
+        if (book.id === bookId) {
+          const updatedBook = { ...book, currentPage };
+          if (selectedBookForDetail && selectedBookForDetail.id === bookId) {
+            setSelectedBookForDetail(updatedBook); // Update detail view if current book progress changes
+          }
+          return updatedBook;
+        }
+        return book;
+      })
     );
-  }, []);
+  }, [selectedBookForDetail]);
 
-  // Handlers for Book Detail View
   const handleOpenDetailView = useCallback((book: Book) => {
     setSelectedBookForDetail(book);
     setIsDetailViewOpen(true);
-  }, []);
-
-  const handleCloseDetailView = useCallback(() => {
-    setIsDetailViewOpen(false);
-    // It's good practice to clear the selected book after closing,
-    // though the BookDetailView handles book being null.
-    // Setting a timeout can prevent a flicker if re-opening immediately.
-    setTimeout(() => setSelectedBookForDetail(null), 300); 
   }, []);
 
 
@@ -209,10 +219,8 @@ export default function HomePage() {
               <BookCard
                 key={book.id}
                 book={book}
-                onRemove={handleRemoveBook}
-                onEdit={handleEditBook}
                 onUpdateProgress={handleUpdateProgress}
-                onOpenDetailView={handleOpenDetailView} // Pass handler to BookCard
+                onOpenDetailView={handleOpenDetailView}
               />
             ))}
           </div>
@@ -228,11 +236,12 @@ export default function HomePage() {
         />
       )}
 
-      {/* Render BookDetailView conditionally */}
       <BookDetailView
         book={selectedBookForDetail}
         isOpen={isDetailViewOpen}
         onClose={handleCloseDetailView}
+        onEditBook={handleEditBookInDetailView}
+        onRemoveBook={handleRemoveBook}
       />
 
       <footer className="py-4 px-4 md:px-8 border-t border-border mt-auto">
@@ -243,4 +252,3 @@ export default function HomePage() {
     </div>
   );
 }
-

@@ -7,15 +7,13 @@ import { useState, ChangeEvent, useEffect } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, FileText, Pencil, Save, Eye } from "lucide-react"; // Added Eye icon
+import { FileText, Save, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface BookCardProps {
   book: Book;
-  onRemove: (id: string) => void;
-  onEdit: (book: Book) => void;
   onUpdateProgress: (bookId: string, currentPage: number) => void;
-  onOpenDetailView: (book: Book) => void; // New prop
+  onOpenDetailView: (book: Book) => void;
 }
 
 // Helper function to convert data URI to Blob
@@ -77,7 +75,7 @@ function dataURIToBlob(dataURI: string): Blob | null {
 }
 
 
-export default function BookCard({ book, onRemove, onEdit, onUpdateProgress, onOpenDetailView }: BookCardProps) {
+export default function BookCard({ book, onUpdateProgress, onOpenDetailView }: BookCardProps) {
   const { toast } = useToast();
   const [currentPageInput, setCurrentPageInput] = useState<string>((book.currentPage || 1).toString());
   const [progressColor, setProgressColor] = useState<string>('hsl(var(--primary))');
@@ -296,30 +294,19 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress, onO
         )}
       </CardContent>
       <CardFooter className="p-4 pt-0 flex flex-col space-y-2">
-        <div className="flex space-x-2 w-full">
-          {book.pdfDataUri && book.pdfDataUri.startsWith('data:application/pdf;base64,') && (
+         {book.pdfDataUri && book.pdfDataUri.startsWith('data:application/pdf;base64,') && (
             <Button
               variant="outline"
               size="sm"
               onClick={handleOpenPdf}
-              className="flex-1"
+              className="w-full"
               aria-label={`Open PDF for ${book.title}`}
             >
               <FileText className="mr-2 h-4 w-4" /> Open PDF
             </Button>
           )}
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => onEdit(book)}
-            aria-label={`Edit ${book.title}`}
-            className={(!book.pdfDataUri || !book.pdfDataUri.startsWith('data:application/pdf;base64,')) ? "w-full" : "flex-1"}
-          >
-            <Pencil className="mr-2 h-4 w-4" /> Edit
-          </Button>
-        </div>
         <Button
-          variant="outline"
+          variant="secondary"
           size="sm"
           onClick={() => onOpenDetailView(book)}
           aria-label={`View details for ${book.title}`}
@@ -327,17 +314,7 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress, onO
         >
           <Eye className="mr-2 h-4 w-4" /> View Details
         </Button>
-        <Button
-          variant="destructive"
-          size="sm"
-          onClick={() => onRemove(book.id)}
-          aria-label={`Remove ${book.title}`}
-          className="w-full"
-        >
-          <Trash2 className="mr-2 h-4 w-4" /> Remove
-        </Button>
       </CardFooter>
     </Card>
   );
 }
-
