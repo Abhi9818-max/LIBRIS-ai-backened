@@ -16,8 +16,8 @@ import { Sun, Moon } from "lucide-react";
 interface Message {
   id: string;
   sender: "user" | "ai";
-  text?: string; // For user's query AND AI's general text response
-  suggestions?: SuggestBooksOutput["suggestions"]; // For AI's book suggestions
+  text?: string; 
+  suggestions?: SuggestBooksOutput["suggestions"]; 
   isLoading?: boolean;
 }
 
@@ -54,7 +54,8 @@ export default function AiRecommendationsPage() {
     if (!queryText) return;
 
     const userMessage: Message = { id: Date.now().toString(), sender: "user", text: queryText };
-    setMessages((prev) => [...prev, userMessage]);
+    const currentMessages = [...messages, userMessage];
+    setMessages(currentMessages);
     setInputValue("");
     setIsAiLoading(true);
     
@@ -62,7 +63,27 @@ export default function AiRecommendationsPage() {
     setMessages((prev) => [...prev, {id: loadingAiMessageId, sender: "ai", isLoading: true}]);
 
     try {
-      const result: SuggestBooksOutput = await suggestBooks({ query: queryText });
+      const historyForAI = currentMessages
+        .filter(msg => !msg.isLoading && (msg.text || (msg.suggestions && msg.suggestions.length > 0))) // Only include messages with content
+        .map(msg => {
+          let content = msg.text || "";
+          if (!content && msg.suggestions && msg.suggestions.length > 0) {
+            const bookTitles = msg.suggestions.map(s => s.title).join(", ");
+            content = `I suggested the following books: ${bookTitles}.`;
+          }
+          return {
+            role: msg.sender === "user" ? "user" : "model",
+            content: content,
+          };
+        })
+        // Remove the last message from history if it's the current user query, as it's passed separately
+        .slice(0, -1);
+
+
+      const result: SuggestBooksOutput = await suggestBooks({ 
+        currentQuery: queryText,
+        history: historyForAI 
+      });
       
       const aiResponseMessage: Message = { id: loadingAiMessageId, sender: "ai" };
       let hasContent = false;
