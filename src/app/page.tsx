@@ -20,7 +20,7 @@ export default function HomePage() {
 
   useEffect(() => {
     setIsClient(true);
-    let newBooks: Book[] = []; // Start with a guaranteed empty array
+    let newBooks: Book[] = []; 
 
     try {
       const storedBooksJson = localStorage.getItem("bookshelf_books");
@@ -28,17 +28,15 @@ export default function HomePage() {
         const parsedData = JSON.parse(storedBooksJson);
         if (Array.isArray(parsedData)) {
           newBooks = parsedData.reduce((acc: Book[], item: any) => {
-            // Defensively create each book object
             if (item && typeof item === 'object' && typeof item.id === 'string' && typeof item.title === 'string') {
               acc.push({
                 id: item.id,
                 title: item.title,
                 author: typeof item.author === 'string' ? item.author : "Unknown Author",
                 summary: typeof item.summary === 'string' ? item.summary : "",
-                // coverImageUrl from localStorage is either a placeholder URL or "" (if it was a stripped data URI)
                 coverImageUrl: typeof item.coverImageUrl === 'string' ? item.coverImageUrl : "", 
                 pdfFileName: typeof item.pdfFileName === 'string' ? item.pdfFileName : "",
-                pdfDataUri: "", // pdfDataUri is not stored in localStorage, so re-initialize as empty
+                pdfDataUri: "", 
                 currentPage: typeof item.currentPage === 'number' ? item.currentPage : 1,
                 totalPages: typeof item.totalPages === 'number' ? item.totalPages : undefined,
               });
@@ -48,31 +46,31 @@ export default function HomePage() {
             return acc;
           }, []);
         } else if (parsedData !== null) { 
-          // storedBooksJson was valid JSON, but not an array (and not null)
           console.warn("Stored book data is not an array. Resetting to empty. Data was:", parsedData);
-          // newBooks remains []
         }
-        // If parsedData was null, newBooks remains []
       }
-      // If storedBooksJson was null (no data stored), newBooks remains []
     } catch (error) {
       console.error("Failed to load or parse books from localStorage:", error);
       toast({
         title: "Loading Error",
-        description: "Could not load book data from your previous session. Your bookshelf may appear empty or reset.",
+        description: "Could not load book data from your previous session. Your bookshelf data may have been corrupted and has been reset.",
         variant: "destructive",
       });
+      try {
+        localStorage.removeItem("bookshelf_books"); // Attempt to clear corrupted data
+      } catch (removeError) {
+        console.error("Failed to remove corrupted bookshelf_books from localStorage:", removeError);
+      }
       // newBooks is already [], which is the correct fallback state
     }
-    setBooks(newBooks); // Set books state once after all processing
-  }, [toast]); // isClient removed to prevent re-triggering; toast is fine.
+    setBooks(newBooks); 
+  }, [toast]);
 
 
   useEffect(() => {
     if (isClient) {
       try {
         const booksToStore = books.map(book => {
-          // Ensure book and book.coverImageUrl are defined before accessing startsWith
           const isCoverDataUri = typeof book.coverImageUrl === 'string' && book.coverImageUrl.startsWith('data:image');
           
           return {
@@ -82,7 +80,6 @@ export default function HomePage() {
             summary: book.summary,
             coverImageUrl: isCoverDataUri ? "" : (book.coverImageUrl || ""),
             pdfFileName: book.pdfFileName || "",
-            // pdfDataUri is intentionally NOT stored
             currentPage: book.currentPage,
             totalPages: book.totalPages,
           };
@@ -175,7 +172,7 @@ export default function HomePage() {
       </header>
 
       <main className="flex-grow container mx-auto p-4 md:p-8">
-        {books.length === 0 ? (
+        {(!Array.isArray(books) || books.length === 0) ? (
           <div className="flex flex-col items-center justify-center text-center h-[60vh]">
             <BookOpen className="h-24 w-24 text-muted-foreground mb-6" />
             <h2 className="text-2xl font-headline text-foreground mb-2">Your bookshelf is empty.</h2>
