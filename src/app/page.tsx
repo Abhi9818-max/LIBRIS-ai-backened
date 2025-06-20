@@ -5,8 +5,9 @@ import { useState, useEffect, useCallback } from "react";
 import type { Book } from "@/types";
 import BookCard from "@/components/BookCard";
 import UploadBookForm from "@/components/UploadBookForm";
+import BookSuggestionsDialog from "@/components/BookSuggestionsDialog"; // Import new dialog
 import { Button } from "@/components/ui/button";
-import { PlusCircle, BookOpen, Sun, Moon, SearchX } from "lucide-react";
+import { PlusCircle, BookOpen, Sun, Moon, SearchX, Lightbulb } from "lucide-react"; // Added Lightbulb
 import { useTheme } from "@/components/theme-provider";
 import { useToast } from "@/hooks/use-toast";
 
@@ -15,6 +16,7 @@ export default function HomePage() {
   const [isClient, setIsClient] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [editingBook, setEditingBook] = useState<Book | null>(null);
+  const [isSuggestionsModalOpen, setIsSuggestionsModalOpen] = useState(false); // State for new dialog
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
 
@@ -35,7 +37,7 @@ export default function HomePage() {
                 summary: typeof item.summary === 'string' ? item.summary : "No summary available.",
                 coverImageUrl: typeof item.coverImageUrl === 'string' ? item.coverImageUrl : "https://placehold.co/200x300.png",
                 pdfFileName: typeof item.pdfFileName === 'string' ? item.pdfFileName : "",
-                pdfDataUri: typeof item.pdfDataUri === 'string' ? item.pdfDataUri : "", // Was not storing pdfDataUri, default to empty
+                pdfDataUri: typeof item.pdfDataUri === 'string' ? item.pdfDataUri : "",
                 currentPage: typeof item.currentPage === 'number' ? item.currentPage : 1,
                 totalPages: typeof item.totalPages === 'number' ? item.totalPages : undefined,
               });
@@ -46,7 +48,7 @@ export default function HomePage() {
           }, []);
         } else if (parsedBooks !== null) {
           console.warn("Stored bookshelf_books is not an array, resetting. Data:", parsedBooks);
-          localStorage.removeItem("bookshelf_books"); // Attempt to clear corrupted non-array data
+          localStorage.removeItem("bookshelf_books"); 
         }
       }
     } catch (error) {
@@ -66,17 +68,16 @@ export default function HomePage() {
   }, [toast]);
 
   useEffect(() => {
-    if (isClient) { // Only save to localStorage if on the client and after initial load
+    if (isClient) { 
       try {
         const booksToStore = books.map(book => ({
-          // Only store necessary fields, exclude pdfDataUri from localStorage
           id: book.id,
           title: book.title,
           author: book.author,
           summary: book.summary,
           coverImageUrl: book.coverImageUrl,
           pdfFileName: book.pdfFileName,
-          // pdfDataUri: book.pdfDataUri, // DO NOT STORE LARGE DATA URIS
+          // pdfDataUri is intentionally not stored in localStorage due to size
           currentPage: book.currentPage,
           totalPages: book.totalPages,
         }));
@@ -107,7 +108,6 @@ export default function HomePage() {
       if (isEditing) {
         return prevBooks.map((b) => (b.id === book.id ? book : b));
       }
-      // Ensure currentPage is set to 1 if totalPages is available and it's a new book
       const newBookWithProgress = {
         ...book,
         currentPage: book.totalPages ? 1 : undefined,
@@ -156,6 +156,13 @@ export default function HomePage() {
             BookShelf
           </h1>
           <div className="flex items-center space-x-2">
+            <Button 
+              variant="outline"
+              aria-label="Get AI book recommendations" 
+              onClick={() => setIsSuggestionsModalOpen(true)}
+            >
+              <Lightbulb className="mr-2 h-5 w-5" /> AI Recommends
+            </Button>
             <Button aria-label="Add new book" onClick={() => handleOpenUploadModal()}>
               <PlusCircle className="mr-2 h-5 w-5" /> Add Book
             </Button>
@@ -206,6 +213,13 @@ export default function HomePage() {
           onOpenChange={setIsUploadModalOpen}
           onSaveBook={handleSaveBook}
           bookToEdit={editingBook}
+        />
+      )}
+
+      {isSuggestionsModalOpen && (
+        <BookSuggestionsDialog
+          isOpen={isSuggestionsModalOpen}
+          onOpenChange={setIsSuggestionsModalOpen}
         />
       )}
 
