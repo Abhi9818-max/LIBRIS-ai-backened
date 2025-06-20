@@ -1,37 +1,23 @@
-import type {Metadata} from 'next';
-import { use } from 'react'; // <-- Import use
-import './globals.css';
-import { Toaster } from "@/components/ui/toaster";
-import { ThemeProvider } from "@/components/theme-provider";
 
+import type { Metadata } from 'next';
+// Removed: import { use } from 'react';
+import './globals.css';
+// Removed: import { Toaster } from "@/components/ui/toaster";
+// Removed: import { ThemeProvider } from "@/components/theme-provider";
+
+// Metadata object is simplified or can be fully removed if needed for extreme debugging
 export const metadata: Metadata = {
-  title: 'BookShelf App',
-  description: 'Upload and manage your book collection.',
+  title: 'BookShelf App (Layout Debug)',
+  description: 'Debugging layout and client-side errors.',
 };
 
 export default function RootLayout({
   children,
-  params,
-  searchParams
 }: Readonly<{
   children: React.ReactNode;
-  params?: { [key: string]: string | string[] | undefined };
-  searchParams?: { [key: string]: string | string[] | undefined };
+  // params and searchParams removed as 'use' was removed
 }>) {
-  // Attempt to "unwrap" params and searchParams if they are passed.
-  // This is based on Next.js guidance for accessing/enumerating them in Server Components.
-  if (params) {
-    try { use(params); } catch (e) {
-      // Silently catch if params is not a "use-able" value in this context,
-      // which might happen if Next.js doesn't make it use-able at the layout level
-      // unless it's a dynamic route layout.
-    }
-  }
-  if (searchParams) {
-    try { use(searchParams); } catch (e) {
-      // Silently catch, same reasoning as above.
-    }
-  }
+  // Removed: params and searchParams handling with use()
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -41,13 +27,9 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased bg-background text-foreground">
-        <ThemeProvider
-          defaultTheme="light"
-          storageKey="bookshelf-theme"
-        >
-          {children}
-          <Toaster />
-        </ThemeProvider>
+        {/* ThemeProvider and Toaster temporarily removed */}
+        {children}
+        {/* <Toaster /> */}
       </body>
     </html>
   );
