@@ -120,6 +120,15 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: B
       return;
     }
     
+    if (pdfBlob.type !== "application/pdf") {
+      toast({
+        title: "Incorrect PDF Type",
+        description: `The processed file type is "${pdfBlob.type}" not "application/pdf". PDF cannot be displayed. Try re-uploading.`,
+        variant: "destructive",
+      });
+      console.error("handleOpenPdf: Blob type is not application/pdf. Type:", pdfBlob.type);
+      return;
+    }
     console.log("handleOpenPdf: PDF Blob created successfully. Size:", pdfBlob.size, "Type:", pdfBlob.type);
 
     let objectUrl: string | null = null;
@@ -139,27 +148,38 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: B
         return;
     }
 
-    const pdfWindow = window.open(objectUrl, '_blank');
-    
-    if (pdfWindow) {
-      // pdfWindow.focus(); // Can be problematic
+    const newWindow = window.open('', '_blank');
+    console.log("handleOpenPdf: window.open attempt. newWindow object:", newWindow);
+
+    if (newWindow && objectUrl) {
+      newWindow.document.title = book.pdfFileName || book.title || "PDF Document";
+      // Try embedding in an iframe within the new window for better control.
+      // Or simply navigate the new window if iframe causes issues.
+      // For simplicity and common success, let's try direct navigation:
+      newWindow.location.href = objectUrl;
+      // Alternatively, for iframe:
+      // newWindow.document.write('<html><head><title>' + (book.pdfFileName || book.title || "PDF Document") + '</title><style>body,html{margin:0;padding:0;overflow:hidden;}iframe{width:100%;height:100%;border:none;}</style></head><body>');
+      // newWindow.document.write('<iframe src="' + objectUrl + '"></iframe>');
+      // newWindow.document.write('</body></html>');
+      // newWindow.document.close(); // Important for iframe approach
+
       toast({
-          title: "Opening PDF",
-          description: `Attempting to open "${book.pdfFileName || book.title}" in a new tab.`,
+        title: "Opening PDF",
+        description: `Attempting to open "${book.pdfFileName || book.title}" in a new tab.`,
       });
-      // For new tabs, it's generally safer to let the browser manage object URL lifecycle.
-      // Do NOT revoke objectUrl here, the new tab needs it.
+      // The object URL should not be revoked here if the new tab is using it.
+      // Browsers typically manage the lifecycle of object URLs for open documents.
     } else {
       toast({
-          title: "Popup Possibly Blocked",
-          description: `Could not open PDF in a new tab directly. Your browser might have blocked it, or an error occurred. Trying to initiate download as a fallback.`,
-          variant: "destructive",
-          duration: 7000,
+        title: "Could Not Open PDF Tab",
+        description: "Failed to open a new tab, possibly due to browser settings or an error. Initiating download as a fallback.",
+        variant: "destructive",
+        duration: 7000,
       });
-      // As a last resort, offer download if opening fails.
+      // Fallback to download if opening new window failed
       try {
         const link = document.createElement('a');
-        link.href = objectUrl; 
+        link.href = objectUrl; // objectUrl should still be valid here
         link.download = book.pdfFileName || `${book.title || "book"}.pdf`;
         document.body.appendChild(link);
         link.click();
@@ -167,16 +187,16 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: B
         URL.revokeObjectURL(objectUrl); // Revoke AFTER download initiated
         console.log("handleOpenPdf: Fallback to download initiated and object URL revoked.");
       } catch (downloadError: any) {
-          console.error("handleOpenPdf: Error attempting to download PDF as fallback:", downloadError.message, downloadError);
-          toast({
-              title: "Download Failed",
-              description: "Could not even initiate a download for the PDF. Check console.",
-              variant: "destructive",
-          });
-          if (objectUrl) {
-            URL.revokeObjectURL(objectUrl); // Clean up if objectUrl was created but download failed
-            console.log("handleOpenPdf: Object URL revoked after failed download attempt.");
-          }
+        console.error("handleOpenPdf: Error attempting to download PDF as fallback:", downloadError.message, downloadError);
+        toast({
+          title: "Download Failed",
+          description: "Could not even initiate a download for the PDF. Check console.",
+          variant: "destructive",
+        });
+        if (objectUrl) {
+          URL.revokeObjectURL(objectUrl); // Clean up if objectUrl was created but download failed
+          console.log("handleOpenPdf: Object URL revoked after failed download attempt.");
+        }
       }
     }
   };
@@ -282,4 +302,4 @@ export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: B
     </Card>
   );
 }
-
+    
