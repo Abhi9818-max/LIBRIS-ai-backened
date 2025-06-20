@@ -83,10 +83,10 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
           summary: bookToEdit.summary,
         });
         setCoverPreviewUrl(bookToEdit.coverImageUrl);
-        setPdfFileName(bookToEdit.pdfFileName);
-        setCurrentPdfDataUri(bookToEdit.pdfDataUri);
-        setPdfFile(null); // Reset file object, URI is kept for persistence if no new file
-        setCoverImageFile(null); // Reset file object
+        setPdfFileName(bookToEdit.pdfFileName || "");
+        setCurrentPdfDataUri(bookToEdit.pdfDataUri || null);
+        setPdfFile(null); 
+        setCoverImageFile(null);
       } else {
         resetFormState();
       }
@@ -103,22 +103,27 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
           variant: "destructive",
         });
         setPdfFile(null);
-        setPdfFileName(bookToEdit ? bookToEdit.pdfFileName : "");
-        setCurrentPdfDataUri(bookToEdit ? bookToEdit.pdfDataUri : null);
+        // Do not clear currentPdfDataUri if editing and file is invalid; keep old one.
+        // For new book, it will be null anyway if it gets here.
+        if (!isEditing) {
+            setPdfFileName("");
+            setCurrentPdfDataUri(null);
+        } else if (bookToEdit) {
+            setPdfFileName(bookToEdit.pdfFileName || "");
+            setCurrentPdfDataUri(bookToEdit.pdfDataUri || null);
+        }
         return;
       }
 
-      setPdfFile(file);
+      setPdfFile(file); // Track the new file object
       setPdfFileName(file.name);
-      // Reset metadata only if it's a new book or a new PDF is chosen for an existing book
+      
       if (!isEditing || (isEditing && file)) {
-         form.reset({ title: "", author: "", summary: "" });
-         // Clear previous AI cover if a new PDF is uploaded for a new book
+         form.reset({ title: bookToEdit?.title || "", author: bookToEdit?.author || "", summary: bookToEdit?.summary || "" }); // Keep form fields if editing unless AI overwrites
          if (!isEditing) setCoverPreviewUrl(null); 
       }
       
       setIsExtracting(true);
-      setCurrentPdfDataUri(null); // Tentatively nullify before reading
       let pdfDataUriForMeta = "";
 
       try {
@@ -134,19 +139,23 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
           description: `Could not read PDF: ${readError.message || "Unknown error"}. Please try again.`,
           variant: "destructive",
         });
-        setPdfFile(null); // Nullify file as it couldn't be read
-        setPdfFileName(isEditing ? bookToEdit.pdfFileName : "");
-        setCurrentPdfDataUri(isEditing ? bookToEdit.pdfDataUri : null); // Revert to old/null
+        setPdfFile(null); 
+        if (isEditing && bookToEdit) {
+            setPdfFileName(bookToEdit.pdfFileName || "");
+            setCurrentPdfDataUri(bookToEdit.pdfDataUri || null);
+        } else {
+            setPdfFileName("");
+            setCurrentPdfDataUri(null);
+        }
         setIsExtracting(false);
         return;
       }
 
-      // Proceed with metadata extraction and cover generation if PDF was read
       try {
         const metadata = await extractBookMetadata({ pdfDataUri: pdfDataUriForMeta });
-        form.setValue("title", metadata.title || (isEditing ? bookToEdit.title : ""));
-        form.setValue("author", metadata.author || (isEditing ? bookToEdit.author : ""));
-        form.setValue("summary", metadata.summary || (isEditing ? bookToEdit.summary : ""));
+        form.setValue("title", metadata.title || form.getValues("title"));
+        form.setValue("author", metadata.author || form.getValues("author"));
+        form.setValue("summary", metadata.summary || form.getValues("summary"));
         toast({ title: "Metadata Extracted", description: "Review and edit the details below." });
 
         if (!isEditing && !coverImageFile && metadata.title && metadata.summary) {
@@ -172,7 +181,6 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         }
       } catch (aiError: any) { 
         console.error("Failed to extract metadata or generate cover:", aiError);
-        // PDF was read, currentPdfDataUri is set. Don't nullify pdfFile.
         toast({
           title: "AI Processing Error",
           description: `AI processing failed: ${aiError.message || "Unknown error"}. Please fill in details manually. PDF is still attached.`,
@@ -181,17 +189,17 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       } finally {
         setIsExtracting(false);
       }
-    } else { // file is null (e.g., user cleared selection)
+    } else { 
       if (!isEditing) { 
         setPdfFile(null);
         setPdfFileName("");
         setCurrentPdfDataUri(null);
         form.reset({ title: "", author: "", summary: "" });
         setCoverPreviewUrl(null);
-      } else { 
-        setPdfFile(null); // No new file chosen for edit
-        setPdfFileName(bookToEdit?.pdfFileName || "");
-        setCurrentPdfDataUri(bookToEdit?.pdfDataUri || null); // Keep old PDF URI
+      } else if (bookToEdit) { 
+        setPdfFile(null); 
+        setPdfFileName(bookToEdit.pdfFileName || "");
+        setCurrentPdfDataUri(bookToEdit.pdfDataUri || null); 
       }
     }
   };
@@ -208,7 +216,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     if (event.dataTransfer.files && event.dataTransfer.files[0]) {
       handlePdfFileChange(event.dataTransfer.files[0]);
     }
-  }, [isEditing, bookToEdit, form, coverImageFile]); // Ensure all dependencies are here
+  }, [isEditing, bookToEdit, form, coverImageFile, handlePdfFileChange]);
 
   const onDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -235,7 +243,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         e.target.value = ""; 
         return;
       }
-      setCoverImageFile(file);
+      setCoverImageFile(file); // Track the new file object
       try {
         const dataUrl = await readFileAsDataURL(file);
         setCoverPreviewUrl(dataUrl);
@@ -243,14 +251,13 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         console.error("Error reading cover image:", error);
         toast({ title: "Cover Image Error", description: `Could not read cover image: ${error.message || "Unknown error"}.`, variant: "destructive"});
         setCoverImageFile(null);
-        setCoverPreviewUrl(isEditing ? bookToEdit.coverImageUrl : null);
+        setCoverPreviewUrl(isEditing && bookToEdit ? bookToEdit.coverImageUrl : null);
       }
-    } else { // file is null (e.g., user cleared selection)
+    } else { 
       setCoverImageFile(null);
-      if (isEditing) {
-        setCoverPreviewUrl(bookToEdit.coverImageUrl); // Revert to original if editing
+      if (isEditing && bookToEdit) {
+        setCoverPreviewUrl(bookToEdit.coverImageUrl); 
       } else if (pdfFile && form.getValues("title") && form.getValues("summary")) { 
-        // Attempt AI cover again if new book, PDF is present, and metadata fields are populated
         setIsGeneratingCover(true);
         toast({ title: "AI Cover Generation", description: "Attempting to generate a cover image..." });
         const metadata = form.getValues();
@@ -272,52 +279,71 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
           })
           .finally(() => setIsGeneratingCover(false));
       } else {
-         setCoverPreviewUrl(null); // New book, no PDF/metadata, so no AI attempt
+         setCoverPreviewUrl(null); 
       }
     }
      e.target.value = ""; 
   };
 
   const onSubmit = async (data: BookFormData) => {
-    let bookId = isEditing && bookToEdit ? bookToEdit.id : Date.now().toString();
-    let finalCoverImageUrl = coverPreviewUrl; 
-    let finalPdfDataUri = currentPdfDataUri; 
-    let finalPdfFileName = pdfFileName; 
+    const bookId = isEditing && bookToEdit ? bookToEdit.id : Date.now().toString();
     
+    let finalPdfDataUri = "";
+    let finalPdfFileName = "";
+    let finalCoverImageUrl = "https://placehold.co/200x300.png";
+
     if (isEditing && bookToEdit) {
-        if (!coverImageFile && !coverPreviewUrl?.startsWith('data:image')) { // If no new cover file AND preview isn't a new data URI
-            finalCoverImageUrl = bookToEdit.coverImageUrl; // Keep old image
-        }
-        if (!pdfFile && !currentPdfDataUri) { // If no new PDF file AND no current PDF URI (e.g. was cleared)
-            finalPdfDataUri = bookToEdit.pdfDataUri; // Keep old PDF
-            finalPdfFileName = bookToEdit.pdfFileName;
-        }
-    }
-    
-    // For new books, PDF is mandatory
-    if (!isEditing && (!pdfFile && !finalPdfDataUri) ) { // Check pdfFile if finalPdfDataUri wasn't set due to an error
-      toast({ 
-        title: "Missing PDF", 
-        description: "A PDF file is required for new books. Please upload one.", 
-        variant: "destructive" 
-      });
-      return;
+      // PDF: Use new if pdfFile is present (meaning currentPdfDataUri and pdfFileName were updated), else use original.
+      if (pdfFile && currentPdfDataUri) { 
+        finalPdfDataUri = currentPdfDataUri;
+        finalPdfFileName = pdfFileName || (pdfFile.name); // Use pdfFile.name as a fallback if pdfFileName state is slow
+      } else { 
+        finalPdfDataUri = bookToEdit.pdfDataUri || "";
+        finalPdfFileName = bookToEdit.pdfFileName || "";
+      }
+
+      // Cover: Use new if coverImageFile is present (meaning coverPreviewUrl was updated by user upload),
+      // OR if coverPreviewUrl is a data URI and different from original (AI gen or cleared then AI regen).
+      // Else use original.
+      if (coverImageFile && coverPreviewUrl) { 
+        finalCoverImageUrl = coverPreviewUrl;
+      } else if (coverPreviewUrl && coverPreviewUrl.startsWith('data:image') && coverPreviewUrl !== bookToEdit.coverImageUrl) {
+        finalCoverImageUrl = coverPreviewUrl;
+      } else if (coverPreviewUrl && !coverPreviewUrl.startsWith('data:image') && coverPreviewUrl !== bookToEdit.coverImageUrl ) { // e.g. a placeholder URL was set
+        finalCoverImageUrl = coverPreviewUrl;
+      }
+      else {
+        finalCoverImageUrl = bookToEdit.coverImageUrl || "https://placehold.co/200x300.png";
+      }
+    } else { // New book mode
+      finalPdfDataUri = currentPdfDataUri || "";
+      finalPdfFileName = pdfFileName || (pdfFile ? pdfFile.name : "");
+      finalCoverImageUrl = coverPreviewUrl || "https://placehold.co/200x300.png";
+      
+      if (!finalPdfDataUri) { 
+        toast({ 
+          title: "Missing PDF", 
+          description: "A PDF file is required for new books. Please upload one.", 
+          variant: "destructive" 
+        });
+        return;
+      }
     }
 
     const savedBook: Book = {
-      id: bookId, 
+      id: bookId,
       ...data,
-      coverImageUrl: finalCoverImageUrl || "https://placehold.co/200x300.png", 
-      pdfFileName: finalPdfFileName || (pdfFile ? pdfFile.name : (bookToEdit ? bookToEdit.pdfFileName : "")),
-      pdfDataUri: finalPdfDataUri || "", 
+      coverImageUrl: finalCoverImageUrl,
+      pdfFileName: finalPdfFileName,
+      pdfDataUri: finalPdfDataUri,
     };
+
     onSaveBook(savedBook, isEditing);
-    toast({ title: isEditing ? "Book Updated!" : "Book Added!", description: `${data.title} has been ${isEditing ? 'updated' : 'added'}.` });
-    onOpenChange(false); // This will trigger resetFormState via onOpenChange prop
+    toast({ title: isEditing ? "Book Updated!" : "Book Added!", description: `'${data.title}' has been ${isEditing ? 'updated' : 'added'}.` });
+    onOpenChange(false);
   };
   
   const handleDialogClose = () => {
-    // resetFormState(); // resetFormState is now called by onOpenChange in Dialog
     onOpenChange(false);
   };
 
@@ -325,7 +351,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
         if (!open) {
-            resetFormState(); // Call reset when dialog is closed
+            resetFormState(); 
         }
         onOpenChange(open);
     }}>
@@ -347,12 +373,12 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
                   htmlFor="pdf-upload"
                   className="relative cursor-pointer rounded-md font-medium text-primary hover:text-accent focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-ring"
                 >
-                  <span>{pdfFileName ? "Change PDF" : "Upload a PDF"}</span>
+                  <span>{pdfFileName ? "Change PDF" : (isEditing ? "Upload New PDF (Optional)" : "Upload a PDF")}</span>
                   <Input id="pdf-upload" name="pdf-upload" type="file" className="sr-only" onChange={onPdfInputChange} accept="application/pdf" />
                 </Label>
-                <p className="pl-1">or drag and drop</p>
+                {!pdfFileName && <p className="pl-1">or drag and drop</p>}
               </div>
-              <p className="text-xs text-muted-foreground">{pdfFileName || "PDF up to 10MB (approx)"}</p>
+              <p className="text-xs text-muted-foreground">{pdfFileName || (isEditing && bookToEdit?.pdfFileName ? "Keep existing PDF" : "PDF up to 10MB (approx)")}</p>
             </div>
           </div>
 
@@ -384,16 +410,16 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
           <div className="space-y-1">
             <Label htmlFor="cover-image-upload" className="font-headline">Cover Image</Label>
              <div className="mt-1 flex items-center space-x-4">
-                {coverPreviewUrl ? (
+                {coverPreviewUrl && coverPreviewUrl !== "https://placehold.co/200x300.png" ? (
                     <img src={coverPreviewUrl} alt="Cover preview" className="h-24 w-16 object-cover rounded-md border" data-ai-hint="book cover"/>
                 ) : (
-                    <div className="h-24 w-16 bg-muted rounded-md flex items-center justify-center text-muted-foreground">
+                    <div className="h-24 w-16 bg-muted rounded-md flex items-center justify-center text-muted-foreground border">
                         <ImageUp className="h-8 w-8" />
                     </div>
                 )}
                 <Button type="button" variant="outline" asChild>
                   <Label htmlFor="cover-image-upload" className="cursor-pointer">
-                    {coverPreviewUrl && !coverImageFile ? "Change" : "Upload"} Cover
+                    {coverPreviewUrl && coverPreviewUrl !== "https://placehold.co/200x300.png" && !coverImageFile ? "Change" : "Upload"} Cover
                     <Input id="cover-image-upload" name="cover-image-upload" type="file" className="sr-only" onChange={handleCoverImageChange} accept="image/*" />
                   </Label>
                 </Button>
@@ -406,6 +432,9 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
             )}
             {!isEditing && !coverImageFile && !isGeneratingCover && (pdfFile || currentPdfDataUri) && !coverPreviewUrl && (
               <p className="text-xs text-muted-foreground mt-1">AI cover generation failed or was skipped. A placeholder will be used if no cover is uploaded. You can still add the book.</p>
+            )}
+             {isEditing && !coverImageFile && !coverPreviewUrl?.startsWith("data:image") && (
+              <p className="text-xs text-muted-foreground mt-1">Upload a new image or an AI cover will be attempted if metadata changes.</p>
             )}
           </div>
           
@@ -424,3 +453,4 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     </Dialog>
   );
 }
+
