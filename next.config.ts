@@ -34,7 +34,7 @@ const nextConfig: NextConfig = {
       `img-src 'self' data: https://placehold.co`,
       `object-src 'self' blob:`, // For viewing PDFs from blob URLs
       `worker-src 'self' blob: https://cdnjs.cloudflare.com`, // Allow worker scripts from self, blob, and CDN
-      `connect-src 'self' https://generativelanguage.googleapis.com https://firebasehosting.googleapis.com`, // For Genkit and Firebase
+      `connect-src 'self' https://generativelanguage.googleapis.com https://firebasehosting.googleapis.com https://cdnjs.cloudflare.com`, // For Genkit, Firebase, and CDN resources
     ].join('; ');
 
     return [

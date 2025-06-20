@@ -26,14 +26,14 @@ if (typeof window !== 'undefined') {
     .then(response => {
       if (response.ok) {
         pdfjsLib.GlobalWorkerOptions.workerSrc = localWorkerUrl;
-        console.log(`PDF.js worker set to local: ${localWorkerUrl}`);
+        console.log(`PDF.js worker will be loaded from local: ${localWorkerUrl}`);
       } else {
-        console.warn(`Local pdf.worker.min.js not found or accessible (status: ${response.status}), falling back to CDN version: ${cdnWorkerUrl}`);
+        console.warn(`Local pdf.worker.min.js not found or not accessible (status: ${response.status}). Falling back to CDN: ${cdnWorkerUrl}`);
         pdfjsLib.GlobalWorkerOptions.workerSrc = cdnWorkerUrl;
       }
     })
     .catch((error) => {
-        console.warn(`Error checking local pdf.worker.min.js: ${error}. Falling back to CDN version: ${cdnWorkerUrl}`);
+        console.warn(`Error fetching local pdf.worker.min.js: ${error}. Falling back to CDN: ${cdnWorkerUrl}`);
         pdfjsLib.GlobalWorkerOptions.workerSrc = cdnWorkerUrl;
     });
 }
@@ -167,10 +167,10 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       if (error.name === 'PasswordException' || error.message?.includes('password')) {
           toast({ title: "PDF Locked", description: "Cannot extract cover from a password-protected PDF.", variant: "destructive" });
       } else if (error.message?.includes("Setting up fake worker") || error.message?.includes("Failed to fetch dynamically imported module")) {
-          toast({ title: "PDF Worker Error", description: "Failed to set up PDF processing worker. Please ensure your internet connection is stable and try again. If this persists, the PDF might be incompatible.", variant: "destructive", duration: 7000 });
+          toast({ title: "PDF Processing Error", description: "Could not initialize the PDF processing worker. The PDF might be incompatible or there could be a configuration issue.", variant: "destructive", duration: 7000 });
       }
       else {
-          toast({ title: "Cover Extraction Failed", description: "Could not extract page as cover. The PDF might be corrupted, incompatible, or the worker script may not have loaded correctly.", variant: "destructive" });
+          toast({ title: "Cover Extraction Failed", description: "Could not extract page as cover. The PDF might be corrupted or incompatible.", variant: "destructive" });
       }
       return null;
     }
@@ -307,7 +307,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     if (event.dataTransfer.files && event.dataTransfer.files[0]) {
       handlePdfFileChange(event.dataTransfer.files[0]);
     }
-  }, [isEditing, bookToEdit, form, coverImageFile, handlePdfFileChange]);
+  }, [isEditing, bookToEdit, form, coverImageFile, handlePdfFileChange]); // Re-added handlePdfFileChange to dependencies
 
   const onDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -606,4 +606,3 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     </Dialog>
   );
 }
-
