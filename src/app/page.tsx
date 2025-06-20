@@ -110,7 +110,7 @@ export default function HomePage() {
       if (isEditing) {
         const updatedBooks = prevBooks.map((b) => (b.id === book.id ? book : b));
         if (selectedBookForDetail && selectedBookForDetail.id === book.id) {
-          setSelectedBookForDetail(book); // Update detail view if current book is edited
+          setSelectedBookForDetail(book); 
         }
         return updatedBooks;
       }
@@ -141,8 +141,8 @@ export default function HomePage() {
 
 
   const handleEditBookInDetailView = useCallback((book: Book) => {
-    handleCloseDetailView(); // Close detail view first
-    setTimeout(() => handleOpenUploadModal(book), 150); // Open edit modal after a short delay
+    handleCloseDetailView(); 
+    setTimeout(() => handleOpenUploadModal(book), 150); 
   }, [handleCloseDetailView]);
 
   const handleUpdateProgress = useCallback((bookId: string, currentPage: number) => {
@@ -151,7 +151,7 @@ export default function HomePage() {
         if (book.id === bookId) {
           const updatedBook = { ...book, currentPage };
           if (selectedBookForDetail && selectedBookForDetail.id === bookId) {
-            setSelectedBookForDetail(updatedBook); // Update detail view if current book progress changes
+            setSelectedBookForDetail(updatedBook); 
           }
           return updatedBook;
         }
@@ -177,26 +177,33 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="py-6 px-4 md:px-8 border-b border-border shadow-sm sticky top-0 bg-background/95 backdrop-blur-sm z-10">
+      <header className="py-4 sm:py-6 px-4 md:px-8 border-b border-border shadow-sm sticky top-0 bg-background/95 backdrop-blur-sm z-10">
         <div className="container mx-auto flex justify-between items-center">
-          <Link href="/" className="text-3xl font-headline text-primary flex items-center">
-            <BookOpen className="h-8 w-8 mr-3 text-accent" />
+          <Link href="/" className="text-2xl sm:text-3xl font-headline text-primary flex items-center shrink-0">
+            <BookOpen className="h-7 w-7 sm:h-8 sm:w-8 mr-2 sm:mr-3 text-accent" />
             BookShelf
           </Link>
-          <div className="flex items-center space-x-2">
-            <Button aria-label="Add new book" onClick={() => handleOpenUploadModal()}>
-              <PlusCircle className="mr-2 h-5 w-5" /> Add Book
+          <div className="flex items-center space-x-1 sm:space-x-2">
+            <Button 
+              aria-label="Add new book" 
+              onClick={() => handleOpenUploadModal()} 
+              size="sm" 
+              className="px-2 py-1 sm:px-3 sm:py-2 h-9 sm:h-10"
+            >
+              <PlusCircle className="h-5 w-5 sm:mr-2" />
+              <span className="hidden sm:inline">Add Book</span>
             </Button>
             <Button
               variant="outline"
               size="icon"
+              className="h-9 w-9 sm:h-10 sm:w-10"
               aria-label="Toggle theme"
               onClick={() => setTheme(theme === "light" ? "dark" : "light")}
             >
               {theme === "light" ? (
-                <Moon className="h-[1.2rem] w-[1.2rem]" />
+                <Moon className="h-[1.1rem] w-[1.1rem] sm:h-[1.2rem] sm:w-[1.2rem]" />
               ) : (
-                <Sun className="h-[1.2rem] w-[1.2rem]" />
+                <Sun className="h-[1.1rem] w-[1.1rem] sm:h-[1.2rem] sm:w-[1.2rem]" />
               )}
             </Button>
           </div>
@@ -209,12 +216,17 @@ export default function HomePage() {
             <SearchX className="h-24 w-24 text-muted-foreground mb-6" />
             <h2 className="text-2xl font-headline text-foreground mb-2">Your Shelf is Empty</h2>
             <p className="text-muted-foreground mb-6">Click "Add Book" to start building your digital library.</p>
-            <Button aria-label="Add your first book" onClick={() => handleOpenUploadModal()}>
-              <PlusCircle className="mr-2 h-5 w-5" /> Add Your First Book
+            <Button 
+              aria-label="Add your first book" 
+              onClick={() => handleOpenUploadModal()}
+              size="sm"
+              className="px-3 py-2 sm:px-4"
+            >
+              <PlusCircle className="h-5 w-5 mr-2" /> Add Your First Book
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
             {Array.isArray(books) && books.map((book) => (
               <BookCard
                 key={book.id}
