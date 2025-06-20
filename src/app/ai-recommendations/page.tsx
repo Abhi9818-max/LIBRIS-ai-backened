@@ -9,10 +9,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { suggestBooks, SuggestBooksOutput, SuggestBooksInput } from "@/ai/flows/suggest-books-flow";
-import { Loader2, Sparkles, Send, User, Bot, BookOpen, ChevronLeft } from "lucide-react"; // Removed Search icon
+import { Loader2, Sparkles, Send, User, Bot, BookOpen, ChevronLeft } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { Sun, Moon } from "lucide-react";
-// import { Badge } from "@/components/ui/badge"; // Removed Badge import
 
 interface Message {
   id: string;
@@ -20,7 +19,7 @@ interface Message {
   text?: string;
   suggestions?: SuggestBooksOutput["suggestions"];
   isLoading?: boolean;
-  // searchedWeb?: boolean; // Removed searchedWeb
+  // searchedWeb property removed
 }
 
 export default function AiRecommendationsPage() {
@@ -45,7 +44,7 @@ export default function AiRecommendationsPage() {
       {
         id: Date.now().toString(),
         sender: "ai",
-        text: "Hello! I'm your AI Librarian and Book Expert. I can help you find books, authors, and genres based on my knowledge up to early 2023."
+        text: "Hello! I'm your AI Librarian and Book Expert. I can help you find books, authors, and genres. My knowledge is current up to early 2023."
       }
     ]);
   }, []);
@@ -78,7 +77,7 @@ export default function AiRecommendationsPage() {
             content: content,
           };
         })
-        .slice(0, -1);
+        .slice(0, -1); 
 
 
       const result: SuggestBooksOutput = await suggestBooks({
@@ -89,7 +88,7 @@ export default function AiRecommendationsPage() {
       const aiResponseMessage: Message = {
         id: loadingAiMessageId,
         sender: "ai",
-        // searchedWeb: result.searchedWeb || false, // Removed searchedWeb
+        // searchedWeb property removed
       };
       let hasContent = false;
 
@@ -206,16 +205,7 @@ export default function AiRecommendationsPage() {
                             ))}
                           </div>
                         )}
-                        {/* Removed searchedWeb badge display
-                        {message.sender === "ai" && message.searchedWeb && !message.isLoading && (
-                           <div className="mt-2">
-                            <Badge variant="secondary" className="text-xs py-0.5 px-1.5">
-                                <Search className="h-3 w-3 mr-1" />
-                                Web search used
-                            </Badge>
-                           </div>
-                        )}
-                        */}
+                        {/* Removed searchedWeb indicator */}
                       </div>
                     </div>
                   </CardContent>

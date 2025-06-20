@@ -11,7 +11,6 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-// import {performWebSearchTool} from '@/ai/tools/web-search-tool'; // Removed web search tool
 
 const BookSuggestionSchema = z.object({
   title: z.string().describe('The title of the suggested book.'),
@@ -33,7 +32,6 @@ export type SuggestBooksInput = z.infer<typeof SuggestBooksInputSchema>;
 const SuggestBooksOutputSchema = z.object({
   textResponse: z.string().optional().describe('A general text response from the AI if not providing specific book suggestions.'),
   suggestions: z.array(BookSuggestionSchema).optional().describe('A list of 3 to 5 thoughtful and diverse book suggestions, if applicable.'),
-  // searchedWeb: z.boolean().optional().describe("Indicates if a web search was performed to answer this query.") // Removed searchedWeb
 });
 export type SuggestBooksOutput = z.infer<typeof SuggestBooksOutputSchema>;
 
@@ -42,14 +40,12 @@ export async function suggestBooks(input: SuggestBooksInput): Promise<SuggestBoo
 }
 
 const prompt = ai.definePrompt({
-  name: 'suggestBooksPrompt', // Reverted name
+  name: 'suggestBooksPrompt',
   input: {schema: SuggestBooksInputSchema},
   output: {schema: SuggestBooksOutputSchema},
-  // tools: [performWebSearchTool], // Removed web search tool
   model: 'googleai/gemini-1.5-flash-latest',
-  prompt: `You are a knowledgeable and helpful AI Librarian and Book Expert. Your primary goal is to engage in a coherent, context-aware conversation.
-Your knowledge is based on information available up to your last training update (early 2023).
-You DO NOT have access to real-time web search. If a query requires information beyond early 2023, clearly state that your knowledge is limited to that timeframe.
+  prompt: `You are a knowledgeable and helpful AI Librarian and Book Expert.
+Your training data has a cutoff, so you might not know about very recent releases or news (after early 2023).
 
 **Conversation Context and History**
 {{#if history.length}}
@@ -68,33 +64,34 @@ Current User Query: "{{currentQuery}}"
 
 1.  **Analyze Query in Context**: Meticulously analyze the user's current query within the ENTIRE conversation history.
 
-2.  **Answering and Recommending (Using Internal Knowledge Only)**:
-    *   **Follow-up Questions**: If the user asks a follow-up question (e.g., "Tell me more about [book from history]", "Why was [book from history] banned?", "What was your last suggestion about?"), your **absolute priority** is to answer that question directly and comprehensively using the 'textResponse' field. You MUST reference the specific books or topics from the history in your answer.
-    *   **Book Recommendations**: If the query clearly asks for book recommendations, provide 3 to 5 thoughtful and diverse suggestions from your knowledge base (up to early 2023). For each book, include title, author, and a compelling, specific reason (2-3 sentences) directly related to the user's query and conversation. Populate the 'suggestions' field.
-    *   **General Questions/Information Synthesis**: For other questions, provide a helpful, informative text response based on your training data.
+2.  **Answering and Recommending**:
+    *   **Follow-up Questions**: If the user asks a follow-up question (e.g., "Tell me more about [book from history]", "Why was [book from history] banned?", "What was your last suggestion about?"), your **absolute priority** is to answer that question directly and comprehensively using your knowledge and the conversation history. Use the 'textResponse' field. You MUST reference the specific books or topics from the history in your answer.
+    *   **Book Recommendations**: If the query clearly asks for book recommendations:
+        *   Provide 3 to 5 thoughtful and diverse suggestions.
+        *   For each book, include title, author, and a compelling, specific reason (2-3 sentences) directly related to the user's query/history.
+        *   Populate the 'suggestions' field.
+    *   **General Questions/Information Synthesis**: For other questions, provide a helpful, informative text response. Synthesize information from your training data.
 
 3.  **Handling Information Gaps**:
-    *   If the query asks about topics, books, authors, or literary events published or occurring *after early 2023*, clearly state that your knowledge cutoff is early 2023 and you cannot provide information on more recent developments. Do not invent information.
-    *   If you cannot answer or find information even within your training data, say so.
+    *   If the query asks about topics you believe are beyond your training data cutoff (e.g., very recent book releases, authors who became prominent after early 2023, or current literary events), clearly state your knowledge cutoff. Do not invent information. For example, say: "My knowledge is current up to early 2023, so I may not have information on very recent releases. Based on what I know..."
 
 4.  **Output Format**:
     *   Only use the 'suggestions' field when providing NEW book recommendations.
-    *   Otherwise, use 'textResponse' for all other answers (general info, follow-ups, explanations of knowledge limits).
-    *   Do NOT populate both 'suggestions' and 'textResponse' in the same output. If you must provide suggestions AND a text response, prioritize a comprehensive textResponse.
+    *   Use 'textResponse' for all other answers (general info, follow-ups, explanations).
+    *   You can populate both 'suggestions' and 'textResponse' if, for example, you provide a general answer and then offer related book suggestions.
 
-Ensure your response is in the structured JSON format as requested by the output schema. Be thoughtful and detailed.
+Ensure your response is in the structured JSON format as requested by the output schema. Be thoughtful, detailed, and clear.
 `,
 });
 
 const defaultOutput: SuggestBooksOutput = {
   textResponse: "I'm sorry, I couldn't process that request. Please try again or rephrase your query.",
   suggestions: [],
-  // searchedWeb: false, // Removed
 };
 
 const suggestBooksFlow = ai.defineFlow(
   {
-    name: 'suggestBooksFlow', // Reverted name
+    name: 'suggestBooksFlow',
     inputSchema: SuggestBooksInputSchema,
     outputSchema: SuggestBooksOutputSchema,
   },
@@ -103,27 +100,21 @@ const suggestBooksFlow = ai.defineFlow(
       const filteredHistory = input.history?.filter(item => item.content && item.content.trim() !== "") || [];
       const promptInput = { ...input, history: filteredHistory };
 
-      const {output} = await prompt(promptInput); // Removed flowExecutionHistory as no tools are used
-
+      const {output} = await prompt(promptInput);
+      
       if (output) {
-        const finalOutput: SuggestBooksOutput = { }; // searchedWeb removed
+        const finalOutput: SuggestBooksOutput = {};
 
-        if (output.suggestions && output.suggestions.length > 0 && !output.textResponse) {
+        if (output.suggestions && output.suggestions.length > 0) {
             finalOutput.suggestions = output.suggestions;
-        } else if (output.textResponse && (!output.suggestions || output.suggestions.length === 0)) {
+        }
+        if (output.textResponse) {
             finalOutput.textResponse = output.textResponse;
-        } else if (output.textResponse && output.suggestions && output.suggestions.length > 0) {
-            console.warn("AI returned both textResponse and suggestions. Prioritizing textResponse.");
-            finalOutput.textResponse = output.textResponse;
-            if (!output.textResponse.toLowerCase().includes("suggestion")) {
-                 finalOutput.textResponse += `\n\nI also found some book suggestions: ${output.suggestions.map(s => s.title).join(', ')}. Would you like to know more about them?`;
-            }
-        } else if (Object.keys(output).length === 0 || (!output.textResponse && (!output.suggestions || output.suggestions.length === 0))) {
+        }
+        
+        if (!finalOutput.textResponse && (!finalOutput.suggestions || finalOutput.suggestions.length === 0)) {
            console.warn('AI model returned an empty or insufficient object.');
            finalOutput.textResponse = "I processed your request, but I don't have a specific suggestion or direct answer for that particular query right now.";
-        } else {
-           if(output.textResponse) finalOutput.textResponse = output.textResponse;
-           if(output.suggestions) finalOutput.suggestions = output.suggestions;
         }
         return finalOutput;
       } else {
