@@ -20,10 +20,15 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
+    const scriptSrcDirectives = ["'self'"];
+    if (process.env.NODE_ENV === "development") {
+      scriptSrcDirectives.push("'unsafe-eval'");
+      scriptSrcDirectives.push("'unsafe-inline'"); // Added for development to allow inline scripts
+    }
+
     const cspHeader = [
       `default-src 'self'`,
-      // Next.js dev server and Turbopack might use 'unsafe-eval'
-      `script-src 'self' ${process.env.NODE_ENV === "development" ? "'unsafe-eval'" : ""}`,
+      `script-src ${scriptSrcDirectives.join(' ')}`,
       // ShadCN UI and global styles might use inline styles
       `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
       `font-src 'self' https://fonts.gstatic.com`,
@@ -31,8 +36,7 @@ const nextConfig: NextConfig = {
       // This is key for allowing PDFs from blob URLs to be displayed
       `object-src 'self' blob:`,
       // For Genkit calls to Google AI
-      `connect-src 'self' https://generativelanguage.googleapis.com`, 
-      // Add other domains as needed for your application
+      `connect-src 'self' https://generativelanguage.googleapis.com`,
     ].join('; ');
 
     return [
