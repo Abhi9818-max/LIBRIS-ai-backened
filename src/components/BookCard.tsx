@@ -1,20 +1,25 @@
+
 "use client";
 
 import type { Book } from "@/types";
 import Image from "next/image";
+import { useState, ChangeEvent } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Trash2, FileText, Pencil } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Trash2, FileText, Pencil, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface BookCardProps {
   book: Book;
   onRemove: (id: string) => void;
   onEdit: (book: Book) => void;
+  onUpdateProgress: (bookId: string, currentPage: number) => void;
 }
 
-export default function BookCard({ book, onRemove, onEdit }: BookCardProps) {
+export default function BookCard({ book, onRemove, onEdit, onUpdateProgress }: BookCardProps) {
   const { toast } = useToast();
+  const [currentPageInput, setCurrentPageInput] = useState<string>((book.currentPage || 1).toString());
 
   const handleOpenPdf = () => {
     if (!book.pdfDataUri || !book.pdfDataUri.startsWith('data:application/pdf;base64,')) {
@@ -28,7 +33,6 @@ export default function BookCard({ book, onRemove, onEdit }: BookCardProps) {
     }
 
     try {
-      // Attempt to open in a new tab
       const pdfWindow = window.open("");
       if (pdfWindow) {
         pdfWindow.document.write(
@@ -41,19 +45,10 @@ export default function BookCard({ book, onRemove, onEdit }: BookCardProps) {
             variant: "default",
         });
       } else {
-        // Fallback if window.open is blocked, try direct link click (might download)
-        const link = document.createElement('a');
-        link.href = book.pdfDataUri;
-        link.target = "_blank"; // Try to open in new tab
-        link.rel = "noopener noreferrer"; // Security best practice
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
         toast({
-            title: "Opening PDF",
-            description: `Attempting to open "${book.pdfFileName || book.title}". If a new tab didn't appear, your browser might have blocked it or started a download. Please check your popup blocker settings.`,
-            variant: "default",
+            title: "Popup Blocked",
+            description: `Could not open PDF in a new tab. Please disable your popup blocker for this site and try again. The download was attempted, but the browser prevented it.`,
+            variant: "destructive",
             duration: 7000,
         });
       }
@@ -66,6 +61,32 @@ export default function BookCard({ book, onRemove, onEdit }: BookCardProps) {
       });
     }
   };
+
+  const handleProgressChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setCurrentPageInput(e.target.value);
+  };
+
+  const handleSaveProgress = () => {
+    const newPage = parseInt(currentPageInput, 10);
+    if (isNaN(newPage) || newPage < 0 || (book.totalPages && newPage > book.totalPages)) {
+      toast({
+        title: "Invalid Page Number",
+        description: `Please enter a valid page number between 0 and ${book.totalPages || 'the total pages'}.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    onUpdateProgress(book.id, newPage);
+    toast({
+      title: "Progress Saved!",
+      description: `Page ${newPage} saved for "${book.title}".`,
+    });
+  };
+  
+  const percentageRead = book.totalPages && book.currentPage && book.totalPages > 0
+    ? Math.round((book.currentPage / book.totalPages) * 100)
+    : 0;
+
 
   return (
     <Card className="flex flex-col overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out animate-fade-in">
@@ -85,7 +106,26 @@ export default function BookCard({ book, onRemove, onEdit }: BookCardProps) {
         <CardDescription className="text-sm text-muted-foreground truncate" title={book.author}>By: {book.author || "Unknown Author"}</CardDescription>
       </CardHeader>
       <CardContent className="p-4 pt-0 flex-grow">
-        <p className="text-sm text-foreground/80 line-clamp-4">{book.summary || "No summary available."}</p>
+        <p className="text-sm text-foreground/80 line-clamp-3">{book.summary || "No summary available."}</p>
+        {book.totalPages && book.totalPages > 0 && (
+          <div className="mt-2 text-xs text-muted-foreground">
+            <p>Progress: Page {book.currentPage || 1} of {book.totalPages} ({percentageRead}%)</p>
+            <div className="flex items-center space-x-2 mt-1">
+              <Input 
+                type="number" 
+                value={currentPageInput} 
+                onChange={handleProgressChange} 
+                min="1"
+                max={book.totalPages}
+                className="h-8 text-xs w-20"
+                aria-label="Current page"
+              />
+              <Button size="xs" variant="outline" onClick={handleSaveProgress} aria-label="Save progress">
+                <Save className="h-3 w-3 mr-1" /> Save
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
       <CardFooter className="p-4 pt-0 flex flex-col space-y-2">
         <div className="flex space-x-2 w-full">
@@ -105,7 +145,7 @@ export default function BookCard({ book, onRemove, onEdit }: BookCardProps) {
             size="sm"
             onClick={() => onEdit(book)}
             aria-label={`Edit ${book.title}`}
-            className={!book.pdfDataUri || !book.pdfDataUri.startsWith('data:application/pdf;base64,') ? "w-full" : "flex-1"}
+            className={(!book.pdfDataUri || !book.pdfDataUri.startsWith('data:application/pdf;base64,')) ? "w-full" : "flex-1"}
           >
             <Pencil className="mr-2 h-4 w-4" /> Edit
           </Button>

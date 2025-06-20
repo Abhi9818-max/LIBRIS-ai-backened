@@ -20,6 +20,7 @@ const BookFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
   author: z.string().min(1, "Author is required"),
   summary: z.string().min(1, "Summary is required"),
+  totalPages: z.coerce.number().min(1, "Total pages must be at least 1").optional().nullable(),
 });
 
 type BookFormData = z.infer<typeof BookFormSchema>;
@@ -60,11 +61,11 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
 
   const form = useForm<BookFormData>({
     resolver: zodResolver(BookFormSchema),
-    defaultValues: { title: "", author: "", summary: "" },
+    defaultValues: { title: "", author: "", summary: "", totalPages: null },
   });
 
   const resetFormState = useCallback(() => {
-    form.reset({ title: "", author: "", summary: "" });
+    form.reset({ title: "", author: "", summary: "", totalPages: null });
     setPdfFile(null);
     setPdfFileName("");
     setCurrentPdfDataUri(null);
@@ -81,6 +82,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
           title: bookToEdit.title,
           author: bookToEdit.author,
           summary: bookToEdit.summary,
+          totalPages: bookToEdit.totalPages || null,
         });
         setCoverPreviewUrl(bookToEdit.coverImageUrl);
         setPdfFileName(bookToEdit.pdfFileName || "");
@@ -103,8 +105,6 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
           variant: "destructive",
         });
         setPdfFile(null);
-        // Do not clear currentPdfDataUri if editing and file is invalid; keep old one.
-        // For new book, it will be null anyway if it gets here.
         if (!isEditing) {
             setPdfFileName("");
             setCurrentPdfDataUri(null);
@@ -115,11 +115,11 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         return;
       }
 
-      setPdfFile(file); // Track the new file object
+      setPdfFile(file); 
       setPdfFileName(file.name);
       
       if (!isEditing || (isEditing && file)) {
-         form.reset({ title: bookToEdit?.title || "", author: bookToEdit?.author || "", summary: bookToEdit?.summary || "" }); // Keep form fields if editing unless AI overwrites
+         form.reset({ title: bookToEdit?.title || "", author: bookToEdit?.author || "", summary: bookToEdit?.summary || "", totalPages: bookToEdit?.totalPages || null }); 
          if (!isEditing) setCoverPreviewUrl(null); 
       }
       
@@ -131,7 +131,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         if (!pdfDataUriForMeta || !pdfDataUriForMeta.startsWith('data:application/pdf;base64,')) {
             throw new Error('Generated PDF Data URI is invalid.');
         }
-        setCurrentPdfDataUri(pdfDataUriForMeta); // PDF read successfully, set it
+        setCurrentPdfDataUri(pdfDataUriForMeta); 
       } catch (readError: any) {
         console.error("Failed to read PDF:", readError);
         toast({
@@ -186,15 +186,25 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
           description: `AI processing failed: ${aiError.message || "Unknown error"}. Please fill in details manually. PDF is still attached.`,
           variant: "destructive",
         });
+         if (isEditing && !coverImageFile && bookToEdit?.coverImageUrl) {
+            setCoverPreviewUrl(bookToEdit.coverImageUrl); 
+        } else {
+            setCoverPreviewUrl(null); 
+        }
       } finally {
         setIsExtracting(false);
+         if (!isEditing && !coverImageFile && !isGeneratingCover) { // Handle case where AI cover gen was skipped or failed for new book
+             if (!form.getValues("title") || !form.getValues("summary")) { // And no title/summary was extracted or manually entered
+                setCoverPreviewUrl(null); // Then no basis for AI cover, so ensure placeholder
+             }
+        }
       }
     } else { 
       if (!isEditing) { 
         setPdfFile(null);
         setPdfFileName("");
         setCurrentPdfDataUri(null);
-        form.reset({ title: "", author: "", summary: "" });
+        form.reset({ title: "", author: "", summary: "", totalPages: null });
         setCoverPreviewUrl(null);
       } else if (bookToEdit) { 
         setPdfFile(null); 
@@ -243,7 +253,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         e.target.value = ""; 
         return;
       }
-      setCoverImageFile(file); // Track the new file object
+      setCoverImageFile(file); 
       try {
         const dataUrl = await readFileAsDataURL(file);
         setCoverPreviewUrl(dataUrl);
@@ -257,7 +267,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       setCoverImageFile(null);
       if (isEditing && bookToEdit) {
         setCoverPreviewUrl(bookToEdit.coverImageUrl); 
-      } else if (pdfFile && form.getValues("title") && form.getValues("summary")) { 
+      } else if (currentPdfDataUri && form.getValues("title") && form.getValues("summary")) { 
         setIsGeneratingCover(true);
         toast({ title: "AI Cover Generation", description: "Attempting to generate a cover image..." });
         const metadata = form.getValues();
@@ -293,29 +303,28 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     let finalCoverImageUrl = "https://placehold.co/200x300.png";
 
     if (isEditing && bookToEdit) {
-      // PDF: Use new if pdfFile is present (meaning currentPdfDataUri and pdfFileName were updated), else use original.
       if (pdfFile && currentPdfDataUri) { 
         finalPdfDataUri = currentPdfDataUri;
-        finalPdfFileName = pdfFileName || (pdfFile.name); // Use pdfFile.name as a fallback if pdfFileName state is slow
+        finalPdfFileName = pdfFileName || (pdfFile.name);
       } else { 
         finalPdfDataUri = bookToEdit.pdfDataUri || "";
         finalPdfFileName = bookToEdit.pdfFileName || "";
       }
 
-      // Cover: Use new if coverImageFile is present (meaning coverPreviewUrl was updated by user upload),
-      // OR if coverPreviewUrl is a data URI and different from original (AI gen or cleared then AI regen).
-      // Else use original.
       if (coverImageFile && coverPreviewUrl) { 
         finalCoverImageUrl = coverPreviewUrl;
       } else if (coverPreviewUrl && coverPreviewUrl.startsWith('data:image') && coverPreviewUrl !== bookToEdit.coverImageUrl) {
         finalCoverImageUrl = coverPreviewUrl;
-      } else if (coverPreviewUrl && !coverPreviewUrl.startsWith('data:image') && coverPreviewUrl !== bookToEdit.coverImageUrl ) { // e.g. a placeholder URL was set
+      } else if (coverPreviewUrl && !coverPreviewUrl.startsWith('data:image') && coverPreviewUrl !== bookToEdit.coverImageUrl ) { 
         finalCoverImageUrl = coverPreviewUrl;
+      } else if (coverPreviewUrl === null && bookToEdit.coverImageUrl && !coverPreviewUrl?.startsWith('data:image')) {
+        // User might have cleared an uploaded/AI image to revert to placeholder
+        finalCoverImageUrl = "https://placehold.co/200x300.png";
       }
       else {
         finalCoverImageUrl = bookToEdit.coverImageUrl || "https://placehold.co/200x300.png";
       }
-    } else { // New book mode
+    } else { 
       finalPdfDataUri = currentPdfDataUri || "";
       finalPdfFileName = pdfFileName || (pdfFile ? pdfFile.name : "");
       finalCoverImageUrl = coverPreviewUrl || "https://placehold.co/200x300.png";
@@ -332,10 +341,14 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
 
     const savedBook: Book = {
       id: bookId,
-      ...data,
+      title: data.title,
+      author: data.author,
+      summary: data.summary,
       coverImageUrl: finalCoverImageUrl,
       pdfFileName: finalPdfFileName,
       pdfDataUri: finalPdfDataUri,
+      totalPages: data.totalPages || undefined,
+      currentPage: (isEditing && bookToEdit?.currentPage) ? bookToEdit.currentPage : (data.totalPages ? 1 : undefined),
     };
 
     onSaveBook(savedBook, isEditing);
@@ -403,8 +416,18 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
 
           <div className="space-y-1">
             <Label htmlFor="summary" className="font-headline">Summary</Label>
-            <Controller name="summary" control={form.control} render={({ field }) => <Textarea id="summary" {...field} rows={4} />} />
+            <Controller name="summary" control={form.control} render={({ field }) => <Textarea id="summary" {...field} rows={3} />} />
             {form.formState.errors.summary && <p className="text-sm text-destructive">{form.formState.errors.summary.message}</p>}
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="totalPages" className="font-headline">Total Pages</Label>
+            <Controller 
+              name="totalPages" 
+              control={form.control} 
+              render={({ field }) => <Input id="totalPages" type="number" placeholder="e.g., 350" {...field} onChange={e => field.onChange(e.target.value === '' ? null : Number(e.target.value))} value={field.value === null ? '' : field.value} />} 
+            />
+            {form.formState.errors.totalPages && <p className="text-sm text-destructive">{form.formState.errors.totalPages.message}</p>}
           </div>
 
           <div className="space-y-1">
@@ -430,7 +453,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
                 <span>Generating AI cover... This may take a moment.</span>
               </div>
             )}
-            {!isEditing && !coverImageFile && !isGeneratingCover && (pdfFile || currentPdfDataUri) && !coverPreviewUrl && (
+            {!isEditing && !coverImageFile && !isGeneratingCover && (currentPdfDataUri) && !coverPreviewUrl && (
               <p className="text-xs text-muted-foreground mt-1">AI cover generation failed or was skipped. A placeholder will be used if no cover is uploaded. You can still add the book.</p>
             )}
              {isEditing && !coverImageFile && !coverPreviewUrl?.startsWith("data:image") && (

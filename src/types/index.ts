@@ -3,7 +3,9 @@ export interface Book {
   title: string;
   author: string;
   summary: string;
-  coverImageUrl: string; // This will be a data URL
+  coverImageUrl: string; 
   pdfFileName: string; 
-  pdfDataUri: string; // Added to store the PDF content as a data URI
+  pdfDataUri: string; 
+  currentPage?: number;
+  totalPages?: number;
 }

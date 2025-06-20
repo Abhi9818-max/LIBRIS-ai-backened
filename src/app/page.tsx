@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import type { Book } from "@/types";
 import BookCard from "@/components/BookCard";
 import UploadBookForm from "@/components/UploadBookForm";
@@ -27,14 +27,16 @@ export default function HomePage() {
         setBooks(loadedBooks.map(book => ({
           ...book,
           pdfDataUri: book.pdfDataUri || "", 
-          coverImageUrl: book.coverImageUrl || "", 
+          coverImageUrl: book.coverImageUrl || "",
+          currentPage: book.currentPage || 1,
+          totalPages: book.totalPages || undefined,
         })));
       }
     } catch (error) {
       console.error("Failed to load books from localStorage:", error);
       toast({
         title: "Loading Error",
-        description: "Could not load all book data from previous session. PDFs and custom covers may be missing.",
+        description: "Could not load all book data from previous session. PDFs, custom covers, and progress may be missing or reset.",
         variant: "destructive",
       });
     }
@@ -46,7 +48,7 @@ export default function HomePage() {
         const booksToStore = books.map(book => {
           const { pdfDataUri, coverImageUrl, ...restOfBook } = book;
           return {
-            ...restOfBook,
+            ...restOfBook, // currentPage and totalPages are preserved here
             pdfDataUri: "", 
             coverImageUrl: coverImageUrl?.startsWith('data:image') ? "" : coverImageUrl, 
           };
@@ -54,32 +56,26 @@ export default function HomePage() {
         localStorage.setItem("bookshelf_books", JSON.stringify(booksToStore));
       } catch (error: any) {
         console.error("Failed to save books to localStorage:", error);
-        if (error.name === 'QuotaExceededError') {
-          toast({
-            title: "Storage Limit Reached",
-            description: "Could not save all book details due to browser storage limits. PDFs and custom cover images will not persist across sessions. Metadata is saved.",
-            variant: "destructive",
-            duration: 9000,
-          });
-        } else {
-          toast({
-            title: "Storage Error",
-            description: "An error occurred while saving your books.",
-            variant: "destructive",
-          });
+        let description = "An error occurred while saving your books. Some data may not persist.";
+        if (error.name === 'QuotaExceededError' || (error.message && error.message.toLowerCase().includes('quota'))) {
+          description = "Could not save all book details due to browser storage limits. PDFs and custom cover images are not stored persistently. Metadata and reading progress are saved if possible.";
         }
+        toast({
+          title: "Storage Error",
+          description: description,
+          variant: "destructive",
+          duration: 9000,
+        });
       }
     }
   }, [books, isClient, toast]);
 
   const handleSaveBook = (savedBook: Book, isEditingMode: boolean) => {
-    if (isEditingMode) {
-      setBooks((prevBooks) =>
-        prevBooks.map((book) => (book.id === savedBook.id ? savedBook : book))
-      );
-    } else {
-      setBooks((prevBooks) => [...prevBooks, savedBook]);
-    }
+    setBooks((prevBooks) =>
+      isEditingMode
+        ? prevBooks.map((book) => (book.id === savedBook.id ? savedBook : book))
+        : [...prevBooks, savedBook]
+    );
     setIsUploadModalOpen(false);
     setEditingBook(null); 
   };
@@ -91,6 +87,14 @@ export default function HomePage() {
 
   const handleRemoveBook = (bookId: string) => {
     setBooks((prevBooks) => prevBooks.filter((book) => book.id !== bookId));
+  };
+
+  const handleUpdateBookProgress = (bookId: string, newCurrentPage: number) => {
+    setBooks((prevBooks) =>
+      prevBooks.map((book) =>
+        book.id === bookId ? { ...book, currentPage: newCurrentPage } : book
+      )
+    );
   };
 
   const toggleTheme = () => {
@@ -149,7 +153,13 @@ export default function HomePage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
             {books.map((book) => (
-              <BookCard key={book.id} book={book} onRemove={handleRemoveBook} onEdit={handleOpenEditModal} />
+              <BookCard 
+                key={book.id} 
+                book={book} 
+                onRemove={handleRemoveBook} 
+                onEdit={handleOpenEditModal}
+                onUpdateProgress={handleUpdateBookProgress} 
+              />
             ))}
           </div>
         )}
