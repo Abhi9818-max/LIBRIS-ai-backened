@@ -237,7 +237,7 @@ export default function BookCard({ book, onUpdateProgress, onOpenDetailView }: B
         <CardDescription className="text-sm text-muted-foreground truncate" title={book.author}>By: {book.author || "Unknown Author"}</CardDescription>
       </CardHeader>
       <CardContent className="p-4 pt-0 flex-grow">
-        <p className="text-sm text-foreground/80 line-clamp-3">{book.summary || "No summary available."}</p>
+        {/* Summary removed from here */}
         
         {book.totalPages && book.totalPages > 0 && (
           <div className="mt-3 space-y-2">
