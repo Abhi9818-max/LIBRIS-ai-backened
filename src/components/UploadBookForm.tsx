@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useCallback, ChangeEvent, DragEvent, useEffect } from "react";
@@ -21,7 +20,7 @@ const BookFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
   author: z.string().min(1, "Author is required"),
   summary: z.string().min(1, "Summary is required"),
-  totalPages: z.coerce.number().min(1, "Total pages must be at least 1").optional().nullable(),
+  totalPages: z.coerce.number().min(1, "Total pages must be at least 1").optional(),
 });
 
 type BookFormData = z.infer<typeof BookFormSchema>;
@@ -62,7 +61,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
 
   const form = useForm<BookFormData>({
     resolver: zodResolver(BookFormSchema),
-    defaultValues: { title: "", author: "", summary: "", totalPages: null },
+    defaultValues: { title: "", author: "", summary: "", totalPages: undefined },
   });
 
   useEffect(() => {
@@ -81,7 +80,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
   }, [toast]);
 
   const resetFormState = useCallback(() => {
-    form.reset({ title: "", author: "", summary: "", totalPages: null });
+    form.reset({ title: "", author: "", summary: "", totalPages: undefined });
     setPdfFile(null);
     setPdfFileName("");
     setCurrentPdfDataUri(null);
@@ -98,7 +97,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
           title: bookToEdit.title,
           author: bookToEdit.author,
           summary: bookToEdit.summary,
-          totalPages: bookToEdit.totalPages || null,
+          totalPages: bookToEdit.totalPages,
         });
         setCoverPreviewUrl(bookToEdit.coverImageUrl);
         setPdfFileName(bookToEdit.pdfFileName || "");
@@ -135,7 +134,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       setPdfFileName(file.name);
       
       if (!isEditing || (isEditing && file)) { 
-         form.reset({ title: bookToEdit?.title || "", author: bookToEdit?.author || "", summary: bookToEdit?.summary || "", totalPages: bookToEdit?.totalPages || null }); 
+         form.reset({ title: bookToEdit?.title || "", author: bookToEdit?.author || "", summary: bookToEdit?.summary || "", totalPages: bookToEdit?.totalPages }); 
          if (!isEditing) setCoverPreviewUrl(null); 
       }
       
@@ -239,7 +238,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         setPdfFile(null);
         setPdfFileName("");
         setCurrentPdfDataUri(null);
-        form.reset({ title: "", author: "", summary: "", totalPages: null });
+        form.reset({ title: "", author: "", summary: "", totalPages: undefined });
         setCoverPreviewUrl(null);
       } else if (bookToEdit) { 
         setPdfFile(null); 
@@ -386,7 +385,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       coverImageUrl: finalCoverImageUrl,
       pdfFileName: finalPdfFileName,
       pdfDataUri: finalPdfDataUri,
-      totalPages: data.totalPages || undefined,
+      totalPages: data.totalPages,
       currentPage: (isEditing && bookToEdit?.currentPage) ? bookToEdit.currentPage : (data.totalPages ? 1 : undefined),
     };
 
@@ -464,7 +463,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
             <Controller 
               name="totalPages" 
               control={form.control} 
-              render={({ field }) => <Input id="totalPages" type="number" placeholder="e.g., 350" {...field} onChange={e => field.onChange(e.target.value === '' ? null : Number(e.target.value))} value={field.value === null ? '' : field.value} />} 
+              render={({ field }) => <Input id="totalPages" type="number" placeholder="e.g., 350" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} value={field.value ?? ''} />} 
             />
             {form.formState.errors.totalPages && <p className="text-sm text-destructive">{form.formState.errors.totalPages.message}</p>}
           </div>
@@ -514,4 +513,3 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     </Dialog>
   );
 }
-
