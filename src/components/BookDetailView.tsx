@@ -1,12 +1,20 @@
 
 "use client";
 
+import { useState, useCallback, useEffect } from "react";
 import type { Book } from "@/types";
-import Image from "next/image";
+import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
+import 'react-pdf/dist/esm/Page/TextLayer.css';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2 } from "lucide-react";
+
+// Set up the pdf.js worker
+if (typeof window !== 'undefined') {
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+}
 
 interface BookDetailViewProps {
   book: Book | null;
@@ -14,202 +22,144 @@ interface BookDetailViewProps {
   onClose: () => void;
   onEditBook: (book: Book) => void;
   onRemoveBook: (id: string) => void;
+  onUpdateProgress: (bookId: string, currentPage: number) => void;
 }
 
-// Helper function to convert data URI to Blob (copied from BookCard.tsx)
-function dataURIToBlob(dataURI: string): Blob | null {
-  if (!dataURI.includes(',')) {
-    console.error("dataURIToBlob: Invalid data URI format - missing comma separator.", {dataURIStart: dataURI.substring(0,100)});
-    return null;
-  }
-  const parts = dataURI.split(',');
-  const header = parts[0];
-  const base64DataDirty = parts[1];
+export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRemoveBook, onUpdateProgress }: BookDetailViewProps) {
+  const { toast } = useToast();
+  const [numPages, setNumPages] = useState<number>(0);
+  const [pageNumber, setPageNumber] = useState<number>(1);
+  const [isPdfLoading, setIsPdfLoading] = useState(true);
 
-  if (!header || typeof base64DataDirty === 'undefined') {
-    console.error("dataURIToBlob: Invalid data URI format - header or data part is missing.");
-    return null;
+  useEffect(() => {
+    if (book?.currentPage) {
+      setPageNumber(book.currentPage);
+    } else {
+      setPageNumber(1);
+    }
+    // We only want this to run when the book prop changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [book]);
+
+
+  const onDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }): void => {
+    setNumPages(numPages);
+    setPageNumber(book?.currentPage || 1);
+    setIsPdfLoading(false);
+  }, [book?.currentPage]);
+
+  const onDocumentLoadError = useCallback((error: Error) => {
+    console.error("Failed to load PDF:", error);
+    toast({
+      title: "PDF Loading Error",
+      description: "Could not load the PDF file. It might be corrupted or in an unsupported format.",
+      variant: "destructive"
+    });
+    setIsPdfLoading(false);
+  }, [toast]);
+  
+  const handlePreviousPage = () => {
+    setPageNumber(prev => Math.max(prev - 1, 1));
   }
   
-  const mimeMatch = header.match(/:(.*?);/);
-  if (!mimeMatch || mimeMatch.length < 2) {
-    console.error("dataURIToBlob: Could not extract MIME type from data URI header:", header);
-    return null;
+  const handleNextPage = () => {
+    setPageNumber(prev => Math.min(prev + 1, numPages || 1));
   }
-  const mimeType = mimeMatch[1];
-
-  let base64Data = base64DataDirty.trim(); 
-
-  if (!base64Data) {
-    console.error("dataURIToBlob: Base64 data part is empty after trim.");
-    return null;
-  }
-
-  try {
-    const byteString = atob(base64Data);
-    const ia = new Uint8Array(byteString.length);
-    for (let i = 0; i < byteString.length; i++) {
-      ia[i] = byteString.charCodeAt(i);
+  
+  const handleSyncProgress = () => {
+    if (book) {
+      onUpdateProgress(book.id, pageNumber);
+      toast({
+        title: "Progress Synced!",
+        description: `Your progress for "${book.title}" has been saved to page ${pageNumber}.`,
+      });
     }
-    return new Blob([ia], { type: mimeType });
-  } catch (error: any) {
-    console.error("dataURIToBlob: Error converting base64 to Blob (1st attempt):", error.name, error.message);
-    
-    if (error instanceof DOMException && error.name === 'InvalidCharacterError') {
-      console.warn("dataURIToBlob: InvalidCharacterError encountered. Trying to decode URI components in base64 string.");
-      try {
-        const decodedBase64 = decodeURIComponent(base64Data);
-        const byteStringDecoded = atob(decodedBase64); 
-        const iaDecoded = new Uint8Array(byteStringDecoded.length);
-        for (let i = 0; i < byteStringDecoded.length; i++) {
-          iaDecoded[i] = byteStringDecoded.charCodeAt(i);
-        }
-        return new Blob([iaDecoded], { type: mimeType });
-      } catch (decodeError: any) {
-        console.error("dataURIToBlob: Error converting base64 to Blob after URI decoding (2nd attempt failed):", decodeError.name, decodeError.message);
-        return null; 
-      }
-    }
-    return null; 
-  }
-}
+  };
 
-export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRemoveBook }: BookDetailViewProps) {
-  const { toast } = useToast();
+  const handleEditClick = () => {
+    if (book) onEditBook(book);
+  };
+
+  const handleRemoveClick = () => {
+    if (book) onRemoveBook(book.id);
+  };
+  
+  const handleDialogClose = (open: boolean) => {
+    if (!open) {
+      setIsPdfLoading(true); // Reset loading state for next open
+      onClose();
+    }
+  };
+
 
   if (!isOpen || !book) {
     return null;
   }
-
-  const handleOpenPdfInDetailView = () => {
-    if (!book.pdfDataUri || !book.pdfDataUri.startsWith('data:application/pdf;base64,')) {
-      toast({
-        title: "Cannot Open PDF",
-        description: "No valid PDF data is associated with this book.",
-        variant: "destructive",
-      });
-      return;
-    }
-    let pdfBlob: Blob | null = null;
-    try {
-      pdfBlob = dataURIToBlob(book.pdfDataUri);
-    } catch (conversionError) {
-        toast({
-            title: "PDF Conversion Failed",
-            description: "An unexpected error occurred while preparing the PDF data.",
-            variant: "destructive",
-        });
-        return;
-    }
-    if (!pdfBlob) {
-      toast({
-        title: "PDF Processing Error",
-        description: "Could not process the PDF data. It might be corrupted.",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (pdfBlob.type !== "application/pdf") {
-      toast({
-        title: "Incorrect PDF Type",
-        description: `The processed file type is "${pdfBlob.type}" not "application/pdf".`,
-        variant: "destructive",
-      });
-      return;
-    }
-    let objectUrl: string | null = null;
-    try {
-        objectUrl = URL.createObjectURL(pdfBlob);
-         if (!objectUrl) throw new Error("URL.createObjectURL returned null.");
-    } catch (createUrlError: any) {
-        toast({
-            title: "PDF Display Error",
-            description: "Could not create a displayable URL for the PDF.",
-            variant: "destructive",
-        });
-        return;
-    }
-    const newWindow = window.open('', '_blank');
-    if (newWindow && objectUrl) {
-      newWindow.document.title = book.pdfFileName || book.title || "PDF Document";
-      newWindow.location.href = objectUrl;
-    } else {
-      toast({ title: "Could Not Open PDF Tab", variant: "destructive" });
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    }
-  };
-
-  const percentageRead = book.totalPages && book.currentPage && book.totalPages > 0
-    ? Math.round((book.currentPage / book.totalPages) * 100)
-    : 0;
   
-  const handleEditClick = () => {
-    onEditBook(book);
-  };
-
-  const handleRemoveClick = () => {
-    onRemoveBook(book.id);
-    // onClose(); // The onClose will be handled by page.tsx's handleRemoveBook
-  };
+  const hasValidPdf = book.pdfDataUri && book.pdfDataUri.startsWith('data:application/pdf;base64,');
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl md:max-w-3xl lg:max-w-4xl max-h-[90vh] flex flex-col p-0">
-        <DialogHeader className="p-6 pb-2 border-b">
-          <DialogTitle className="font-headline text-2xl">{book.title || "Untitled Book"}</DialogTitle>
-          <DialogDescription className="text-md">By: {book.author || "Unknown Author"}</DialogDescription>
+    <Dialog open={isOpen} onOpenChange={handleDialogClose}>
+      <DialogContent className="sm:max-w-4xl lg:max-w-6xl max-h-[95vh] flex flex-col p-0">
+        <DialogHeader className="p-4 sm:p-6 pb-2 border-b">
+          <DialogTitle className="font-headline text-xl sm:text-2xl truncate pr-10">{book.title || "Untitled Book"}</DialogTitle>
+          <DialogDescription className="text-sm sm:text-md">By: {book.author || "Unknown Author"}</DialogDescription>
         </DialogHeader>
-        <div className="flex-grow overflow-y-auto p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-1 flex flex-col items-center space-y-4">
-              <div className="relative w-full aspect-[2/3] max-w-[300px] mx-auto">
-                  <Image
-                      src={book.coverImageUrl || "https://placehold.co/300x450.png"}
-                      alt={`Cover of ${book.title}`}
-                      layout="fill"
-                      objectFit="contain"
-                      className="rounded-md shadow-lg"
-                      data-ai-hint="book cover"
-                  />
-              </div>
-              {book.pdfDataUri && book.pdfDataUri.startsWith('data:application/pdf;base64,') && (
-                <Button onClick={handleOpenPdfInDetailView} className="w-full max-w-[300px]">
-                  <FileText className="mr-2 h-4 w-4" /> Open PDF
-                </Button>
-              )}
-            </div>
-            <div className="md:col-span-2 space-y-4">
-              <div>
-                <h3 className="text-xl font-semibold font-headline mb-1">Summary</h3>
-                <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed">
-                  {book.summary || "No summary available."}
-                </p>
-              </div>
-              {book.totalPages && book.totalPages > 0 && (
-                <div>
-                  <h3 className="text-xl font-semibold font-headline mb-2">Reading Progress</h3>
-                  <p className="text-sm text-foreground/90">
-                    Currently on page {book.currentPage || 1} of {book.totalPages} ({percentageRead}% completed).
-                  </p>
-                  <div className="w-full bg-muted rounded-full h-2.5 mt-2">
-                    <div 
-                        className="bg-primary h-2.5 rounded-full" 
-                        style={{ width: `${percentageRead}%` }}
-                    ></div>
-                  </div>
+
+        <div className="flex-grow overflow-y-auto p-1 sm:p-2 bg-muted/40">
+           {hasValidPdf ? (
+             <div className="flex justify-center items-start">
+              {isPdfLoading && (
+                <div className="flex flex-col items-center justify-center h-96">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="mt-4 text-muted-foreground">Loading PDF...</p>
                 </div>
               )}
-            </div>
-          </div>
+               <Document
+                 file={book.pdfDataUri}
+                 onLoadSuccess={onDocumentLoadSuccess}
+                 onLoadError={onDocumentLoadError}
+                 loading="" // Hide default loader, we use our own
+                 className={isPdfLoading ? 'hidden' : ''}
+               >
+                 <Page pageNumber={pageNumber} renderTextLayer={true} />
+               </Document>
+             </div>
+           ) : (
+             <div className="flex flex-col items-center justify-center h-96">
+                <p className="text-muted-foreground">No PDF available for this book.</p>
+             </div>
+           )}
         </div>
-        <DialogFooter className="p-4 border-t flex flex-col sm:flex-row sm:justify-end space-y-2 sm:space-y-0 sm:space-x-2">
-          <Button variant="outline" onClick={handleEditClick} className="w-full sm:w-auto">
-            <Pencil className="mr-2 h-4 w-4" /> Edit
-          </Button>
-          <Button variant="destructive" onClick={handleRemoveClick} className="w-full sm:w-auto">
-            <Trash2 className="mr-2 h-4 w-4" /> Remove
-          </Button>
-          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">Close</Button>
+
+        <DialogFooter className="p-2 sm:p-4 border-t flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-2 sm:space-y-0">
+          <div className="flex items-center justify-center space-x-2">
+            <Button variant="outline" onClick={handleEditClick}>
+              <Pencil className="mr-2 h-4 w-4" /> Edit Details
+            </Button>
+            <Button variant="destructive" onClick={handleRemoveClick}>
+              <Trash2 className="mr-2 h-4 w-4" /> Remove
+            </Button>
+          </div>
+
+          {hasValidPdf && numPages > 0 && (
+            <div className="flex items-center justify-center space-x-2">
+              <Button variant="outline" size="icon" onClick={handlePreviousPage} disabled={pageNumber <= 1}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-sm font-medium text-muted-foreground tabular-nums">
+                Page {pageNumber} of {numPages}
+              </span>
+              <Button variant="outline" size="icon" onClick={handleNextPage} disabled={pageNumber >= numPages}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button onClick={handleSyncProgress}>
+                <RefreshCw className="mr-2 h-4 w-4" /> Sync Progress
+              </Button>
+            </div>
+          )}
+          
+          <Button variant="outline" onClick={onClose} className="sm:absolute sm:right-4 sm:top-1/2 sm:-translate-y-1/2">Close</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -254,6 +254,7 @@ export default function HomePage() {
         onClose={handleCloseDetailView}
         onEditBook={handleEditBookInDetailView}
         onRemoveBook={handleRemoveBook}
+        onUpdateProgress={handleUpdateProgress}
       />
 
       <footer className="py-4 px-4 md:px-8 border-t border-border mt-auto">
