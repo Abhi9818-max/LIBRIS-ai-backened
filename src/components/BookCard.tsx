@@ -76,7 +76,7 @@ export default function BookCard({ book, onOpenDetailView }: BookCardProps) {
                     fill="none"
                     stroke={progressColor}
                     strokeWidth="3"
-                    strokeDasharray={`${percentageRead}, 100`}
+                    strokeDasharray={percentageRead >= 100 ? '101' : `${percentageRead}, 100`}
                     strokeDashoffset="25" 
                     strokeLinecap="round"
                     className="transition-all duration-300 ease-in-out"
