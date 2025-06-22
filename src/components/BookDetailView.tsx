@@ -205,7 +205,6 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                     velocityDisabled: true,
                 }}
                 wheel={{
-                    touchpadMode: true,
                     panOnScroll: false,
                 }}
                 onZoomStart={() => setIsZooming(true)}
