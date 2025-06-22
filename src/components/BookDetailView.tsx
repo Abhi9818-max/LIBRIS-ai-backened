@@ -4,6 +4,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { Book } from "@/types";
 import { Document, Page, pdfjs, type PDFDocumentProxy } from 'react-pdf';
+import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -27,15 +28,18 @@ interface BookDetailViewProps {
   onUpdateProgress: (bookId: string, currentPage: number) => void;
 }
 
+const RENDER_SCALE = 1.5; // Render at 150% scale for better zoom quality
+
 export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRemoveBook, onUpdateProgress }: BookDetailViewProps) {
   const { toast } = useToast();
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [isPdfLoading, setIsPdfLoading] = useState(true);
-  const [scale, setScale] = useState(1.0);
   const [pageDimensions, setPageDimensions] = useState<{ width: number; height: number } | null>(null);
 
   const pdfContainerRef = useRef<HTMLDivElement>(null);
+  const transformComponentRef = useRef<any>(null);
+
 
   const onDocumentLoadSuccess = useCallback(async (pdf: PDFDocumentProxy): Promise<void> => {
     setNumPages(pdf.numPages);
@@ -56,20 +60,33 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   }, [toast]);
   
   const handleFitToWidth = useCallback(() => {
-    if (pdfContainerRef.current && pageDimensions) {
+    if (transformComponentRef.current?.instance && pdfContainerRef.current && pageDimensions) {
+      const { setTransform } = transformComponentRef.current;
       const containerWidth = pdfContainerRef.current.clientWidth;
-       // Add some padding to prevent horizontal scrollbars
-      setScale((containerWidth - 20) / pageDimensions.width);
+      const visualScale = (containerWidth - 40) / (pageDimensions.width * RENDER_SCALE);
+      setTransform(0, 0, visualScale, 0); // panX, panY, scale, animationTime
+    }
+  }, [pageDimensions]);
+  
+  const handleFitToPage = useCallback(() => {
+    if (transformComponentRef.current?.instance && pdfContainerRef.current && pageDimensions) {
+      const { setTransform } = transformComponentRef.current;
+      const containerWidth = pdfContainerRef.current.clientWidth;
+      const containerHeight = pdfContainerRef.current.clientHeight;
+      const scaleX = (containerWidth - 40) / (pageDimensions.width * RENDER_SCALE);
+      const scaleY = (containerHeight - 40) / (pageDimensions.height * RENDER_SCALE);
+      const visualScale = Math.min(scaleX, scaleY);
+      setTransform(0, 0, visualScale, 0);
     }
   }, [pageDimensions]);
 
+
   // Set initial scale to "fit-to-width" once PDF dimensions are known
   useEffect(() => {
-    if (pageDimensions && pdfContainerRef.current) {
+    if (isOpen && pageDimensions && pdfContainerRef.current) {
       handleFitToWidth();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageDimensions]);
+  }, [isOpen, pageDimensions, handleFitToWidth]);
 
 
   const handlePreviousPage = () => {
@@ -105,16 +122,6 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
       onClose();
     }
   };
-
-  const handleFitToPage = useCallback(() => {
-    if (pdfContainerRef.current && pageDimensions) {
-      const containerWidth = pdfContainerRef.current.clientWidth;
-      const containerHeight = pdfContainerRef.current.clientHeight;
-      const scaleWidth = (containerWidth - 20) / pageDimensions.width;
-      const scaleHeight = (containerHeight - 20) / pageDimensions.height;
-      setScale(Math.min(scaleWidth, scaleHeight));
-    }
-  }, [pageDimensions]);
   
    useEffect(() => {
     const handleResize = () => {
@@ -146,32 +153,46 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-grow overflow-auto p-1 sm:p-2 bg-muted/40" ref={pdfContainerRef}>
+        <div className="flex-grow overflow-hidden p-1 sm:p-2 bg-muted/40" ref={pdfContainerRef}>
            {hasValidPdf ? (
-             <div 
-                className="flex justify-center items-start"
-                style={{'--scale-factor': scale} as React.CSSProperties}
+             <TransformWrapper
+                ref={transformComponentRef}
+                initialScale={1}
+                doubleClick={{ disabled: true }}
+                minScale={0.2}
+                maxScale={10}
+                limitToBounds={false}
+                panning={{ velocityDisabled: true }}
               >
-              {isPdfLoading && (
-                <div className="flex flex-col items-center justify-center h-96">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <p className="mt-4 text-muted-foreground">Loading PDF...</p>
-                </div>
-              )}
-               <Document
-                 file={book.pdfDataUri}
-                 onLoadSuccess={onDocumentLoadSuccess}
-                 onLoadError={onDocumentLoadError}
-                 loading="" // Hide default loader, we use our own
-                 className={isPdfLoading ? 'hidden' : ''}
-               >
-                 <Page 
-                    pageNumber={pageNumber} 
-                    scale={scale}
-                    renderTextLayer={true}
-                 />
-               </Document>
-             </div>
+                <TransformComponent
+                  wrapperStyle={{ width: '100%', height: '100%' }}
+                  contentStyle={{ width: 'auto', height: 'auto' }}
+                >
+                  <div 
+                    style={{'--scale-factor': RENDER_SCALE} as React.CSSProperties}
+                  >
+                  {isPdfLoading && (
+                    <div className="flex flex-col items-center justify-center h-96">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      <p className="mt-4 text-muted-foreground">Loading PDF...</p>
+                    </div>
+                  )}
+                   <Document
+                     file={book.pdfDataUri}
+                     onLoadSuccess={onDocumentLoadSuccess}
+                     onLoadError={onDocumentLoadError}
+                     loading="" // Hide default loader, we use our own
+                     className={isPdfLoading ? 'hidden' : ''}
+                   >
+                     <Page 
+                        pageNumber={pageNumber} 
+                        scale={RENDER_SCALE}
+                        renderTextLayer={true}
+                     />
+                   </Document>
+                  </div>
+                </TransformComponent>
+             </TransformWrapper>
            ) : (
              <div className="flex flex-col items-center justify-center h-96">
                 <p className="text-muted-foreground">No PDF available for this book.</p>
