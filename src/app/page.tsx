@@ -7,13 +7,15 @@ import BookCard from "@/components/BookCard";
 import UploadBookForm from "@/components/UploadBookForm";
 import BookDetailView from "@/components/BookDetailView";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, BookOpen, Sun, Moon, SearchX } from "lucide-react";
+import { PlusCircle, BookOpen, Sun, Moon, SearchX, Loader2 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { useToast } from "@/hooks/use-toast";
+import { initDB, getBooks, saveBook, deleteBook } from "@/lib/db";
 
 export default function HomePage() {
   const [books, setBooks] = useState<Book[]>([]);
   const [isClient, setIsClient] = useState(false);
+  const [isDbReady, setIsDbReady] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [editingBook, setEditingBook] = useState<Book | null>(null);
   const { theme, setTheme } = useTheme();
@@ -22,78 +24,38 @@ export default function HomePage() {
   const [selectedBookForDetail, setSelectedBookForDetail] = useState<Book | null>(null);
   const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
 
+  // Initialize DB on component mount
   useEffect(() => {
     setIsClient(true);
-    let newBooks: Book[] = [];
-    try {
-      const storedBooks = localStorage.getItem("bookshelf_books");
-      if (storedBooks) {
-        const parsedBooks = JSON.parse(storedBooks);
-        if (Array.isArray(parsedBooks)) {
-          newBooks = parsedBooks.reduce((acc: Book[], item: any) => {
-            if (item && typeof item.id === 'string' && typeof item.title === 'string') {
-              acc.push({
-                id: item.id,
-                title: item.title,
-                author: typeof item.author === 'string' ? item.author : "Unknown Author",
-                summary: typeof item.summary === 'string' ? item.summary : "No summary available.",
-                coverImageUrl: typeof item.coverImageUrl === 'string' ? item.coverImageUrl : "https://placehold.co/200x300.png",
-                pdfFileName: typeof item.pdfFileName === 'string' ? item.pdfFileName : "",
-                pdfDataUri: typeof item.pdfDataUri === 'string' ? item.pdfDataUri : "",
-                currentPage: typeof item.currentPage === 'number' ? item.currentPage : 1,
-                totalPages: typeof item.totalPages === 'number' ? item.totalPages : undefined,
-              });
-            } else {
-              console.warn("Skipping malformed book item from localStorage:", item);
-            }
-            return acc;
-          }, []);
-        } else if (parsedBooks !== null) {
-          console.warn("Stored bookshelf_books is not an array, resetting. Data:", parsedBooks);
-          localStorage.removeItem("bookshelf_books");
-        }
-      }
-    } catch (error) {
-      console.error("Error loading books from localStorage:", error);
-      toast({
-        title: "Error Loading Books",
-        description: "Could not load saved books. Data might be corrupted. Bookshelf has been reset.",
-        variant: "destructive",
-      });
-      try {
-        localStorage.removeItem("bookshelf_books");
-      } catch (removeError) {
-        console.error("Failed to remove corrupted bookshelf_books from localStorage:", removeError);
-      }
-    }
-    setBooks(newBooks);
-  }, [toast]);
-
-  useEffect(() => {
-    if (isClient) {
-      try {
-        const booksToStore = books.map(book => ({
-          id: book.id,
-          title: book.title,
-          author: book.author,
-          summary: book.summary,
-          coverImageUrl: book.coverImageUrl,
-          pdfFileName: book.pdfFileName,
-          pdfDataUri: book.pdfDataUri,
-          currentPage: book.currentPage,
-          totalPages: book.totalPages,
-        }));
-        localStorage.setItem("bookshelf_books", JSON.stringify(booksToStore));
-      } catch (error) {
-        console.error("Error saving books to localStorage:", error);
+    initDB().then(success => {
+      if (success) {
+        setIsDbReady(true);
+      } else {
         toast({
-          title: "Storage Error",
-          description: "Could not save books to local storage. Changes might not persist.",
+          title: "Database Error",
+          description: "Could not initialize the local database. Your books cannot be saved.",
           variant: "destructive",
         });
       }
+    });
+  }, [toast]);
+
+  // Load books from IndexedDB when it's ready
+  useEffect(() => {
+    if (isDbReady) {
+      getBooks().then(storedBooks => {
+        setBooks(storedBooks);
+      }).catch(error => {
+        console.error("Error loading books from IndexedDB:", error);
+        toast({
+          title: "Error Loading Books",
+          description: "Could not load saved books from the database.",
+          variant: "destructive",
+        });
+      });
     }
-  }, [books, isClient, toast]);
+  }, [isDbReady, toast]);
+
 
   const handleOpenUploadModal = (book: Book | null = null) => {
     setEditingBook(book);
@@ -105,22 +67,34 @@ export default function HomePage() {
     setEditingBook(null);
   };
 
-  const handleSaveBook = (book: Book, isEditing: boolean) => {
-    setBooks((prevBooks) => {
-      if (isEditing) {
-        const updatedBooks = prevBooks.map((b) => (b.id === book.id ? book : b));
-        if (selectedBookForDetail && selectedBookForDetail.id === book.id) {
-          setSelectedBookForDetail(book); 
+  const handleSaveBook = async (bookData: Book, isEditing: boolean) => {
+    try {
+      const savedBookData = await saveBook(bookData);
+      setBooks((prevBooks) => {
+        if (isEditing) {
+          const updatedBooks = prevBooks.map((b) => (b.id === savedBookData.id ? savedBookData : b));
+          if (selectedBookForDetail && selectedBookForDetail.id === savedBookData.id) {
+            setSelectedBookForDetail(savedBookData); 
+          }
+          return updatedBooks;
         }
-        return updatedBooks;
-      }
-      const newBookWithProgress = {
-        ...book,
-        currentPage: book.totalPages ? 1 : undefined,
-      };
-      return [newBookWithProgress, ...prevBooks];
-    });
-    handleCloseUploadModal();
+        // For new books, just refetch from DB to get the sorted list
+        getBooks().then(setBooks);
+        return prevBooks; // temporarily return old state
+      });
+      // A cleaner way to update for new book:
+       if (!isEditing) {
+          getBooks().then(setBooks);
+       }
+      handleCloseUploadModal();
+    } catch (error) {
+      console.error("Error saving book to DB:", error);
+      toast({
+        title: "Storage Error",
+        description: "Could not save the book to the database.",
+        variant: "destructive",
+      });
+    }
   };
   
   const handleCloseDetailView = useCallback(() => {
@@ -128,14 +102,24 @@ export default function HomePage() {
     setTimeout(() => setSelectedBookForDetail(null), 300); 
   }, []);
 
-  const handleRemoveBook = useCallback((id: string) => {
-    setBooks((prevBooks) => prevBooks.filter((book) => book.id !== id));
-    toast({
-      title: "Book Removed",
-      description: "The book has been removed from your shelf.",
-    });
-    if (selectedBookForDetail && selectedBookForDetail.id === id) {
-      handleCloseDetailView();
+  const handleRemoveBook = useCallback(async (id: string) => {
+    try {
+      await deleteBook(id);
+      setBooks((prevBooks) => prevBooks.filter((book) => book.id !== id));
+      toast({
+        title: "Book Removed",
+        description: "The book has been removed from your shelf.",
+      });
+      if (selectedBookForDetail && selectedBookForDetail.id === id) {
+        handleCloseDetailView();
+      }
+    } catch (error) {
+      console.error("Error removing book from DB:", error);
+      toast({
+        title: "Deletion Error",
+        description: "Could not remove the book from the database.",
+        variant: "destructive",
+      });
     }
   }, [toast, selectedBookForDetail, handleCloseDetailView]);
 
@@ -145,20 +129,33 @@ export default function HomePage() {
     setTimeout(() => handleOpenUploadModal(book), 150); 
   }, [handleCloseDetailView]);
 
-  const handleUpdateProgress = useCallback((bookId: string, currentPage: number) => {
-    setBooks(prevBooks =>
-      prevBooks.map(book => {
-        if (book.id === bookId) {
-          const updatedBook = { ...book, currentPage };
-          if (selectedBookForDetail && selectedBookForDetail.id === bookId) {
-            setSelectedBookForDetail(updatedBook); 
-          }
-          return updatedBook;
-        }
-        return book;
-      })
-    );
-  }, [selectedBookForDetail]);
+  const handleUpdateProgress = useCallback(async (bookId: string, currentPage: number) => {
+    const bookToUpdate = books.find(b => b.id === bookId);
+    if (bookToUpdate) {
+      const updatedBook = { ...bookToUpdate, currentPage };
+      try {
+        await saveBook(updatedBook);
+        setBooks(prevBooks =>
+          prevBooks.map(book => {
+            if (book.id === bookId) {
+              if (selectedBookForDetail && selectedBookForDetail.id === bookId) {
+                setSelectedBookForDetail(updatedBook); 
+              }
+              return updatedBook;
+            }
+            return book;
+          })
+        );
+      } catch (error) {
+         console.error("Error updating progress in DB:", error);
+        toast({
+          title: "Sync Error",
+          description: "Could not save your reading progress.",
+          variant: "destructive",
+        });
+      }
+    }
+  }, [books, selectedBookForDetail, toast]);
 
   const handleOpenDetailView = useCallback((book: Book) => {
     setSelectedBookForDetail(book);
@@ -171,6 +168,15 @@ export default function HomePage() {
       <div className="flex flex-col min-h-screen bg-background items-center justify-center">
         <BookOpen className="h-16 w-16 text-primary animate-pulse" />
         <p className="text-xl font-headline text-primary mt-4">Loading BookShelf...</p>
+      </div>
+    );
+  }
+  
+  if (!isDbReady) {
+     return (
+      <div className="flex flex-col min-h-screen bg-background items-center justify-center">
+        <Loader2 className="h-16 w-16 text-primary animate-spin" />
+        <p className="text-xl font-headline text-primary mt-4">Preparing your bookshelf...</p>
       </div>
     );
   }
