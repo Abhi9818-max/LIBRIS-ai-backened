@@ -9,6 +9,7 @@ import 'react-pdf/dist/esm/Page/TextLayer.css';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ArrowLeftRight, Maximize, MoreVertical } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -36,6 +37,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const [isPdfLoading, setIsPdfLoading] = useState(true);
   const [pageDimensions, setPageDimensions] = useState<{ width: number; height: number } | null>(null);
   const [minScale, setMinScale] = useState(0.2); // State for minimum zoom scale
+  const isMobile = useIsMobile();
 
   const pdfContainerRef = useRef<HTMLDivElement>(null);
   const transformComponentRef = useRef<any>(null);
@@ -83,8 +85,6 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   }, [pageDimensions]);
 
   const onPageRenderError = useCallback((error: Error) => {
-    // The "AbortException" is a non-critical error that `react-pdf` throws when a user
-    // navigates between pages too quickly. We can safely ignore it.
     if (error.name === 'AbortException') {
       return;
     }
@@ -99,7 +99,6 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
 
   // Set initial scale and calculate minimum zoom level once PDF dimensions are known
   useEffect(() => {
-    // A small delay ensures the container has its final dimensions before we calculate scales.
     const timer = setTimeout(() => {
         if (isOpen && pageDimensions && pdfContainerRef.current && transformComponentRef.current?.instance) {
             const { setTransform } = transformComponentRef.current;
@@ -107,17 +106,13 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
             const containerHeight = pdfContainerRef.current.clientHeight;
             const PADDING = 40; // visual padding inside the container
 
-            // Calculate fit-to-width scale for initial view
             const fitToWidthScale = (containerWidth - PADDING) / (pageDimensions.width * RENDER_SCALE);
             setTransform(0, 0, fitToWidthScale, 0);
 
-            // Calculate fit-to-page scale to use as the minimum zoom level
             const scaleX = (containerWidth - PADDING) / (pageDimensions.width * RENDER_SCALE);
             const scaleY = (containerHeight - PADDING) / (pageDimensions.height * RENDER_SCALE);
             const fitToPageScale = Math.min(scaleX, scaleY);
             
-            // We set the minScale to a value slightly less than fit-to-page
-            // to give a little wiggle room and prevent getting stuck at the exact limit.
             setMinScale(fitToPageScale * 0.98); 
         }
     }, 100);
@@ -153,16 +148,15 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
 
   const handleDialogClose = (open: boolean) => {
     if (!open) {
-      setIsPdfLoading(true); // Reset loading state for next open
-      setPageDimensions(null); // Reset dimensions
-      setMinScale(0.2); // Reset min scale to default
+      setIsPdfLoading(true);
+      setPageDimensions(null);
+      setMinScale(0.2);
       onClose();
     }
   };
   
    useEffect(() => {
     const handleResize = () => {
-      // Re-apply fit-to-width on resize to ensure it stays responsive
       if (pdfContainerRef.current && pageDimensions) {
         handleFitToWidth();
       }
@@ -202,7 +196,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                     velocityDisabled: true,
                 }}
                 wheel={{
-                    panOnScroll: false,
+                    panOnScroll: isMobile,
                 }}
               >
                 <TransformComponent
@@ -222,7 +216,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                      file={book.pdfDataUri}
                      onLoadSuccess={onDocumentLoadSuccess}
                      onLoadError={onDocumentLoadError}
-                     loading="" // Hide default loader, we use our own
+                     loading="" 
                      className={isPdfLoading ? 'hidden' : ''}
                    >
                      <Page 
@@ -243,7 +237,6 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
         </div>
 
         <DialogFooter className="p-2 sm:p-4 border-t grid grid-cols-1 sm:grid-cols-3 items-center gap-2">
-            {/* Left Actions - now a dropdown */}
             <div className="flex items-center justify-center sm:justify-start">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -274,7 +267,6 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
               </DropdownMenu>
             </div>
 
-            {/* Center Navigation */}
             {hasValidPdf && numPages > 0 && (
                 <div className="flex items-center justify-center space-x-2">
                     <Button variant="outline" size="icon" onClick={handlePreviousPage} disabled={pageNumber <= 1}><ChevronLeft className="h-4 w-4" /></Button>
@@ -285,7 +277,6 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                 </div>
             )}
 
-            {/* Right Actions */}
             {hasValidPdf && numPages > 0 && (
                 <div className="flex items-center justify-center sm:justify-end">
                     <Button onClick={handleSyncProgress} size="sm">
