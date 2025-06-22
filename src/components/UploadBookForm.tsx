@@ -336,49 +336,18 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
   const onSubmit = async (data: BookFormData) => {
     const bookId = isEditing && bookToEdit ? bookToEdit.id : Date.now().toString();
     
-    let finalPdfDataUri = "";
-    let finalPdfFileName = "";
-    let finalCoverImageUrl = "https://placehold.co/200x300.png";
+    // Use the current state of the URI and file name as the source of truth
+    const finalPdfDataUri = currentPdfDataUri || "";
+    const finalPdfFileName = pdfFileName || "";
+    const finalCoverImageUrl = coverPreviewUrl || "https://placehold.co/200x300.png";
 
-    if (isEditing && bookToEdit) {
-      if (pdfFile && currentPdfDataUri) { 
-        finalPdfDataUri = currentPdfDataUri;
-        finalPdfFileName = pdfFileName || (pdfFile.name);
-      } else { 
-        finalPdfDataUri = bookToEdit.pdfDataUri || "";
-        finalPdfFileName = bookToEdit.pdfFileName || "";
-      }
-
-      if (coverImageFile && coverPreviewUrl && coverPreviewUrl.startsWith('data:image')) { 
-        finalCoverImageUrl = coverPreviewUrl;
-      } else if (coverPreviewUrl && coverPreviewUrl.startsWith('data:image')) { 
-        finalCoverImageUrl = coverPreviewUrl;
-      } else if (coverPreviewUrl && !coverPreviewUrl.startsWith('data:image')) { 
-         finalCoverImageUrl = coverPreviewUrl;
-      } else if (!coverPreviewUrl && coverImageFile) { 
-         finalCoverImageUrl = bookToEdit.coverImageUrl || "https://placehold.co/200x300.png"; 
-      }
-      else if (!coverPreviewUrl && !coverImageFile && bookToEdit.coverImageUrl) { 
-         finalCoverImageUrl = bookToEdit.coverImageUrl;
-      }
-       else { 
-        finalCoverImageUrl = bookToEdit.coverImageUrl && !coverImageFile ? bookToEdit.coverImageUrl : "https://placehold.co/200x300.png";
-      }
-
-
-    } else { 
-      finalPdfDataUri = currentPdfDataUri || "";
-      finalPdfFileName = pdfFileName || (pdfFile ? pdfFile.name : "");
-      finalCoverImageUrl = coverPreviewUrl || "https://placehold.co/200x300.png";
-      
-      if (!finalPdfDataUri) { 
-        toast({ 
-          title: "Missing PDF", 
-          description: "A PDF file is required for new books. Please upload one.", 
-          variant: "destructive" 
+    if (!isEditing && !finalPdfDataUri) {
+        toast({
+            title: "Missing PDF",
+            description: "A PDF file is required for new books. Please upload one.",
+            variant: "destructive",
         });
         return;
-      }
     }
 
     const savedBook: Book = {
