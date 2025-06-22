@@ -131,25 +131,25 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   useEffect(() => {
     const container = pdfContainerRef.current;
     if (!container) return;
-
+    
+    // This event handler is the key to stopping the page drift on trackpads.
+    // When a pinch-to-zoom gesture is performed, the browser often sends a 'wheel' event.
+    // By calling `preventDefault()` on this event, we stop the browser's default scroll/pan action,
+    // allowing the `react-zoom-pan-pinch` library to handle the zoom exclusively.
+    // This stops the page from drifting down when all you want to do is zoom.
     const handleWheel = (e: WheelEvent) => {
-      // A pinch-zoom gesture on a trackpad is often translated by the browser into a scroll event with the `ctrlKey` pressed.
-      // By preventing the default action for this specific event, we stop the browser from scrolling the container,
-      // while allowing the zoom library to handle the zoom action.
-      if (e.ctrlKey) {
         e.preventDefault();
-      }
     };
-
+    
     // We must use `passive: false` to be able to call `preventDefault()`.
     container.addEventListener('wheel', handleWheel, { passive: false });
-
+    
     return () => {
-      if (container) {
-        container.removeEventListener('wheel', handleWheel);
-      }
+        if (container) {
+            container.removeEventListener('wheel', handleWheel);
+        }
     };
-  }, []); // An empty dependency array ensures this effect runs only once when the component mounts.
+  }, []);
 
 
   const handlePreviousPage = () => {
@@ -226,14 +226,11 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                 maxScale={10}
                 limitToBounds={true}
                 panning={{
-                    disabled: isZooming,
                     velocityDisabled: true,
                 }}
                 wheel={{
                     panOnScroll: false,
                 }}
-                onZoomStart={() => setIsZooming(true)}
-                onZoomStop={() => setIsZooming(false)}
               >
                 <TransformComponent
                   wrapperStyle={{ width: '100%', height: '100%' }}
