@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -23,6 +24,8 @@ export default function HomePage() {
 
   const [selectedBookForDetail, setSelectedBookForDetail] = useState<Book | null>(null);
   const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
+  const [initialDetailTab, setInitialDetailTab] = useState<'details' | 'read'>('read');
+
 
   // Initialize DB on component mount
   useEffect(() => {
@@ -157,8 +160,9 @@ export default function HomePage() {
     }
   }, [books, selectedBookForDetail, toast]);
 
-  const handleOpenDetailView = useCallback((book: Book) => {
+  const handleOpenDetailView = useCallback((book: Book, tab: 'details' | 'read' = 'read') => {
     setSelectedBookForDetail(book);
+    setInitialDetailTab(tab);
     setIsDetailViewOpen(true);
   }, []);
 
@@ -260,6 +264,7 @@ export default function HomePage() {
         onEditBook={handleEditBookInDetailView}
         onRemoveBook={handleRemoveBook}
         onUpdateProgress={handleUpdateProgress}
+        initialTab={initialDetailTab}
       />
 
       <footer className="py-4 px-4 md:px-8 border-t border-border mt-auto">

@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Book } from "@/types";
@@ -6,12 +7,12 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Eye } from "lucide-react";
+import { Info, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface BookCardProps {
   book: Book;
-  onOpenDetailView: (book: Book) => void;
+  onOpenDetailView: (book: Book, tab: 'details' | 'read') => void;
 }
 
 export default function BookCard({ book, onOpenDetailView }: BookCardProps) {
@@ -35,7 +36,7 @@ export default function BookCard({ book, onOpenDetailView }: BookCardProps) {
       <CardHeader className="p-4 pb-2">
         <div 
           className="aspect-[2/3] w-full relative mb-2 rounded-md overflow-hidden cursor-pointer"
-          onDoubleClick={() => onOpenDetailView(book)}
+          onDoubleClick={() => onOpenDetailView(book, 'read')}
           title="Double-click to read"
         >
           <Image
@@ -99,15 +100,24 @@ export default function BookCard({ book, onOpenDetailView }: BookCardProps) {
           </div>
         )}
       </CardContent>
-      <CardFooter className="p-4 pt-0 mt-auto">
+      <CardFooter className="p-4 pt-0 mt-auto grid grid-cols-2 gap-2">
         <Button
-          variant="secondary"
+          variant="outline"
           size="sm"
-          onClick={() => onOpenDetailView(book)}
+          onClick={() => onOpenDetailView(book, 'details')}
           aria-label={`View details for ${book.title}`}
           className="w-full"
         >
-          <Eye className="mr-2 h-4 w-4" /> View & Read
+          <Info className="mr-2 h-4 w-4" /> Details
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => onOpenDetailView(book, 'read')}
+          aria-label={`Read ${book.title}`}
+          className="w-full"
+        >
+          <BookOpen className="mr-2 h-4 w-4" /> Read
         </Button>
       </CardFooter>
     </Card>

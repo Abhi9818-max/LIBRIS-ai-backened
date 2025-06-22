@@ -3,16 +3,20 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { Book } from "@/types";
+import Image from "next/image";
 import { Document, Page, pdfjs, type PDFDocumentProxy } from 'react-pdf';
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ArrowLeftRight, Maximize, MoreVertical } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2 } from "lucide-react";
 
 
 // Set up the pdf.js worker
@@ -27,27 +31,27 @@ interface BookDetailViewProps {
   onEditBook: (book: Book) => void;
   onRemoveBook: (id: string) => void;
   onUpdateProgress: (bookId: string, currentPage: number) => void;
+  initialTab?: 'details' | 'read';
 }
 
-const RENDER_SCALE = 1.5; // Render at 150% scale for better zoom quality
-
-export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRemoveBook, onUpdateProgress }: BookDetailViewProps) {
+export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRemoveBook, onUpdateProgress, initialTab = 'read' }: BookDetailViewProps) {
   const { toast } = useToast();
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [isPdfLoading, setIsPdfLoading] = useState(true);
-  const [pageDimensions, setPageDimensions] = useState<{ width: number; height: number } | null>(null);
-  const [minScale, setMinScale] = useState(0.2); // State for minimum zoom scale
-  const isMobile = useIsMobile();
+  const [activeTab, setActiveTab] = useState(initialTab);
 
   const pdfContainerRef = useRef<HTMLDivElement>(null);
-  const transformComponentRef = useRef<any>(null);
 
-
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
+  
   const onDocumentLoadSuccess = useCallback(async (pdf: PDFDocumentProxy): Promise<void> => {
     setNumPages(pdf.numPages);
     const page = await pdf.getPage(1);
-    setPageDimensions({ width: page.view[2], height: page.view[3] });
     setPageNumber(book?.currentPage || 1);
     setIsPdfLoading(false);
   }, [book?.currentPage]);
@@ -62,29 +66,6 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     setIsPdfLoading(false);
   }, [toast]);
   
-  const handleFitToWidth = useCallback(() => {
-    if (transformComponentRef.current?.instance && pdfContainerRef.current && pageDimensions) {
-      const { setTransform } = transformComponentRef.current;
-      const containerWidth = pdfContainerRef.current.clientWidth;
-      const PADDING = 40;
-      const visualScale = (containerWidth - PADDING) / (pageDimensions.width * RENDER_SCALE);
-      setTransform(0, 0, visualScale, 300); // panX, panY, scale, animationTime
-    }
-  }, [pageDimensions]);
-  
-  const handleFitToPage = useCallback(() => {
-    if (transformComponentRef.current?.instance && pdfContainerRef.current && pageDimensions) {
-      const { setTransform } = transformComponentRef.current;
-      const containerWidth = pdfContainerRef.current.clientWidth;
-      const containerHeight = pdfContainerRef.current.clientHeight;
-      const PADDING = 40;
-      const scaleX = (containerWidth - PADDING) / (pageDimensions.width * RENDER_SCALE);
-      const scaleY = (containerHeight - PADDING) / (pageDimensions.height * RENDER_SCALE);
-      const visualScale = Math.min(scaleX, scaleY);
-      setTransform(0, 0, visualScale, 300);
-    }
-  }, [pageDimensions]);
-
   const onPageRenderError = useCallback((error: Error) => {
     if (error.name === 'AbortException') {
       return;
@@ -97,29 +78,6 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     });
   }, [toast]);
 
-
-  // Set initial scale and calculate minimum zoom level once PDF dimensions are known
-  useEffect(() => {
-    const timer = setTimeout(() => {
-        if (isOpen && pageDimensions && pdfContainerRef.current && transformComponentRef.current?.instance) {
-            const { setTransform } = transformComponentRef.current;
-            const containerWidth = pdfContainerRef.current.clientWidth;
-            const containerHeight = pdfContainerRef.current.clientHeight;
-            const PADDING = 40; // visual padding inside the container
-
-            const fitToWidthScale = (containerWidth - PADDING) / (pageDimensions.width * RENDER_SCALE);
-            setTransform(0, 0, fitToWidthScale, 0);
-
-            const scaleX = (containerWidth - PADDING) / (pageDimensions.width * RENDER_SCALE);
-            const scaleY = (containerHeight - PADDING) / (pageDimensions.height * RENDER_SCALE);
-            const fitToPageScale = Math.min(scaleX, scaleY);
-            
-            setMinScale(fitToPageScale * 0.98); 
-        }
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, [isOpen, pageDimensions]);
 
   const handlePreviousPage = () => {
     setPageNumber(prev => Math.max(prev - 1, 1));
@@ -150,22 +108,9 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const handleDialogClose = (open: boolean) => {
     if (!open) {
       setIsPdfLoading(true);
-      setPageDimensions(null);
-      setMinScale(0.2);
       onClose();
     }
   };
-  
-   useEffect(() => {
-    const handleResize = () => {
-      if (pdfContainerRef.current && pageDimensions) {
-        handleFitToWidth();
-      }
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [pageDimensions, handleFitToWidth]);
-
 
   if (!isOpen || !book) {
     return null;
@@ -175,118 +120,122 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
 
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogClose}>
-      <DialogContent className="sm:max-w-4xl lg:max-w-6xl max-h-[95vh] flex flex-col p-0">
-        <DialogHeader className="p-4 sm:p-6 pb-2 border-b">
+      <DialogContent className="sm:max-w-4xl lg:max-w-6xl h-[95vh] flex flex-col p-0">
+        <DialogHeader className="p-4 sm:p-6 pb-2 border-b shrink-0">
           <DialogTitle className="font-headline text-xl sm:text-2xl truncate pr-10">{book.title || "Untitled Book"}</DialogTitle>
           <DialogDescription className="text-sm sm:text-md">
             By: {book.author || "Unknown Author"}
-            {book.category && <span className="mx-2">|</span>}
-            {book.category && <span className="font-medium">{book.category}</span>}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-grow overflow-hidden p-1 sm:p-2 bg-muted/40" ref={pdfContainerRef}>
-           {hasValidPdf ? (
-             <TransformWrapper
-                ref={transformComponentRef}
-                initialScale={1}
-                minScale={minScale}
-                maxScale={10}
-                limitToBounds={true}
-                panning={{
-                    velocityDisabled: true,
-                }}
-                wheel={{ disabled: true }}
-                pinch={{ disabled: true }}
-                doubleClick={{ disabled: true }}
-              >
-                <TransformComponent
-                  wrapperStyle={{ width: '100%', height: '100%' }}
-                  contentStyle={{ width: 'auto', height: 'auto' }}
-                >
-                  <div 
-                    style={{'--scale-factor': RENDER_SCALE} as React.CSSProperties}
-                  >
-                  {isPdfLoading && (
-                    <div className="flex flex-col items-center justify-center h-96">
-                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                      <p className="mt-4 text-muted-foreground">Loading PDF...</p>
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'details' | 'read')} className="flex-grow flex flex-col overflow-hidden">
+          <TabsList className="mx-auto w-fit mt-2 px-4 shrink-0">
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="read" disabled={!hasValidPdf}>Read</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="details" className="flex-grow overflow-y-auto p-4 md:p-6">
+            <div className="grid md:grid-cols-3 gap-6 md:gap-8">
+              <div className="md:col-span-1 flex flex-col items-center">
+                <div className="aspect-[2/3] w-full max-w-[200px] relative rounded-md overflow-hidden shadow-lg">
+                  <Image
+                    src={book.coverImageUrl || "https://placehold.co/200x300.png"}
+                    alt={`Cover of ${book.title}`}
+                    layout="fill"
+                    objectFit="cover"
+                    data-ai-hint="book cover"
+                  />
+                </div>
+                <div className="flex space-x-2 mt-4">
+                  <Button onClick={handleEditClick} size="sm"><Pencil className="mr-2 h-4 w-4" /> Edit</Button>
+                  <Button variant="outline" onClick={handleRemoveClick} size="sm"><Trash2 className="mr-2 h-4 w-4" /> Remove</Button>
+                </div>
+              </div>
+              <div className="md:col-span-2 space-y-4">
+                <div className="space-y-1">
+                  <h3 className="font-headline text-lg text-foreground">Summary</h3>
+                  <ScrollArea className="h-48 border rounded-md p-3">
+                    <p className="text-sm text-muted-foreground">{book.summary || "No summary available."}</p>
+                  </ScrollArea>
+                </div>
+                 <div className="space-y-2">
+                    <h3 className="font-headline text-lg text-foreground">Information</h3>
+                    <div className="flex flex-wrap gap-2">
+                       {book.category && <Badge variant="secondary">Category: {book.category}</Badge>}
+                       {book.totalPages && <Badge variant="secondary">Pages: {book.totalPages}</Badge>}
                     </div>
-                  )}
-                   <Document
-                     file={book.pdfDataUri}
-                     onLoadSuccess={onDocumentLoadSuccess}
-                     onLoadError={onDocumentLoadError}
-                     loading="" 
-                     className={isPdfLoading ? 'hidden' : ''}
-                   >
-                     <Page 
-                        pageNumber={pageNumber} 
-                        scale={RENDER_SCALE}
-                        renderTextLayer={true}
-                        onRenderError={onPageRenderError}
-                     />
-                   </Document>
+                 </div>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="read" className="flex-grow flex flex-col overflow-hidden data-[state=inactive]:hidden">
+             {hasValidPdf ? (
+             <div className="flex-grow flex flex-col overflow-hidden">
+              <div className="flex-grow overflow-hidden bg-muted/40" ref={pdfContainerRef}>
+                <TransformWrapper
+                    initialScale={1}
+                    minScale={0.2}
+                    maxScale={10}
+                    limitToBounds={true}
+                    panning={{ disabled: false, excluded: ['input', 'button'] }}
+                    doubleClick={{ disabled: true }}
+                    pinch={{ disabled: true }}
+                    wheel={{ disabled: true }}
+                  >
+                    <TransformComponent
+                      wrapperStyle={{ width: '100%', height: '100%' }}
+                      contentStyle={{ width: 'auto', height: 'auto' }}
+                    >
+                        {isPdfLoading && (
+                          <div className="flex flex-col items-center justify-center h-full">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                            <p className="mt-4 text-muted-foreground">Loading PDF...</p>
+                          </div>
+                        )}
+                       <Document
+                         file={book.pdfDataUri}
+                         onLoadSuccess={onDocumentLoadSuccess}
+                         onLoadError={onDocumentLoadError}
+                         loading="" 
+                         className={isPdfLoading ? 'hidden' : ''}
+                       >
+                         <Page 
+                            pageNumber={pageNumber} 
+                            scale={1.5}
+                            renderTextLayer={true}
+                            onRenderError={onPageRenderError}
+                         />
+                       </Document>
+                    </TransformComponent>
+                 </TransformWrapper>
+              </div>
+              <div className="p-2 border-t flex items-center justify-between shrink-0">
+                  <div className="flex items-center justify-start w-1/3">
+                    {/* Placeholder for future actions like fit-to-width */}
                   </div>
-                </TransformComponent>
-             </TransformWrapper>
+                  <div className="flex items-center justify-center space-x-2 w-1/3">
+                      <Button variant="outline" size="icon" onClick={handlePreviousPage} disabled={pageNumber <= 1}><ChevronLeft className="h-4 w-4" /></Button>
+                      <span className="text-sm font-medium text-muted-foreground tabular-nums whitespace-nowrap">
+                          Page {pageNumber} of {numPages}
+                      </span>
+                      <Button variant="outline" size="icon" onClick={handleNextPage} disabled={pageNumber >= numPages}><ChevronRight className="h-4 w-4" /></Button>
+                  </div>
+                  <div className="flex items-center justify-end w-1/3">
+                      <Button onClick={handleSyncProgress} size="sm">
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        <span className="hidden sm:inline">Sync Progress</span>
+                      </Button>
+                  </div>
+              </div>
+            </div>
            ) : (
-             <div className="flex flex-col items-center justify-center h-96">
+             <div className="flex flex-col items-center justify-center h-full">
                 <p className="text-muted-foreground">No PDF available for this book.</p>
              </div>
            )}
-        </div>
-
-        <DialogFooter className="p-2 sm:p-4 border-t grid grid-cols-1 sm:grid-cols-3 items-center gap-2">
-            <div className="flex items-center justify-center sm:justify-start">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <MoreVertical className="h-4 w-4" />
-                    <span className="ml-2 hidden sm:inline">Actions</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  <DropdownMenuItem onClick={handleEditClick}>
-                    <Pencil className="mr-2 h-4 w-4" />
-                    <span>Edit Book Details</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleFitToWidth}>
-                    <ArrowLeftRight className="mr-2 h-4 w-4" />
-                    <span>Fit to Width</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleFitToPage}>
-                    <Maximize className="mr-2 h-4 w-4" />
-                    <span>Fit to Page</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleRemoveClick} className="text-destructive focus:text-destructive-foreground focus:bg-destructive">
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    <span>Remove Book</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            {hasValidPdf && numPages > 0 && (
-                <div className="flex items-center justify-center space-x-2">
-                    <Button variant="outline" size="icon" onClick={handlePreviousPage} disabled={pageNumber <= 1}><ChevronLeft className="h-4 w-4" /></Button>
-                    <span className="text-sm font-medium text-muted-foreground tabular-nums whitespace-nowrap">
-                        Page {pageNumber} of {numPages}
-                    </span>
-                    <Button variant="outline" size="icon" onClick={handleNextPage} disabled={pageNumber >= numPages}><ChevronRight className="h-4 w-4" /></Button>
-                </div>
-            )}
-
-            {hasValidPdf && numPages > 0 && (
-                <div className="flex items-center justify-center sm:justify-end">
-                    <Button onClick={handleSyncProgress} size="sm">
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      <span>Sync Progress</span>
-                    </Button>
-                </div>
-            )}
-        </DialogFooter>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
