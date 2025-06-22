@@ -7,6 +7,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Eye } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface BookCardProps {
   book: Book;
