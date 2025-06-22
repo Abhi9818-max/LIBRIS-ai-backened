@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
@@ -79,6 +78,20 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
       setTransform(0, 0, visualScale, 0);
     }
   }, [pageDimensions]);
+
+  const onPageRenderError = useCallback((error: Error) => {
+    // The "AbortException" is a non-critical error that `react-pdf` throws when a user
+    // navigates between pages too quickly. We can safely ignore it.
+    if (error.name === 'AbortException') {
+      return;
+    }
+    console.error("Failed to render PDF page:", error);
+    toast({
+      title: "PDF Page Error",
+      description: "Could not render the PDF page. It might be corrupted.",
+      variant: "destructive"
+    });
+  }, [toast]);
 
 
   // Set initial scale to "fit-to-width" once PDF dimensions are known
@@ -188,6 +201,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                         pageNumber={pageNumber} 
                         scale={RENDER_SCALE}
                         renderTextLayer={true}
+                        onRenderError={onPageRenderError}
                      />
                    </Document>
                   </div>
