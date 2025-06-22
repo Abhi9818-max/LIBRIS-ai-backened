@@ -126,6 +126,31 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     return () => clearTimeout(timer);
   }, [isOpen, pageDimensions]);
 
+  // This effect adds a low-level event listener to prevent the default scroll behavior during a pinch-zoom gesture.
+  // This is the most reliable way to stop the page from drifting on trackpads.
+  useEffect(() => {
+    const container = pdfContainerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      // A pinch-zoom gesture on a trackpad is often translated by the browser into a scroll event with the `ctrlKey` pressed.
+      // By preventing the default action for this specific event, we stop the browser from scrolling the container,
+      // while allowing the zoom library to handle the zoom action.
+      if (e.ctrlKey) {
+        e.preventDefault();
+      }
+    };
+
+    // We must use `passive: false` to be able to call `preventDefault()`.
+    container.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      if (container) {
+        container.removeEventListener('wheel', handleWheel);
+      }
+    };
+  }, []); // An empty dependency array ensures this effect runs only once when the component mounts.
+
 
   const handlePreviousPage = () => {
     setPageNumber(prev => Math.max(prev - 1, 1));
