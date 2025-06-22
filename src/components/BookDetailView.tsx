@@ -201,13 +201,13 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
           <TabsContent value="read" className="flex-grow flex flex-col overflow-hidden data-[state=inactive]:hidden">
              {hasValidPdf ? (
              <div className="flex-grow flex flex-col overflow-hidden">
-              <div className="flex-grow overflow-auto bg-muted/40" ref={pdfContainerRef}>
+              <div className="flex-grow bg-muted/40" ref={pdfContainerRef}>
                 <TransformWrapper
                     ref={transformRef}
-                    key={book.id + (isMobile ? '-mobile' : '-desktop')}
+                    key={book.id}
                     maxScale={10}
                     limitToBounds={true}
-                    panning={{ disabled: !isMobile }}
+                    panning={{ disabled: false }}
                     pinch={{ disabled: !isMobile }}
                     wheel={{ disabled: true }}
                     doubleClick={{ disabled: true }}
@@ -234,6 +234,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                             scale={1.5}
                             renderTextLayer={true}
                             onRenderError={onPageRenderError}
+                            className="transition-opacity duration-300"
                          />
                        </Document>
                     </TransformComponent>
