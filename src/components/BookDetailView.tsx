@@ -137,7 +137,11 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
       <DialogContent className="sm:max-w-4xl lg:max-w-6xl max-h-[95vh] flex flex-col p-0">
         <DialogHeader className="p-4 sm:p-6 pb-2 border-b">
           <DialogTitle className="font-headline text-xl sm:text-2xl truncate pr-10">{book.title || "Untitled Book"}</DialogTitle>
-          <DialogDescription className="text-sm sm:text-md">By: {book.author || "Unknown Author"}</DialogDescription>
+          <DialogDescription className="text-sm sm:text-md">
+            By: {book.author || "Unknown Author"}
+            {book.category && <span className="mx-2">|</span>}
+            {book.category && <span className="font-medium">{book.category}</span>}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex-grow overflow-auto p-1 sm:p-2 bg-muted/40" ref={pdfContainerRef}>

@@ -7,6 +7,7 @@ import { useState, ChangeEvent, useEffect } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Save, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -79,6 +80,9 @@ export default function BookCard({ book, onUpdateProgress, onOpenDetailView }: B
         </div>
         <CardTitle className="font-headline text-lg truncate" title={book.title}>{book.title || "Untitled Book"}</CardTitle>
         <CardDescription className="text-sm text-muted-foreground truncate" title={book.author}>By: {book.author || "Unknown Author"}</CardDescription>
+        {book.category && (
+          <Badge variant="outline" className="w-fit mt-2">{book.category}</Badge>
+        )}
       </CardHeader>
       <CardContent className="p-4 pt-0 flex-grow">
         {book.totalPages && book.totalPages > 0 && (

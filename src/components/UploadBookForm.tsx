@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { UploadCloud, ImageUp, Loader2, Sparkles } from "lucide-react";
 import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from 'pdfjs-dist';
@@ -20,6 +22,7 @@ const BookFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
   author: z.string().min(1, "Author is required"),
   summary: z.string().min(1, "Summary is required"),
+  category: z.string().min(1, "Category is required"),
   totalPages: z.coerce.number().min(1, "Total pages must be at least 1").optional(),
 });
 
@@ -61,7 +64,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
 
   const form = useForm<BookFormData>({
     resolver: zodResolver(BookFormSchema),
-    defaultValues: { title: "", author: "", summary: "", totalPages: undefined },
+    defaultValues: { title: "", author: "", summary: "", category: "Novel", totalPages: undefined },
   });
 
   useEffect(() => {
@@ -80,7 +83,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
   }, [toast]);
 
   const resetFormState = useCallback(() => {
-    form.reset({ title: "", author: "", summary: "", totalPages: undefined });
+    form.reset({ title: "", author: "", summary: "", category: "Novel", totalPages: undefined });
     setPdfFile(null);
     setPdfFileName("");
     setCurrentPdfDataUri(null);
@@ -97,6 +100,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
           title: bookToEdit.title,
           author: bookToEdit.author,
           summary: bookToEdit.summary,
+          category: bookToEdit.category || "Novel",
           totalPages: bookToEdit.totalPages,
         });
         setCoverPreviewUrl(bookToEdit.coverImageUrl);
@@ -134,7 +138,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       setPdfFileName(file.name);
       
       if (!isEditing || (isEditing && file)) { 
-         form.reset({ title: bookToEdit?.title || "", author: bookToEdit?.author || "", summary: bookToEdit?.summary || "", totalPages: bookToEdit?.totalPages }); 
+         form.reset({ title: bookToEdit?.title || "", author: bookToEdit?.author || "", summary: bookToEdit?.summary || "", category: bookToEdit?.category || "Novel", totalPages: bookToEdit?.totalPages }); 
          if (!isEditing) setCoverPreviewUrl(null); 
       }
       
@@ -238,7 +242,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         setPdfFile(null);
         setPdfFileName("");
         setCurrentPdfDataUri(null);
-        form.reset({ title: "", author: "", summary: "", totalPages: undefined });
+        form.reset({ title: "", author: "", summary: "", category: "Novel", totalPages: undefined });
         setCoverPreviewUrl(null);
       } else if (bookToEdit) { 
         setPdfFile(null); 
@@ -260,7 +264,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     if (event.dataTransfer.files && event.dataTransfer.files[0]) {
       handlePdfFileChange(event.dataTransfer.files[0]);
     }
-  }, [isEditing, bookToEdit, form, coverImageFile, handlePdfFileChange]); 
+  }, []); 
 
   const onDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -382,6 +386,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       title: data.title,
       author: data.author,
       summary: data.summary,
+      category: data.category,
       coverImageUrl: finalCoverImageUrl,
       pdfFileName: finalPdfFileName,
       pdfDataUri: finalPdfDataUri,
@@ -410,105 +415,162 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         <DialogHeader>
           <DialogTitle className="font-headline">{isEditing ? "Edit Book" : "Add New Book"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <div 
-            className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-md transition-colors"
-            onDrop={onDrop}
-            onDragOver={onDragOver}
-            onDragLeave={onDragLeave}
-          >
-            <div className="space-y-1 text-center">
-              <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
-              <div className="flex text-sm text-muted-foreground">
-                <Label
-                  htmlFor="pdf-upload"
-                  className="relative cursor-pointer rounded-md font-medium text-primary hover:text-accent focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-ring"
-                >
-                  <span>{pdfFileName ? "Change PDF" : (isEditing ? "Upload New PDF (Optional)" : "Upload a PDF")}</span>
-                  <Input id="pdf-upload" name="pdf-upload" type="file" className="sr-only" onChange={onPdfInputChange} accept="application/pdf" />
-                </Label>
-                {!pdfFileName && <p className="pl-1">or drag and drop</p>}
-              </div>
-              <p className="text-xs text-muted-foreground">{pdfFileName || (isEditing && bookToEdit?.pdfFileName ? "Keep existing PDF" : "PDF up to 100MB (Note: Processing very large files may be slow or fail due to browser/server limits)")}</p>
-            </div>
-          </div>
-
-          {isProcessingPdf && (
-            <div className="flex items-center justify-center p-4 text-primary">
-              <Loader2 className="h-5 w-5 animate-spin mr-2" />
-              <span>Processing PDF...</span>
-            </div>
-          )}
-
-          <div className="space-y-1">
-            <Label htmlFor="title" className="font-headline">Title</Label>
-            <Controller name="title" control={form.control} render={({ field }) => <Input id="title" {...field} />} />
-            {form.formState.errors.title && <p className="text-sm text-destructive">{form.formState.errors.title.message}</p>}
-          </div>
-
-          <div className="space-y-1">
-            <Label htmlFor="author" className="font-headline">Author</Label>
-            <Controller name="author" control={form.control} render={({ field }) => <Input id="author" {...field} />} />
-            {form.formState.errors.author && <p className="text-sm text-destructive">{form.formState.errors.author.message}</p>}
-          </div>
-
-          <div className="space-y-1">
-            <Label htmlFor="summary" className="font-headline">Summary</Label>
-            <Controller name="summary" control={form.control} render={({ field }) => <Textarea id="summary" {...field} rows={3} />} />
-            {form.formState.errors.summary && <p className="text-sm text-destructive">{form.formState.errors.summary.message}</p>}
-          </div>
-
-          <div className="space-y-1">
-            <Label htmlFor="totalPages" className="font-headline">Total Pages</Label>
-            <Controller 
-              name="totalPages" 
-              control={form.control} 
-              render={({ field }) => <Input id="totalPages" type="number" placeholder="e.g., 350" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} value={field.value ?? ''} />} 
-            />
-            {form.formState.errors.totalPages && <p className="text-sm text-destructive">{form.formState.errors.totalPages.message}</p>}
-          </div>
-
-          <div className="space-y-1">
-            <Label htmlFor="cover-image-upload" className="font-headline">Cover Image</Label>
-             <div className="mt-1 flex items-center space-x-4">
-                {coverPreviewUrl && coverPreviewUrl !== "https://placehold.co/200x300.png" ? (
-                    <img src={coverPreviewUrl} alt="Cover preview" className="h-24 w-16 object-cover rounded-md border" data-ai-hint="book cover"/>
-                ) : (
-                    <div className="h-24 w-16 bg-muted rounded-md flex items-center justify-center text-muted-foreground border">
-                        <ImageUp className="h-8 w-8" />
-                    </div>
-                )}
-                <Button type="button" variant="outline" asChild>
-                  <Label htmlFor="cover-image-upload" className="cursor-pointer">
-                    {coverPreviewUrl && coverPreviewUrl !== "https://placehold.co/200x300.png" && !coverImageFile ? "Change" : "Upload"} Cover
-                    <Input id="cover-image-upload" name="cover-image-upload" type="file" className="sr-only" onChange={handleCoverImageChange} accept="image/*" />
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <div 
+              className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-md transition-colors"
+              onDrop={onDrop}
+              onDragOver={onDragOver}
+              onDragLeave={onDragLeave}
+            >
+              <div className="space-y-1 text-center">
+                <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
+                <div className="flex text-sm text-muted-foreground">
+                  <Label
+                    htmlFor="pdf-upload"
+                    className="relative cursor-pointer rounded-md font-medium text-primary hover:text-accent focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-ring"
+                  >
+                    <span>{pdfFileName ? "Change PDF" : (isEditing ? "Upload New PDF (Optional)" : "Upload a PDF")}</span>
+                    <Input id="pdf-upload" name="pdf-upload" type="file" className="sr-only" onChange={onPdfInputChange} accept="application/pdf" />
                   </Label>
-                </Button>
+                  {!pdfFileName && <p className="pl-1">or drag and drop</p>}
+                </div>
+                <p className="text-xs text-muted-foreground">{pdfFileName || (isEditing && bookToEdit?.pdfFileName ? "Keep existing PDF" : "PDF up to 100MB (Note: Processing very large files may be slow or fail due to browser/server limits)")}</p>
+              </div>
             </div>
-            {isGeneratingCover && (
-              <div className="flex items-center text-sm text-muted-foreground mt-2">
-                <Sparkles className="h-4 w-4 animate-pulse mr-2 text-primary" />
-                <span>Generating AI cover... This may take a moment.</span>
+
+            {isProcessingPdf && (
+              <div className="flex items-center justify-center p-4 text-primary">
+                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                <span>Processing PDF...</span>
               </div>
             )}
-            {!isEditing && !coverImageFile && !isGeneratingCover && (currentPdfDataUri) && !coverPreviewUrl && (
-              <p className="text-xs text-muted-foreground mt-1">AI cover generation failed or was skipped. A placeholder will be used if no cover is uploaded. You can still add the book.</p>
-            )}
-             {isEditing && !coverImageFile && !coverPreviewUrl?.startsWith("data:image") && (
-              <p className="text-xs text-muted-foreground mt-1">Upload a new image or an AI cover will be attempted if metadata changes.</p>
-            )}
-          </div>
-          
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="outline" onClick={handleDialogClose}>Cancel</Button>
-            </DialogClose>
-            <Button type="submit" disabled={isProcessingPdf || isGeneratingCover || (!isEditing && !currentPdfDataUri && !pdfFile) }>
-              {(isProcessingPdf || isGeneratingCover) ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              {isEditing ? "Save Changes" : "Add Book"}
-            </Button>
-          </DialogFooter>
-        </form>
+
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-headline">Title</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="author"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-headline">Author</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-headline">Category</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a category" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="Novel">Novel</SelectItem>
+                      <SelectItem value="Fantasy">Fantasy</SelectItem>
+                      <SelectItem value="Science Fiction">Science Fiction</SelectItem>
+                      <SelectItem value="Mystery">Mystery</SelectItem>
+                      <SelectItem value="Non-Fiction">Non-Fiction</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+
+            <FormField
+              control={form.control}
+              name="summary"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-headline">Summary</FormLabel>
+                  <FormControl>
+                    <Textarea {...field} rows={3} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="totalPages"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-headline">Total Pages</FormLabel>
+                  <FormControl>
+                     <Input type="number" placeholder="e.g., 350" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} value={field.value ?? ''} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="space-y-1">
+              <Label htmlFor="cover-image-upload" className="font-headline">Cover Image</Label>
+               <div className="mt-1 flex items-center space-x-4">
+                  {coverPreviewUrl && coverPreviewUrl !== "https://placehold.co/200x300.png" ? (
+                      <img src={coverPreviewUrl} alt="Cover preview" className="h-24 w-16 object-cover rounded-md border" data-ai-hint="book cover"/>
+                  ) : (
+                      <div className="h-24 w-16 bg-muted rounded-md flex items-center justify-center text-muted-foreground border">
+                          <ImageUp className="h-8 w-8" />
+                      </div>
+                  )}
+                  <Button type="button" variant="outline" asChild>
+                    <Label htmlFor="cover-image-upload" className="cursor-pointer">
+                      {coverPreviewUrl && coverPreviewUrl !== "https://placehold.co/200x300.png" && !coverImageFile ? "Change" : "Upload"} Cover
+                      <Input id="cover-image-upload" name="cover-image-upload" type="file" className="sr-only" onChange={handleCoverImageChange} accept="image/*" />
+                    </Label>
+                  </Button>
+              </div>
+              {isGeneratingCover && (
+                <div className="flex items-center text-sm text-muted-foreground mt-2">
+                  <Sparkles className="h-4 w-4 animate-pulse mr-2 text-primary" />
+                  <span>Generating AI cover... This may take a moment.</span>
+                </div>
+              )}
+              {!isEditing && !coverImageFile && !isGeneratingCover && (currentPdfDataUri) && !coverPreviewUrl && (
+                <p className="text-xs text-muted-foreground mt-1">AI cover generation failed or was skipped. A placeholder will be used if no cover is uploaded. You can still add the book.</p>
+              )}
+               {isEditing && !coverImageFile && !coverPreviewUrl?.startsWith("data:image") && (
+                <p className="text-xs text-muted-foreground mt-1">Upload a new image or an AI cover will be attempted if metadata changes.</p>
+              )}
+            </div>
+            
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="outline" onClick={handleDialogClose}>Cancel</Button>
+              </DialogClose>
+              <Button type="submit" disabled={isProcessingPdf || isGeneratingCover || (!isEditing && !currentPdfDataUri && !pdfFile) }>
+                {(isProcessingPdf || isGeneratingCover) ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                {isEditing ? "Save Changes" : "Add Book"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
