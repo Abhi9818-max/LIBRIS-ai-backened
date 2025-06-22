@@ -204,7 +204,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                     ref={transformRef}
                     maxScale={10}
                     limitToBounds={true}
-                    panning={{ disabled: false, excluded: ['input', 'button'] }}
+                    panning={{ disabled: true }}
                     panOnScroll={true}
                     pinch={{ disabled: true }}
                     wheel={{ disabled: true }}
