@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2 } from "lucide-react";
 
 
@@ -39,6 +40,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const [isPdfLoading, setIsPdfLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(initialTab);
   const [pdfPageDimensions, setPdfPageDimensions] = useState<{ width: number; height: number } | null>(null);
+  const isMobile = useIsMobile();
 
   const transformRef = useRef<ReactZoomPanPinchRef>(null);
   const pdfContainerRef = useRef<HTMLDivElement>(null);
@@ -199,14 +201,14 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
           <TabsContent value="read" className="flex-grow flex flex-col overflow-hidden data-[state=inactive]:hidden">
              {hasValidPdf ? (
              <div className="flex-grow flex flex-col overflow-hidden">
-              <div className="flex-grow overflow-hidden bg-muted/40" ref={pdfContainerRef}>
+              <div className="flex-grow overflow-auto bg-muted/40" ref={pdfContainerRef}>
                 <TransformWrapper
                     ref={transformRef}
+                    key={book.id + (isMobile ? '-mobile' : '-desktop')}
                     maxScale={10}
                     limitToBounds={true}
-                    panning={{ disabled: true }}
-                    panOnScroll={true}
-                    pinch={{ disabled: true }}
+                    panning={{ disabled: !isMobile }}
+                    pinch={{ disabled: !isMobile }}
                     wheel={{ disabled: true }}
                     doubleClick={{ disabled: true }}
                   >
