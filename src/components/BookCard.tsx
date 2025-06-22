@@ -45,7 +45,7 @@ export default function BookCard({ book, onOpenDetailView }: BookCardProps) {
                 <Badge variant="outline" className="truncate">{book.category}</Badge>
             )}
             {book.totalPages && book.totalPages > 0 && book.currentPage !== undefined ? (
-                <div className="relative h-10 w-10 flex-shrink-0" title={`${percentageRead}% complete`}>
+                <div className="relative h-12 w-12 flex-shrink-0" title={`${percentageRead}% complete`}>
                     <svg className="h-full w-full" viewBox="0 0 36 36">
                     <circle
                         cx="18"
@@ -68,7 +68,7 @@ export default function BookCard({ book, onOpenDetailView }: BookCardProps) {
                     />
                     </svg>
                     <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-[10px] font-bold text-foreground">
+                        <span className="text-xs font-bold text-foreground">
                             {percentageRead}%
                         </span>
                     </div>
