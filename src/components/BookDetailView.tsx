@@ -35,6 +35,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [isPdfLoading, setIsPdfLoading] = useState(true);
   const [pageDimensions, setPageDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [minScale, setMinScale] = useState(0.2); // State for minimum zoom scale
 
   const pdfContainerRef = useRef<HTMLDivElement>(null);
   const transformComponentRef = useRef<any>(null);
@@ -62,8 +63,9 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     if (transformComponentRef.current?.instance && pdfContainerRef.current && pageDimensions) {
       const { setTransform } = transformComponentRef.current;
       const containerWidth = pdfContainerRef.current.clientWidth;
-      const visualScale = (containerWidth - 40) / (pageDimensions.width * RENDER_SCALE);
-      setTransform(0, 0, visualScale, 0); // panX, panY, scale, animationTime
+      const PADDING = 40;
+      const visualScale = (containerWidth - PADDING) / (pageDimensions.width * RENDER_SCALE);
+      setTransform(0, 0, visualScale, 300); // panX, panY, scale, animationTime
     }
   }, [pageDimensions]);
   
@@ -72,10 +74,11 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
       const { setTransform } = transformComponentRef.current;
       const containerWidth = pdfContainerRef.current.clientWidth;
       const containerHeight = pdfContainerRef.current.clientHeight;
-      const scaleX = (containerWidth - 40) / (pageDimensions.width * RENDER_SCALE);
-      const scaleY = (containerHeight - 40) / (pageDimensions.height * RENDER_SCALE);
+      const PADDING = 40;
+      const scaleX = (containerWidth - PADDING) / (pageDimensions.width * RENDER_SCALE);
+      const scaleY = (containerHeight - PADDING) / (pageDimensions.height * RENDER_SCALE);
       const visualScale = Math.min(scaleX, scaleY);
-      setTransform(0, 0, visualScale, 0);
+      setTransform(0, 0, visualScale, 300);
     }
   }, [pageDimensions]);
 
@@ -94,12 +97,33 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   }, [toast]);
 
 
-  // Set initial scale to "fit-to-width" once PDF dimensions are known
+  // Set initial scale and calculate minimum zoom level once PDF dimensions are known
   useEffect(() => {
-    if (isOpen && pageDimensions && pdfContainerRef.current) {
-      handleFitToWidth();
-    }
-  }, [isOpen, pageDimensions, handleFitToWidth]);
+    // A small delay ensures the container has its final dimensions before we calculate scales.
+    const timer = setTimeout(() => {
+        if (isOpen && pageDimensions && pdfContainerRef.current && transformComponentRef.current?.instance) {
+            const { setTransform } = transformComponentRef.current;
+            const containerWidth = pdfContainerRef.current.clientWidth;
+            const containerHeight = pdfContainerRef.current.clientHeight;
+            const PADDING = 40; // visual padding inside the container
+
+            // Calculate fit-to-width scale for initial view
+            const fitToWidthScale = (containerWidth - PADDING) / (pageDimensions.width * RENDER_SCALE);
+            setTransform(0, 0, fitToWidthScale, 0);
+
+            // Calculate fit-to-page scale to use as the minimum zoom level
+            const scaleX = (containerWidth - PADDING) / (pageDimensions.width * RENDER_SCALE);
+            const scaleY = (containerHeight - PADDING) / (pageDimensions.height * RENDER_SCALE);
+            const fitToPageScale = Math.min(scaleX, scaleY);
+            
+            // We set the minScale to a value slightly less than fit-to-page
+            // to give a little wiggle room and prevent getting stuck at the exact limit.
+            setMinScale(fitToPageScale * 0.98); 
+        }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [isOpen, pageDimensions]);
 
 
   const handlePreviousPage = () => {
@@ -132,6 +156,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     if (!open) {
       setIsPdfLoading(true); // Reset loading state for next open
       setPageDimensions(null); // Reset dimensions
+      setMinScale(0.2); // Reset min scale to default
       onClose();
     }
   };
@@ -171,10 +196,9 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
              <TransformWrapper
                 ref={transformComponentRef}
                 initialScale={1}
-                doubleClick={{ disabled: true }}
-                minScale={0.2}
+                minScale={minScale}
                 maxScale={10}
-                limitToBounds={false}
+                limitToBounds={true}
                 panning={{ velocityDisabled: true }}
               >
                 <TransformComponent
