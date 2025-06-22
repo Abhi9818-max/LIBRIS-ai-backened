@@ -100,16 +100,7 @@ export default function BookCard({ book, onOpenDetailView }: BookCardProps) {
           </div>
         )}
       </CardContent>
-      <CardFooter className="p-4 pt-0 mt-auto grid grid-cols-2 gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onOpenDetailView(book, 'details')}
-          aria-label={`View details for ${book.title}`}
-          className="w-full"
-        >
-          <Info className="mr-2 h-4 w-4" /> Details
-        </Button>
+      <CardFooter className="p-4 pt-0 mt-auto flex flex-col gap-2">
         <Button
           variant="secondary"
           size="sm"
@@ -118,6 +109,15 @@ export default function BookCard({ book, onOpenDetailView }: BookCardProps) {
           className="w-full"
         >
           <BookOpen className="mr-2 h-4 w-4" /> Read
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onOpenDetailView(book, 'details')}
+          aria-label={`View details for ${book.title}`}
+          className="w-full"
+        >
+          <Info className="mr-2 h-4 w-4" /> Details
         </Button>
       </CardFooter>
     </Card>

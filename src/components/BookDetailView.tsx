@@ -5,7 +5,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import type { Book } from "@/types";
 import Image from "next/image";
 import { Document, Page, pdfjs, type PDFDocumentProxy } from 'react-pdf';
-import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
+import { TransformWrapper, TransformComponent, type ReactZoomPanPinchRef } from "react-zoom-pan-pinch";
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
 
@@ -15,8 +15,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2 } from "lucide-react";
+import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2 } from "lucide-react";
 
 
 // Set up the pdf.js worker
@@ -40,18 +39,27 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [isPdfLoading, setIsPdfLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [pdfPageDimensions, setPdfPageDimensions] = useState<{ width: number; height: number } | null>(null);
 
+  const transformRef = useRef<ReactZoomPanPinchRef>(null);
   const pdfContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       setActiveTab(initialTab);
+      // Reset PDF specific state when a new book is opened
+      setNumPages(0);
+      setPageNumber(1);
+      setPdfPageDimensions(null);
+      setIsPdfLoading(true);
     }
-  }, [isOpen, initialTab]);
+  }, [isOpen, initialTab, book]);
   
   const onDocumentLoadSuccess = useCallback(async (pdf: PDFDocumentProxy): Promise<void> => {
     setNumPages(pdf.numPages);
     const page = await pdf.getPage(1);
+    // pdf.view is [x1, y1, x2, y2], so width is x2-x1 and height is y2-y1. For non-rotated pages, x1,y1 are 0.
+    setPdfPageDimensions({ width: page.view[2], height: page.view[3] });
     setPageNumber(book?.currentPage || 1);
     setIsPdfLoading(false);
   }, [book?.currentPage]);
@@ -104,10 +112,30 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const handleRemoveClick = () => {
     if (book) onRemoveBook(book.id);
   };
+  
+  const handleZoomIn = () => transformRef.current?.zoomIn(0.2);
+  const handleZoomOut = () => transformRef.current?.zoomOut(0.2);
+  const handleFitToPage = () => transformRef.current?.resetTransform(200);
+
+  const handleFitToWidth = () => {
+    if (!transformRef.current || !pdfContainerRef.current || !pdfPageDimensions) return;
+    const { setTransform } = transformRef.current;
+    
+    const containerWidth = pdfContainerRef.current.clientWidth;
+    const pageRenderScale = 1.5; // This must match the <Page scale={...}> prop
+    const naturalPageWidth = pdfPageDimensions.width;
+
+    const wrapperScale = containerWidth / (naturalPageWidth * pageRenderScale);
+
+    const contentHeight = pdfPageDimensions.height * pageRenderScale;
+    const newContentHeight = contentHeight * wrapperScale;
+    const y = (pdfContainerRef.current.clientHeight - newContentHeight) / 2;
+
+    setTransform(0, y, wrapperScale, 200, 'easeOut');
+  };
 
   const handleDialogClose = (open: boolean) => {
     if (!open) {
-      setIsPdfLoading(true);
       onClose();
     }
   };
@@ -174,14 +202,13 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
              <div className="flex-grow flex flex-col overflow-hidden">
               <div className="flex-grow overflow-hidden bg-muted/40" ref={pdfContainerRef}>
                 <TransformWrapper
-                    initialScale={1}
-                    minScale={0.2}
+                    ref={transformRef}
                     maxScale={10}
                     limitToBounds={true}
                     panning={{ disabled: false, excluded: ['input', 'button'] }}
-                    doubleClick={{ disabled: true }}
                     pinch={{ disabled: true }}
                     wheel={{ disabled: true }}
+                    doubleClick={{ disabled: true }}
                   >
                     <TransformComponent
                       wrapperStyle={{ width: '100%', height: '100%' }}
@@ -211,15 +238,18 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                  </TransformWrapper>
               </div>
               <div className="p-2 border-t flex items-center justify-between shrink-0">
-                  <div className="flex items-center justify-start w-1/3">
-                    {/* Placeholder for future actions like fit-to-width */}
+                  <div className="flex items-center justify-start w-1/3 space-x-1">
+                    <Button variant="outline" size="icon" onClick={handleZoomIn} title="Zoom In"><ZoomIn className="h-4 w-4" /></Button>
+                    <Button variant="outline" size="icon" onClick={handleZoomOut} title="Zoom Out"><ZoomOut className="h-4 w-4" /></Button>
+                    <Button variant="outline" size="icon" onClick={handleFitToWidth} title="Fit to Width"><Maximize2 className="h-4 w-4" /></Button>
+                    <Button variant="outline" size="icon" onClick={handleFitToPage} title="Fit to Page"><Minimize2 className="h-4 w-4" /></Button>
                   </div>
                   <div className="flex items-center justify-center space-x-2 w-1/3">
                       <Button variant="outline" size="icon" onClick={handlePreviousPage} disabled={pageNumber <= 1}><ChevronLeft className="h-4 w-4" /></Button>
                       <span className="text-sm font-medium text-muted-foreground tabular-nums whitespace-nowrap">
-                          Page {pageNumber} of {numPages}
+                          Page {pageNumber} of {numPages || '...'}
                       </span>
-                      <Button variant="outline" size="icon" onClick={handleNextPage} disabled={pageNumber >= numPages}><ChevronRight className="h-4 w-4" /></Button>
+                      <Button variant="outline" size="icon" onClick={handleNextPage} disabled={!numPages || pageNumber >= numPages}><ChevronRight className="h-4 w-4" /></Button>
                   </div>
                   <div className="flex items-center justify-end w-1/3">
                       <Button onClick={handleSyncProgress} size="sm">
