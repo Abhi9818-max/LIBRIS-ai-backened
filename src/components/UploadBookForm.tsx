@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { UploadCloud, ImageUp, Loader2, Sparkles } from "lucide-react";
+import { UploadCloud, ImageUp, Loader2, Sparkles, FileText } from "lucide-react";
 import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from 'pdfjs-dist';
 
 const BookFormSchema = z.object({
@@ -332,6 +332,64 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     }
      e.target.value = ""; 
   };
+  
+  const handleSetFirstPageAsCover = async () => {
+    if (!currentPdfDataUri) {
+      toast({
+        title: "No PDF Uploaded",
+        description: "Please upload a PDF file first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGeneratingCover(true);
+    toast({ title: "Generating Cover", description: "Creating cover from the first page of the PDF..." });
+
+    try {
+      const loadingTask = getDocument({ data: atob(currentPdfDataUri.substring(currentPdfDataUri.indexOf(',') + 1)) });
+      const pdf = await loadingTask.promise;
+      const page = await pdf.getPage(1);
+
+      const targetWidth = 400;
+      const viewport = page.getViewport({ scale: 1 });
+      const scale = targetWidth / viewport.width;
+      const scaledViewport = page.getViewport({ scale });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = scaledViewport.width;
+      canvas.height = scaledViewport.height;
+      const context = canvas.getContext('2d');
+
+      if (!context) {
+        throw new Error("Could not get canvas context to generate cover.");
+      }
+
+      await page.render({
+        canvasContext: context,
+        viewport: scaledViewport,
+      }).promise;
+
+      const coverDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      setCoverPreviewUrl(coverDataUrl);
+      setCoverImageFile(null);
+      
+      toast({
+        title: "Cover Set!",
+        description: "The first page of the PDF is now the cover.",
+      });
+
+    } catch (error: any) {
+      console.error("Error setting first page as cover:", error);
+      toast({
+        title: "Cover Generation Failed",
+        description: `Could not generate cover from PDF: ${error.message || "Unknown error"}.`,
+        variant: "destructive",
+      });
+    } finally {
+        setIsGeneratingCover(false);
+    }
+  };
 
   const onSubmit = async (data: BookFormData) => {
     const bookId = isEditing && bookToEdit ? bookToEdit.id : Date.now().toString();
@@ -498,9 +556,9 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
               )}
             />
 
-            <div className="space-y-1">
-              <Label htmlFor="cover-image-upload" className="font-headline">Cover Image</Label>
-               <div className="mt-1 flex items-center space-x-4">
+            <div className="space-y-2">
+              <Label className="font-headline">Cover Image</Label>
+               <div className="flex items-center space-x-4">
                   {coverPreviewUrl && coverPreviewUrl !== "https://placehold.co/200x300.png" ? (
                       <img src={coverPreviewUrl} alt="Cover preview" className="h-24 w-16 object-cover rounded-md border" data-ai-hint="book cover"/>
                   ) : (
@@ -508,17 +566,31 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
                           <ImageUp className="h-8 w-8" />
                       </div>
                   )}
-                  <Button type="button" variant="outline" asChild>
-                    <Label htmlFor="cover-image-upload" className="cursor-pointer">
-                      {coverPreviewUrl && coverPreviewUrl !== "https://placehold.co/200x300.png" && !coverImageFile ? "Change" : "Upload"} Cover
-                      <Input id="cover-image-upload" name="cover-image-upload" type="file" className="sr-only" onChange={handleCoverImageChange} accept="image/*" />
-                    </Label>
-                  </Button>
+                  <div className="flex flex-col items-start space-y-2">
+                    <Button type="button" variant="outline" size="sm" asChild>
+                      <Label htmlFor="cover-image-upload" className="cursor-pointer flex items-center">
+                        <ImageUp className="mr-2 h-4 w-4" />
+                        Upload Cover
+                        <Input id="cover-image-upload" name="cover-image-upload" type="file" className="sr-only" onChange={handleCoverImageChange} accept="image/*" />
+                      </Label>
+                    </Button>
+
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleSetFirstPageAsCover} 
+                      disabled={!currentPdfDataUri || isProcessingPdf || isGeneratingCover}
+                    >
+                      <FileText className="mr-2 h-4 w-4" />
+                      Use 1st Page
+                    </Button>
+                  </div>
               </div>
               {isGeneratingCover && (
                 <div className="flex items-center text-sm text-muted-foreground mt-2">
                   <Sparkles className="h-4 w-4 animate-pulse mr-2 text-primary" />
-                  <span>Generating AI cover... This may take a moment.</span>
+                  <span>Generating cover... This may take a moment.</span>
                 </div>
               )}
               {!isEditing && !coverImageFile && !isGeneratingCover && (currentPdfDataUri) && !coverPreviewUrl && (
