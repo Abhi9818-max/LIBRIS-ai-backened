@@ -9,7 +9,7 @@ import 'react-pdf/dist/esm/Page/TextLayer.css';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, ArrowLeftRight, Maximize } from "lucide-react";
+import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ArrowLeftRight, Maximize } from "lucide-react";
 
 // Set up the pdf.js worker
 if (typeof window !== 'undefined') {
@@ -52,13 +52,20 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     });
     setIsPdfLoading(false);
   }, [toast]);
+  
+  const handleFitToWidth = useCallback(() => {
+    if (pdfContainerRef.current && pageDimensions) {
+      const containerWidth = pdfContainerRef.current.clientWidth;
+       // Add some padding to prevent horizontal scrollbars
+      setScale((containerWidth - 20) / pageDimensions.width);
+    }
+  }, [pageDimensions]);
 
   // Set initial scale to "fit-to-width" once PDF dimensions are known
   useEffect(() => {
     if (pageDimensions && pdfContainerRef.current) {
       handleFitToWidth();
     }
-    // This effect should run only when pageDimensions is set for the first time.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageDimensions]);
 
@@ -97,22 +104,27 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     }
   };
 
-  const handleZoomIn = () => setScale(prevScale => prevScale * 1.2);
-  const handleZoomOut = () => setScale(prevScale => prevScale / 1.2);
-
-  const handleFitToWidth = useCallback(() => {
-    if (pdfContainerRef.current && pageDimensions) {
-      setScale(pdfContainerRef.current.clientWidth / pageDimensions.width);
-    }
-  }, [pageDimensions]);
-
   const handleFitToPage = useCallback(() => {
     if (pdfContainerRef.current && pageDimensions) {
-      const scaleWidth = pdfContainerRef.current.clientWidth / pageDimensions.width;
-      const scaleHeight = pdfContainerRef.current.clientHeight / pageDimensions.height;
+      const containerWidth = pdfContainerRef.current.clientWidth;
+      const containerHeight = pdfContainerRef.current.clientHeight;
+      const scaleWidth = (containerWidth - 20) / pageDimensions.width;
+      const scaleHeight = (containerHeight - 20) / pageDimensions.height;
       setScale(Math.min(scaleWidth, scaleHeight));
     }
   }, [pageDimensions]);
+  
+   useEffect(() => {
+    const handleResize = () => {
+      // Re-apply fit-to-width on resize to ensure it stays responsive
+      if (pdfContainerRef.current && pageDimensions) {
+        handleFitToWidth();
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [pageDimensions, handleFitToWidth]);
+
 
   if (!isOpen || !book) {
     return null;
@@ -148,6 +160,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                     pageNumber={pageNumber} 
                     scale={scale}
                     renderTextLayer={true}
+                    width={pdfContainerRef.current?.clientWidth ? pdfContainerRef.current.clientWidth - 20 : undefined}
                  />
                </Document>
              </div>
@@ -158,42 +171,32 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
            )}
         </div>
 
-        <DialogFooter className="p-2 sm:p-4 border-t flex-wrap justify-center items-center gap-2">
-          <div className="flex items-center justify-center space-x-2">
-            <Button variant="outline" size="sm" onClick={handleEditClick}>
-              <Pencil className="mr-2 h-4 w-4" /> Edit
-            </Button>
-            <Button variant="destructive" size="sm" onClick={handleRemoveClick}>
-              <Trash2 className="mr-2 h-4 w-4" /> Remove
-            </Button>
-          </div>
+        <DialogFooter className="p-2 sm:p-4 border-t grid grid-cols-1 sm:grid-cols-3 items-center gap-2">
+            {/* Left Actions */}
+            <div className="flex items-center justify-center sm:justify-start space-x-2">
+                <Button variant="outline" size="sm" onClick={handleEditClick}><Pencil className="mr-2 h-4 w-4" /> Edit</Button>
+                <Button variant="destructive" size="sm" onClick={handleRemoveClick}><Trash2 className="mr-2 h-4 w-4" /> Remove</Button>
+            </div>
 
-          {hasValidPdf && numPages > 0 && (
-             <>
-               <div className="flex items-center justify-center space-x-2">
-                 <Button variant="outline" size="icon" onClick={handleZoomOut}><ZoomOut className="h-4 w-4" /></Button>
-                 <Button variant="outline" size="sm" onClick={handleFitToWidth}><ArrowLeftRight className="mr-2 h-4 w-4" />Fit Width</Button>
-                 <Button variant="outline" size="sm" onClick={handleFitToPage}><Maximize className="mr-2 h-4 w-4" />Fit Page</Button>
-                 <Button variant="outline" size="icon" onClick={handleZoomIn}><ZoomIn className="h-4 w-4" /></Button>
-               </div>
-               <div className="flex items-center justify-center space-x-2">
-                 <Button variant="outline" size="icon" onClick={handlePreviousPage} disabled={pageNumber <= 1}>
-                   <ChevronLeft className="h-4 w-4" />
-                 </Button>
-                 <span className="text-sm font-medium text-muted-foreground tabular-nums whitespace-nowrap">
-                   Page {pageNumber} of {numPages}
-                 </span>
-                 <Button variant="outline" size="icon" onClick={handleNextPage} disabled={pageNumber >= numPages}>
-                   <ChevronRight className="h-4 w-4" />
-                 </Button>
-                 <Button onClick={handleSyncProgress} size="sm">
-                   <RefreshCw className="mr-2 h-4 w-4" /> Sync
-                 </Button>
-               </div>
-             </>
-          )}
-          
-          <Button variant="outline" onClick={onClose} size="sm" className="sm:absolute sm:right-4 sm:top-4">Close</Button>
+            {/* Center Navigation */}
+            {hasValidPdf && numPages > 0 && (
+                <div className="flex items-center justify-center space-x-2">
+                    <Button variant="outline" size="icon" onClick={handlePreviousPage} disabled={pageNumber <= 1}><ChevronLeft className="h-4 w-4" /></Button>
+                    <span className="text-sm font-medium text-muted-foreground tabular-nums whitespace-nowrap">
+                        Page {pageNumber} of {numPages}
+                    </span>
+                    <Button variant="outline" size="icon" onClick={handleNextPage} disabled={pageNumber >= numPages}><ChevronRight className="h-4 w-4" /></Button>
+                </div>
+            )}
+
+            {/* Right Actions */}
+            {hasValidPdf && numPages > 0 && (
+                <div className="flex items-center justify-center sm:justify-end space-x-2">
+                    <Button variant="outline" size="sm" onClick={handleFitToWidth}><ArrowLeftRight className="mr-2 h-4 w-4" />Width</Button>
+                    <Button variant="outline" size="sm" onClick={handleFitToPage}><Maximize className="mr-2 h-4 w-4" />Page</Button>
+                    <Button onClick={handleSyncProgress} size="sm"><RefreshCw className="mr-2 h-4 w-4" /> Sync</Button>
+                </div>
+            )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
