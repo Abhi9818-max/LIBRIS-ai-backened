@@ -9,7 +9,9 @@ import 'react-pdf/dist/esm/Page/TextLayer.css';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ArrowLeftRight, Maximize } from "lucide-react";
+import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ArrowLeftRight, Maximize, MoreVertical } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+
 
 // Set up the pdf.js worker
 if (typeof window !== 'undefined') {
@@ -178,10 +180,35 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
         </div>
 
         <DialogFooter className="p-2 sm:p-4 border-t grid grid-cols-1 sm:grid-cols-3 items-center gap-2">
-            {/* Left Actions */}
-            <div className="flex items-center justify-center sm:justify-start space-x-2">
-                <Button variant="outline" size="sm" onClick={handleEditClick}><Pencil className="mr-2 h-4 w-4" /> Edit</Button>
-                <Button variant="destructive" size="sm" onClick={handleRemoveClick}><Trash2 className="mr-2 h-4 w-4" /> Remove</Button>
+            {/* Left Actions - now a dropdown */}
+            <div className="flex items-center justify-center sm:justify-start">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <MoreVertical className="h-4 w-4" />
+                    <span className="ml-2 hidden sm:inline">Actions</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onClick={handleEditClick}>
+                    <Pencil className="mr-2 h-4 w-4" />
+                    <span>Edit Book Details</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleFitToWidth}>
+                    <ArrowLeftRight className="mr-2 h-4 w-4" />
+                    <span>Fit to Width</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleFitToPage}>
+                    <Maximize className="mr-2 h-4 w-4" />
+                    <span>Fit to Page</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleRemoveClick} className="text-destructive focus:text-destructive-foreground focus:bg-destructive">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    <span>Remove Book</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             {/* Center Navigation */}
@@ -197,10 +224,11 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
 
             {/* Right Actions */}
             {hasValidPdf && numPages > 0 && (
-                <div className="flex items-center justify-center sm:justify-end space-x-2">
-                    <Button variant="outline" size="sm" onClick={handleFitToWidth}><ArrowLeftRight className="mr-2 h-4 w-4" />Width</Button>
-                    <Button variant="outline" size="sm" onClick={handleFitToPage}><Maximize className="mr-2 h-4 w-4" />Page</Button>
-                    <Button onClick={handleSyncProgress} size="sm"><RefreshCw className="mr-2 h-4 w-4" /> Sync</Button>
+                <div className="flex items-center justify-center sm:justify-end">
+                    <Button onClick={handleSyncProgress} size="sm">
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      <span>Sync Progress</span>
+                    </Button>
                 </div>
             )}
         </DialogFooter>
