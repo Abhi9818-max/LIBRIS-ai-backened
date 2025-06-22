@@ -1,8 +1,9 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
+import Fuse from "fuse.js";
 import type { Book } from "@/types";
 import BookCard from "@/components/BookCard";
 import UploadBookForm from "@/components/UploadBookForm";
@@ -173,15 +174,23 @@ export default function HomePage() {
     setIsDetailViewOpen(true);
   }, []);
 
-  const filteredBooks = books.filter(book => {
-    const lowerCaseQuery = searchQuery.toLowerCase();
-    const matchesCategory = selectedCategory === 'All' || book.category === selectedCategory;
-    const matchesSearch = 
-        !searchQuery ||
-        book.title.toLowerCase().includes(lowerCaseQuery) ||
-        book.author.toLowerCase().includes(lowerCaseQuery);
-    return matchesCategory && matchesSearch;
-  });
+  const filteredBooks = useMemo(() => {
+    const categoryFiltered = books.filter(book =>
+      selectedCategory === 'All' || book.category === selectedCategory
+    );
+
+    if (!searchQuery.trim()) {
+      return categoryFiltered;
+    }
+
+    const fuse = new Fuse(categoryFiltered, {
+      keys: ['title', 'author'],
+      threshold: 0.4, // Adjust for strictness. 0 is exact, 1 is anything.
+      ignoreLocation: true,
+    });
+
+    return fuse.search(searchQuery).map(result => result.item);
+  }, [books, searchQuery, selectedCategory]);
 
 
   if (!isClient) {
