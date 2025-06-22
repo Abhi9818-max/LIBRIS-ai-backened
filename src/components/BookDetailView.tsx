@@ -131,7 +131,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     const newContentHeight = contentHeight * wrapperScale;
     const y = (pdfContainerRef.current.clientHeight - newContentHeight) / 2;
 
-    setTransform(0, y, wrapperScale, 200, 'easeOut');
+    setTransform(0, y > 0 ? y : 0, wrapperScale, 200, 'easeOut');
   };
 
   const handleDialogClose = (open: boolean) => {
@@ -206,6 +206,8 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                     maxScale={10}
                     limitToBounds={true}
                     panning={{ disabled: false, excluded: ['input', 'button'] }}
+                    panOnScroll={true}
+                    panOnScrollMode="vertical"
                     pinch={{ disabled: true }}
                     wheel={{ disabled: true }}
                     doubleClick={{ disabled: true }}
