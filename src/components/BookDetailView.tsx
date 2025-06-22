@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { Book } from "@/types";
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
@@ -30,6 +30,32 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [isPdfLoading, setIsPdfLoading] = useState(true);
+  
+  // For responsive PDF width
+  const pdfContainerRef = useRef<HTMLDivElement>(null);
+  const [pdfPageWidth, setPdfPageWidth] = useState<number | undefined>();
+
+  useEffect(() => {
+    // This effect sets up a ResizeObserver to dynamically adjust the PDF page width
+    // based on its container's size. This is crucial for responsiveness on mobile.
+    if (typeof window === 'undefined' || !pdfContainerRef.current) return;
+    
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) {
+        setPdfPageWidth(entry.contentRect.width);
+      }
+    });
+
+    observer.observe(pdfContainerRef.current);
+
+    return () => {
+      // Cleanup observer on component unmount or when dialog closes
+      if (pdfContainerRef.current) {
+        observer.unobserve(pdfContainerRef.current);
+      }
+    };
+  }, [isOpen]); // Rerun the effect when the dialog's open state changes
 
   useEffect(() => {
     if (book?.currentPage) {
@@ -106,7 +132,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
           <DialogDescription className="text-sm sm:text-md">By: {book.author || "Unknown Author"}</DialogDescription>
         </DialogHeader>
 
-        <div className="flex-grow overflow-y-auto p-1 sm:p-2 bg-muted/40">
+        <div className="flex-grow overflow-y-auto p-1 sm:p-2 bg-muted/40" ref={pdfContainerRef}>
            {hasValidPdf ? (
              <div className="flex justify-center items-start">
               {isPdfLoading && (
@@ -122,7 +148,11 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                  loading="" // Hide default loader, we use our own
                  className={isPdfLoading ? 'hidden' : ''}
                >
-                 <Page pageNumber={pageNumber} renderTextLayer={true} />
+                 <Page 
+                    pageNumber={pageNumber} 
+                    renderTextLayer={true}
+                    width={pdfPageWidth}
+                 />
                </Document>
              </div>
            ) : (
