@@ -34,7 +34,7 @@ const generateBookCoverFlow = ai.defineFlow(
   },
   async (input) => {
     try {
-      let stylePrompt = "A visually appealing, artistic book cover.";
+      let stylePrompt = "An artistic and abstract book cover. The style should be suitable for a book cover, perhaps minimalist. Focus on the title to inspire the visual theme. Avoid adding any text to the image itself.";
       switch (input.category?.toLowerCase()) {
           case 'novel':
               stylePrompt = "A book cover for a novel, with a photorealistic or painterly style. It should feature thematic elements based on the summary, with dramatic lighting. The title of the book should be considered for the main visual theme, but do not write the title on the cover.";
