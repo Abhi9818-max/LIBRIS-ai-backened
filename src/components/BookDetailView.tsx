@@ -142,7 +142,10 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
 
         <div className="flex-grow overflow-auto p-1 sm:p-2 bg-muted/40" ref={pdfContainerRef}>
            {hasValidPdf ? (
-             <div className="flex justify-center items-start">
+             <div 
+                className="flex justify-center items-start"
+                style={{'--scale-factor': scale} as React.CSSProperties}
+              >
               {isPdfLoading && (
                 <div className="flex flex-col items-center justify-center h-96">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -160,7 +163,6 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                     pageNumber={pageNumber} 
                     scale={scale}
                     renderTextLayer={true}
-                    width={pdfContainerRef.current?.clientWidth ? pdfContainerRef.current.clientWidth - 20 : undefined}
                  />
                </Document>
              </div>
