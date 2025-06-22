@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { Book } from "@/types";
@@ -29,7 +28,8 @@ export default function BookCard({ book, onOpenDetailView }: BookCardProps) {
   const percentageRead = book.totalPages && book.currentPage && book.totalPages > 0
     ? Math.round((book.currentPage / book.totalPages) * 100)
     : 0;
-
+    
+  const isComplete = percentageRead >= 100;
 
   return (
     <Card className="flex flex-col overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out animate-fade-in">
@@ -76,15 +76,14 @@ export default function BookCard({ book, onOpenDetailView }: BookCardProps) {
                     fill="none"
                     stroke={progressColor}
                     strokeWidth="3"
-                    strokeDasharray={percentageRead >= 100 ? '101' : `${percentageRead}, 100`}
-                    strokeDashoffset="25" 
+                    strokeDasharray={isComplete ? undefined : `${percentageRead}, 100`}
                     strokeLinecap="round"
-                    className="transition-all duration-300 ease-in-out"
+                    className="origin-center -rotate-90 transition-all duration-300 ease-in-out"
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
                   <span className="text-xs font-semibold text-foreground">
-                    {percentageRead}%
+                    {isComplete ? '100' : percentageRead}%
                   </span>
                 </div>
               </div>
