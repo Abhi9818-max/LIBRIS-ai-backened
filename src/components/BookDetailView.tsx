@@ -4,7 +4,6 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import type { Book } from "@/types";
 import Image from "next/image";
 import { Document, Page, pdfjs, type PDFDocumentProxy } from 'react-pdf';
-import { TransformWrapper, TransformComponent, type ReactZoomPanPinchRef } from "react-zoom-pan-pinch";
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
 
@@ -14,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2 } from "lucide-react";
 
 
@@ -40,27 +38,33 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const [isPdfLoading, setIsPdfLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(initialTab);
   const [pdfPageDimensions, setPdfPageDimensions] = useState<{ width: number; height: number } | null>(null);
-  const isMobile = useIsMobile();
+  const [scale, setScale] = useState(1.0);
 
-  const transformRef = useRef<ReactZoomPanPinchRef>(null);
   const pdfContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       setActiveTab(initialTab);
-      // Reset PDF specific state when a new book is opened
       setNumPages(0);
       setPageNumber(1);
       setPdfPageDimensions(null);
       setIsPdfLoading(true);
+      setScale(1.0);
     }
   }, [isOpen, initialTab, book]);
   
   const onDocumentLoadSuccess = useCallback(async (pdf: PDFDocumentProxy): Promise<void> => {
     setNumPages(pdf.numPages);
     const page = await pdf.getPage(1);
-    // pdf.view is [x1, y1, x2, y2], so width is x2-x1 and height is y2-y1. For non-rotated pages, x1,y1 are 0.
-    setPdfPageDimensions({ width: page.view[2], height: page.view[3] });
+    const dimensions = { width: page.view[2], height: page.view[3] };
+    setPdfPageDimensions(dimensions);
+
+    if (pdfContainerRef.current) {
+        const { clientWidth } = pdfContainerRef.current;
+        const initialScale = clientWidth / dimensions.width;
+        setScale(initialScale > 0 ? initialScale : 1.0);
+    }
+
     setPageNumber(book?.currentPage || 1);
     setIsPdfLoading(false);
   }, [book?.currentPage]);
@@ -114,25 +118,27 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     if (book) onRemoveBook(book.id);
   };
   
-  const handleZoomIn = () => transformRef.current?.zoomIn(0.2);
-  const handleZoomOut = () => transformRef.current?.zoomOut(0.2);
-  const handleFitToPage = () => transformRef.current?.resetTransform(200);
+  const handleZoomIn = () => setScale(prevScale => prevScale * 1.2);
+  const handleZoomOut = () => setScale(prevScale => prevScale / 1.2);
+  
+  const handleFitToPage = () => {
+    if (!pdfContainerRef.current || !pdfPageDimensions) return;
+    const { clientWidth, clientHeight } = pdfContainerRef.current;
+    const { width: pageWidth, height: pageHeight } = pdfPageDimensions;
+    if (pageWidth <= 0 || pageHeight <= 0) return;
+
+    const scaleX = clientWidth / pageWidth;
+    const scaleY = clientHeight / pageHeight;
+    setScale(Math.min(scaleX, scaleY));
+  };
 
   const handleFitToWidth = () => {
-    if (!transformRef.current || !pdfContainerRef.current || !pdfPageDimensions) return;
-    const { setTransform } = transformRef.current;
+    if (!pdfContainerRef.current || !pdfPageDimensions) return;
+    const { clientWidth } = pdfContainerRef.current;
+    const { width: pageWidth } = pdfPageDimensions;
+    if (pageWidth <= 0) return;
     
-    const containerWidth = pdfContainerRef.current.clientWidth;
-    const pageRenderScale = 1.5; // This must match the <Page scale={...}> prop
-    const naturalPageWidth = pdfPageDimensions.width;
-
-    const wrapperScale = containerWidth / (naturalPageWidth * pageRenderScale);
-
-    const contentHeight = pdfPageDimensions.height * pageRenderScale;
-    const newContentHeight = contentHeight * wrapperScale;
-    const y = (pdfContainerRef.current.clientHeight - newContentHeight) / 2;
-
-    setTransform(0, y > 0 ? y : 0, wrapperScale, 200, 'easeOut');
+    setScale(clientWidth / pageWidth);
   };
 
   const handleDialogClose = (open: boolean) => {
@@ -201,44 +207,31 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
           <TabsContent value="read" className="flex-grow flex flex-col overflow-hidden data-[state=inactive]:hidden">
              {hasValidPdf ? (
              <div className="flex-grow flex flex-col overflow-hidden">
-              <div className="flex-grow bg-muted/40" ref={pdfContainerRef}>
-                <TransformWrapper
-                    ref={transformRef}
-                    key={book.id}
-                    maxScale={10}
-                    limitToBounds={true}
-                    panning={{ disabled: false }}
-                    pinch={{ disabled: !isMobile }}
-                    wheel={{ disabled: true }}
-                    doubleClick={{ disabled: true }}
-                  >
-                    <TransformComponent
-                      wrapperStyle={{ width: '100%', height: '100%' }}
-                      contentStyle={{ width: 'auto', height: 'auto' }}
-                    >
-                        {isPdfLoading && (
-                          <div className="flex flex-col items-center justify-center h-full">
-                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                            <p className="mt-4 text-muted-foreground">Loading PDF...</p>
-                          </div>
-                        )}
-                       <Document
-                         file={book.pdfDataUri}
-                         onLoadSuccess={onDocumentLoadSuccess}
-                         onLoadError={onDocumentLoadError}
-                         loading="" 
-                         className={isPdfLoading ? 'hidden' : ''}
-                       >
-                         <Page 
-                            pageNumber={pageNumber} 
-                            scale={1.5}
-                            renderTextLayer={true}
-                            onRenderError={onPageRenderError}
-                            className="transition-opacity duration-300"
-                         />
-                       </Document>
-                    </TransformComponent>
-                 </TransformWrapper>
+              <div className="flex-grow bg-muted/40 overflow-auto" ref={pdfContainerRef}>
+                  <div className="flex justify-center transition-transform duration-200 ease-in-out">
+                      {isPdfLoading && (
+                        <div className="flex flex-col items-center justify-center h-full w-full absolute inset-0">
+                          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                          <p className="mt-4 text-muted-foreground">Loading PDF...</p>
+                        </div>
+                      )}
+                     <Document
+                       file={book.pdfDataUri}
+                       onLoadSuccess={onDocumentLoadSuccess}
+                       onLoadError={onDocumentLoadError}
+                       loading="" 
+                       className={isPdfLoading ? 'hidden' : ''}
+                     >
+                       <Page 
+                          key={`${book.id}-${pageNumber}`}
+                          pageNumber={pageNumber} 
+                          scale={scale}
+                          renderTextLayer={true}
+                          onRenderError={onPageRenderError}
+                          className="transition-opacity duration-300"
+                       />
+                     </Document>
+                  </div>
               </div>
               <div className="p-2 border-t flex items-center justify-between shrink-0">
                   <div className="flex items-center justify-start w-1/3 space-x-1">
