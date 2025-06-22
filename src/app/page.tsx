@@ -288,7 +288,7 @@ export default function HomePage() {
         {books.length > 0 && (
           <div className="flex justify-start mb-6">
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-full sm:w-[220px]" aria-label="Filter by category">
+              <SelectTrigger className="w-1/2 sm:w-[220px]" aria-label="Filter by category">
                 <SelectValue placeholder="Filter by category" />
               </SelectTrigger>
               <SelectContent>
