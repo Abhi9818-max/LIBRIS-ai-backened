@@ -202,69 +202,70 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="py-4 sm:py-6 px-4 md:px-8 border-b border-border shadow-sm sticky top-0 bg-background/95 backdrop-blur-sm z-10">
-        <div className="container mx-auto flex justify-between items-center">
-          <Link href="/" className="text-2xl sm:text-3xl font-headline text-primary flex items-center shrink-0">
-            <BookOpen className="h-7 w-7 sm:h-8 sm:w-8 mr-2 sm:mr-3 text-accent" />
-            BookShelf
-          </Link>
-          <div className="flex items-center space-x-1 sm:space-x-2">
-            <Button 
-              aria-label="Add new book" 
-              onClick={() => handleOpenUploadModal()} 
-              size="sm" 
-              className="px-2 py-1 sm:px-3 sm:py-2 h-9 sm:h-10"
-            >
-              <PlusCircle className="h-5 w-5 sm:mr-2" />
-              <span className="hidden sm:inline">Add Book</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-9 w-9 sm:h-10 sm:w-10"
-              aria-label="Toggle theme"
-              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-            >
-              {theme === "light" ? (
-                <Moon className="h-[1.1rem] w-[1.1rem] sm:h-[1.2rem] sm:w-[1.2rem]" />
-              ) : (
-                <Sun className="h-[1.1rem] w-[1.1rem] sm:h-[1.2rem] sm:w-[1.2rem]" />
-              )}
-            </Button>
-          </div>
+      <header className="py-4 px-4 md:px-8 border-b border-border shadow-sm sticky top-0 bg-background/95 backdrop-blur-sm z-10">
+        <div className="container mx-auto flex items-center justify-between flex-wrap gap-4">
+            <Link href="/" className="text-2xl sm:text-3xl font-headline text-primary flex items-center shrink-0">
+                <BookOpen className="h-7 w-7 sm:h-8 sm:w-8 mr-2 sm:mr-3 text-accent" />
+                BookShelf
+            </Link>
+
+            <div className="w-full md:w-auto md:flex-grow md:pl-8 md:pr-4 flex items-center gap-2 order-last md:order-none">
+                <div className="relative flex-grow">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+                    <Input
+                        type="search"
+                        placeholder="Search by title or author..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10"
+                        aria-label="Search books"
+                    />
+                </div>
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                    <SelectTrigger className="w-full sm:w-[220px]" aria-label="Filter by category">
+                        <SelectValue placeholder="Filter by category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="All">All Categories</SelectItem>
+                        <SelectItem value="Novel">Novel</SelectItem>
+                        <SelectItem value="Fantasy">Fantasy</SelectItem>
+                        <SelectItem value="Science Fiction">Science Fiction</SelectItem>
+                        <SelectItem value="Mystery">Mystery</SelectItem>
+                        <SelectItem value="Manga">Manga</SelectItem>
+                        <SelectItem value="Non-Fiction">Non-Fiction</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+
+            <div className="flex items-center space-x-1 sm:space-x-2">
+                <Button 
+                aria-label="Add new book" 
+                onClick={() => handleOpenUploadModal()} 
+                size="sm" 
+                className="px-2 py-1 sm:px-3 sm:py-2 h-9 sm:h-10"
+                >
+                <PlusCircle className="h-5 w-5 sm:mr-2" />
+                <span className="hidden sm:inline">Add Book</span>
+                </Button>
+                <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 sm:h-10 sm:w-10"
+                aria-label="Toggle theme"
+                onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+                >
+                {theme === "light" ? (
+                    <Moon className="h-[1.1rem] w-[1.1rem] sm:h-[1.2rem] sm:w-[1.2rem]" />
+                ) : (
+                    <Sun className="h-[1.1rem] w-[1.1rem] sm:h-[1.2rem] sm:w-[1.2rem]" />
+                )}
+                </Button>
+            </div>
         </div>
       </header>
 
       <main className="flex-grow container mx-auto p-4 md:p-8">
-        <div className="flex flex-col sm:flex-row gap-4 mb-8">
-          <div className="relative flex-grow">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
-            <Input
-              type="search"
-              placeholder="Search by title or author..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-              aria-label="Search books"
-            />
-          </div>
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-full sm:w-[220px]" aria-label="Filter by category">
-              <SelectValue placeholder="Filter by category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="All">All Categories</SelectItem>
-              <SelectItem value="Novel">Novel</SelectItem>
-              <SelectItem value="Fantasy">Fantasy</SelectItem>
-              <SelectItem value="Science Fiction">Science Fiction</SelectItem>
-              <SelectItem value="Mystery">Mystery</SelectItem>
-              <SelectItem value="Manga">Manga</SelectItem>
-              <SelectItem value="Non-Fiction">Non-Fiction</SelectItem>
-              <SelectItem value="Other">Other</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        
         {books.length === 0 ? (
           <div className="flex flex-col items-center justify-center text-center h-[60vh]">
             <SearchX className="h-24 w-24 text-muted-foreground mb-6" />
