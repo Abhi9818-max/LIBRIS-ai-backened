@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
@@ -195,9 +196,9 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                 panning={{
                     velocityDisabled: true,
                 }}
-                wheel={{
-                    panOnScroll: isMobile,
-                }}
+                wheel={{ disabled: true }}
+                pinch={{ disabled: true }}
+                doubleClick={{ disabled: true }}
               >
                 <TransformComponent
                   wrapperStyle={{ width: '100%', height: '100%' }}
