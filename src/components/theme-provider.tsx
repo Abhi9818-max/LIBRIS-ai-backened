@@ -14,7 +14,7 @@ const ThemeProviderContext = createContext<ThemeProviderState | undefined>(undef
 export function ThemeProvider({
   children,
   defaultTheme = "light",
-  storageKey = "bookshelf-theme",
+  storageKey = "libris-theme",
 }: {
   children: ReactNode;
   defaultTheme?: Theme;

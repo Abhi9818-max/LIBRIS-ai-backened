@@ -197,7 +197,7 @@ export default function HomePage() {
     return (
       <div className="flex flex-col min-h-screen bg-background items-center justify-center">
         <BookOpen className="h-16 w-16 text-primary animate-pulse" />
-        <p className="text-xl font-headline text-primary mt-4">Loading BookShelf...</p>
+        <p className="text-xl font-headline text-primary mt-4">Loading Libris...</p>
       </div>
     );
   }
@@ -206,7 +206,7 @@ export default function HomePage() {
      return (
       <div className="flex flex-col min-h-screen bg-background items-center justify-center">
         <Loader2 className="h-16 w-16 text-primary animate-spin" />
-        <p className="text-xl font-headline text-primary mt-4">Preparing your bookshelf...</p>
+        <p className="text-xl font-headline text-primary mt-4">Preparing your library...</p>
       </div>
     );
   }
@@ -217,7 +217,7 @@ export default function HomePage() {
         <div className="container mx-auto flex items-center justify-between gap-4">
             <Link href="/" className="text-2xl sm:text-3xl font-headline text-primary flex items-center shrink-0">
                 <BookOpen className="h-7 w-7 sm:h-8 sm:w-8 mr-2 sm:mr-3 text-accent" />
-                BookShelf
+                Libris
             </Link>
 
             <div className="flex items-center gap-2">
@@ -359,7 +359,7 @@ export default function HomePage() {
 
       <footer className="py-4 px-4 md:px-8 border-t border-border mt-auto">
         <div className="container mx-auto text-center text-sm text-muted-foreground">
-          &copy; {new Date().getFullYear()} BookShelf App. All rights reserved.
+          &copy; {new Date().getFullYear()} Libris. All rights reserved.
         </div>
       </footer>
     </div>

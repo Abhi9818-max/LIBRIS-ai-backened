@@ -13,8 +13,8 @@ const alegreya = Alegreya({
 });
 
 export const metadata: Metadata = {
-  title: 'BookShelf App',
-  description: 'Organize and track your reading progress.',
+  title: 'Libris',
+  description: 'Organize and track your reading progress with Libris.',
 };
 
 export default function RootLayout({
@@ -30,7 +30,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet" />
       </head>
       <body className={`${inter.variable} ${alegreya.variable} font-body antialiased bg-background text-foreground`}>
-        <ThemeProvider storageKey="bookshelf-theme">
+        <ThemeProvider storageKey="libris-theme">
           {children}
           <Toaster />
         </ThemeProvider>
