@@ -200,8 +200,9 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
           setIsGeneratingCover(true);
           toast({ title: "AI Cover Generation", description: "Attempting to generate a cover image..." });
           try {
+            const currentFormData = form.getValues();
             const summaryForCover = metadata.summary.length >= 10 ? metadata.summary : `A book titled "${metadata.title}". If summary is short, use title.`;
-            const coverResult = await generateBookCover({ title: metadata.title, summary: summaryForCover });
+            const coverResult = await generateBookCover({ title: metadata.title, summary: summaryForCover, category: currentFormData.category });
             if (coverResult.coverImageDataUri) {
               setCoverPreviewUrl(coverResult.coverImageDataUri);
               toast({ title: "AI Cover Generated!", description: "A cover image has been generated." });
@@ -310,7 +311,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         toast({ title: "AI Cover Generation", description: "Attempting to generate a cover image..." });
         const metadata = form.getValues();
         const summaryForCover = metadata.summary.length >= 10 ? metadata.summary : `A book titled "${metadata.title}". If summary is short, use title.`;
-        generateBookCover({ title: metadata.title, summary: summaryForCover })
+        generateBookCover({ title: metadata.title, summary: summaryForCover, category: metadata.category })
           .then(coverResult => {
             if (coverResult.coverImageDataUri) {
               setCoverPreviewUrl(coverResult.coverImageDataUri);
@@ -518,6 +519,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
                       <SelectItem value="Fantasy">Fantasy</SelectItem>
                       <SelectItem value="Science Fiction">Science Fiction</SelectItem>
                       <SelectItem value="Mystery">Mystery</SelectItem>
+                      <SelectItem value="Manga">Manga</SelectItem>
                       <SelectItem value="Non-Fiction">Non-Fiction</SelectItem>
                       <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
