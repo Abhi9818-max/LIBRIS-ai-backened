@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
@@ -207,7 +206,6 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                     limitToBounds={true}
                     panning={{ disabled: false, excluded: ['input', 'button'] }}
                     panOnScroll={true}
-                    panOnScrollMode="vertical"
                     pinch={{ disabled: true }}
                     wheel={{ disabled: true }}
                     doubleClick={{ disabled: true }}
