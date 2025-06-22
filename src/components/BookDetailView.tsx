@@ -125,32 +125,6 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     return () => clearTimeout(timer);
   }, [isOpen, pageDimensions]);
 
-  // This effect adds a low-level event listener to prevent the default scroll behavior during a pinch-zoom gesture.
-  // This is the most reliable way to stop the page from drifting on trackpads.
-  useEffect(() => {
-    const container = pdfContainerRef.current;
-    if (!container) return;
-    
-    // This event handler is the key to stopping the page drift on trackpads.
-    // When a pinch-to-zoom gesture is performed, the browser often sends a 'wheel' event.
-    // By calling `preventDefault()` on this event, we stop the browser's default scroll/pan action,
-    // allowing the `react-zoom-pan-pinch` library to handle the zoom exclusively.
-    // This stops the page from drifting down when all you want to do is zoom.
-    const handleWheel = (e: WheelEvent) => {
-        e.preventDefault();
-    };
-    
-    // We must use `passive: false` to be able to call `preventDefault()`.
-    container.addEventListener('wheel', handleWheel, { passive: false });
-    
-    return () => {
-        if (container) {
-            container.removeEventListener('wheel', handleWheel);
-        }
-    };
-  }, []);
-
-
   const handlePreviousPage = () => {
     setPageNumber(prev => Math.max(prev - 1, 1));
   }
