@@ -36,7 +36,6 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const [isPdfLoading, setIsPdfLoading] = useState(true);
   const [pageDimensions, setPageDimensions] = useState<{ width: number; height: number } | null>(null);
   const [minScale, setMinScale] = useState(0.2); // State for minimum zoom scale
-  const [isZooming, setIsZooming] = useState(false);
 
   const pdfContainerRef = useRef<HTMLDivElement>(null);
   const transformComponentRef = useRef<any>(null);
