@@ -39,6 +39,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const [activeTab, setActiveTab] = useState(initialTab);
   const [pdfPageDimensions, setPdfPageDimensions] = useState<{ width: number; height: number } | null>(null);
   const [scale, setScale] = useState(1.0);
+  const [progressColor, setProgressColor] = useState<string>('hsl(var(--primary))');
 
   const pdfContainerRef = useRef<HTMLDivElement>(null);
 
@@ -50,6 +51,12 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
       setPdfPageDimensions(null);
       setIsPdfLoading(true);
       setScale(1.0);
+      
+      // Set random color for progress circle
+      const randomHue = Math.floor(Math.random() * 360);
+      const randomSaturation = Math.floor(Math.random() * 30) + 70;
+      const randomLightness = Math.floor(Math.random() * 20) + 50;
+      setProgressColor(`hsl(${randomHue}, ${randomSaturation}%, ${randomLightness}%)`);
     }
   }, [isOpen, initialTab, book]);
   
@@ -153,6 +160,12 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   
   const hasValidPdf = book.pdfDataUri && book.pdfDataUri.startsWith('data:application/pdf;base64,');
 
+  const percentageRead = book.totalPages && book.currentPage && book.totalPages > 0
+    ? Math.round((book.currentPage / book.totalPages) * 100)
+    : 0;
+    
+  const isComplete = percentageRead >= 100;
+
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogClose}>
       <DialogContent className="sm:max-w-4xl lg:max-w-6xl h-[95vh] flex flex-col p-0">
@@ -199,6 +212,51 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                        {book.category && <Badge variant="secondary">Category: {book.category}</Badge>}
                        {book.totalPages && <Badge variant="secondary">Pages: {book.totalPages}</Badge>}
                     </div>
+                 </div>
+                 <div className="space-y-2">
+                    <h3 className="font-headline text-lg text-foreground">Reading Progress</h3>
+                    {book.totalPages && book.totalPages > 0 ? (
+                      <div className="flex items-center space-x-4 pt-2">
+                        <div className="relative h-20 w-20 flex-shrink-0">
+                          <svg className="h-full w-full" viewBox="0 0 36 36">
+                            <circle
+                              cx="18"
+                              cy="18"
+                              r="15.9155"
+                              fill="none"
+                              className="stroke-current text-muted/20"
+                              strokeWidth="2"
+                            />
+                            <circle
+                              cx="18"
+                              cy="18"
+                              r="15.9155"
+                              fill="none"
+                              stroke={progressColor}
+                              strokeWidth="2"
+                              strokeDasharray={isComplete ? undefined : `${percentageRead}, 100`}
+                              strokeLinecap="round"
+                              className="origin-center -rotate-90 transition-all duration-300 ease-in-out"
+                            />
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-xl font-semibold text-foreground">
+                              {isComplete ? '100' : percentageRead}<span className="text-xs">%</span>
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col">
+                          <p className="text-lg font-medium text-foreground">
+                            {isComplete ? "Completed!" : "In Progress"}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            You are on page {book.currentPage || 'N/A'} of {book.totalPages}.
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground pt-2">No progress tracked for this book.</p>
+                    )}
                  </div>
               </div>
             </div>
