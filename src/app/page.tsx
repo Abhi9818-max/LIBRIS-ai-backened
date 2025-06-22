@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -80,6 +79,7 @@ export default function HomePage() {
           summary: book.summary,
           coverImageUrl: book.coverImageUrl,
           pdfFileName: book.pdfFileName,
+          pdfDataUri: book.pdfDataUri,
           currentPage: book.currentPage,
           totalPages: book.totalPages,
         }));
