@@ -1,30 +1,20 @@
-
 "use client";
 
 import type { Book } from "@/types";
 import Image from "next/image";
-import { useState, ChangeEvent, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Save, Eye } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Eye } from "lucide-react";
 
 interface BookCardProps {
   book: Book;
-  onUpdateProgress: (bookId: string, currentPage: number) => void;
   onOpenDetailView: (book: Book) => void;
 }
 
-export default function BookCard({ book, onUpdateProgress, onOpenDetailView }: BookCardProps) {
-  const { toast } = useToast();
-  const [currentPageInput, setCurrentPageInput] = useState<string>((book.currentPage || 1).toString());
+export default function BookCard({ book, onOpenDetailView }: BookCardProps) {
   const [progressColor, setProgressColor] = useState<string>('hsl(var(--primary))');
-
-  useEffect(() => {
-    setCurrentPageInput((book.currentPage || 1).toString());
-  }, [book.currentPage]);
 
   useEffect(() => {
     // Generate random color on client mount to avoid hydration mismatch
@@ -34,27 +24,6 @@ export default function BookCard({ book, onUpdateProgress, onOpenDetailView }: B
     setProgressColor(`hsl(${randomHue}, ${randomSaturation}%, ${randomLightness}%)`);
   }, []); 
 
-  const handleProgressChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setCurrentPageInput(e.target.value);
-  };
-
-  const handleSaveProgress = () => {
-    const newPage = parseInt(currentPageInput, 10);
-    if (isNaN(newPage) || newPage < 1 || (book.totalPages && newPage > book.totalPages)) {
-      toast({
-        title: "Invalid Page Number",
-        description: `Please enter a valid page number between 1 and ${book.totalPages || 'the total pages'}.`,
-        variant: "destructive",
-      });
-      return;
-    }
-    onUpdateProgress(book.id, newPage);
-    toast({
-      title: "Progress Saved!",
-      description: `Page ${newPage} saved for "${book.title}".`,
-    });
-  };
-  
   const percentageRead = book.totalPages && book.currentPage && book.totalPages > 0
     ? Math.round((book.currentPage / book.totalPages) * 100)
     : 0;
@@ -62,7 +31,7 @@ export default function BookCard({ book, onUpdateProgress, onOpenDetailView }: B
 
   return (
     <Card className="flex flex-col overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out animate-fade-in">
-      <CardHeader className="p-4">
+      <CardHeader className="p-4 pb-2">
         <div 
           className="aspect-[2/3] w-full relative mb-2 rounded-md overflow-hidden cursor-pointer"
           onDoubleClick={() => onOpenDetailView(book)}
@@ -86,7 +55,7 @@ export default function BookCard({ book, onUpdateProgress, onOpenDetailView }: B
       </CardHeader>
       <CardContent className="p-4 pt-0 flex-grow">
         {book.totalPages && book.totalPages > 0 && (
-          <div className="mt-3 space-y-2">
+          <div className="mt-2 space-y-2">
             <div className="flex items-center space-x-3">
               <div className="relative h-12 w-12 flex-shrink-0">
                 <svg className="h-full w-full" viewBox="0 0 36 36">
@@ -117,37 +86,19 @@ export default function BookCard({ book, onUpdateProgress, onOpenDetailView }: B
                   </span>
                 </div>
               </div>
-              <p className="text-sm font-medium text-foreground">
-                Reading Progress
-              </p>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Input 
-                type="number" 
-                value={currentPageInput} 
-                onChange={handleProgressChange} 
-                min="1"
-                max={book.totalPages}
-                className="h-8 text-xs w-16"
-                aria-label="Current page"
-              />
-              <span className="text-xs text-muted-foreground whitespace-nowrap">
-                / {book.totalPages} pages
-              </span>
-              <Button 
-                size="xs" 
-                variant="outline" 
-                onClick={handleSaveProgress} 
-                aria-label="Save progress"
-                className="ml-auto"
-              >
-                <Save className="h-3 w-3 mr-1" /> Save
-              </Button>
+               <div className="flex flex-col">
+                <p className="text-sm font-medium text-foreground">
+                  Reading Progress
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Page {book.currentPage || 'N/A'} of {book.totalPages}
+                </p>
+              </div>
             </div>
           </div>
         )}
       </CardContent>
-      <CardFooter className="p-4 pt-0">
+      <CardFooter className="p-4 pt-0 mt-auto">
         <Button
           variant="secondary"
           size="sm"

@@ -237,7 +237,6 @@ export default function HomePage() {
               <BookCard
                 key={book.id}
                 book={book}
-                onUpdateProgress={handleUpdateProgress}
                 onOpenDetailView={handleOpenDetailView}
               />
             ))}
