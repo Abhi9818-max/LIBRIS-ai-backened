@@ -2,7 +2,7 @@
 'use server';
 
 /**
- * @fileOverview AI flow to extract book metadata (title, author, summary) from a PDF.
+ * @fileOverview AI flow to extract book metadata (title, author, summary) from text content.
  *
  * - extractBookMetadata - Function to extract book metadata.
  * - ExtractBookMetadataInput - Input type for the function.
@@ -13,10 +13,10 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const ExtractBookMetadataInputSchema = z.object({
-  pdfDataUri: z
+  textContent: z
     .string()
     .describe(
-      'The book PDF content as a data URI that must include a MIME type and use Base64 encoding. Expected format: \'data:<mimetype>;base64,<encoded_data>\'.'
+      'The text content from the first few pages of the book PDF.'
     ),
 });
 export type ExtractBookMetadataInput = z.infer<typeof ExtractBookMetadataInputSchema>;
@@ -36,12 +36,12 @@ const prompt = ai.definePrompt({
   name: 'extractBookMetadataPrompt',
   input: {schema: ExtractBookMetadataInputSchema},
   output: {schema: ExtractBookMetadataOutputSchema},
-  prompt: `You are an AI assistant that extracts metadata from book PDFs.
+  prompt: `You are an AI assistant that extracts metadata from the text of a book.
 
-  Analyze the following PDF content and extract the title, author, and a brief summary.
+  Analyze the following text, which is from the first few pages of a book, and extract the title, author, and a brief summary of the entire book based on this initial text.
   Return the information in JSON format.
 
-  PDF Content: {{media url=pdfDataUri}}`,
+  Text Content: {{{textContent}}}`,
 });
 
 const defaultMetadata: ExtractBookMetadataOutput = {

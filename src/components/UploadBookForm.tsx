@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useCallback, ChangeEvent, DragEvent, useEffect } from "react";
@@ -170,7 +171,6 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         return;
       }
 
-      // Try to get page count
       try {
         if (!GlobalWorkerOptions.workerSrc) throw new Error("PDF worker source not set.");
         const loadingTask = getDocument({data: atob(pdfDataUriForProcessing.substring(pdfDataUriForProcessing.indexOf(',') + 1))});
@@ -179,44 +179,50 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
             form.setValue("totalPages", pdfDoc.numPages);
             toast({ title: "Page Count Detected", description: `Automatically filled total pages: ${pdfDoc.numPages}.` });
         }
-      } catch (pageCountError: any) {
-          console.error("Error getting page count from PDF:", pageCountError);
-          toast({
-              title: "Page Count Error",
-              description: `Could not automatically determine page count: ${pageCountError.message || "Unknown error"}. Please enter manually.`,
-              variant: "destructive",
-          });
-      }
+        
+        let textContent = '';
+        const maxPagesToScan = Math.min(pdfDoc.numPages, 5);
+        for (let i = 1; i <= maxPagesToScan; i++) {
+            const page = await pdfDoc.getPage(i);
+            const text = await page.getTextContent();
+            textContent += text.items.map(item => 'str' in item ? item.str : '').join(' ') + '\n';
+        }
 
-      // Try to extract metadata
-      try {
-        const metadata = await extractBookMetadata({ pdfDataUri: pdfDataUriForProcessing });
-        form.setValue("title", metadata.title || form.getValues("title"));
-        form.setValue("author", metadata.author || form.getValues("author"));
-        form.setValue("summary", metadata.summary || form.getValues("summary"));
-        toast({ title: "Metadata Extracted", description: "Review and edit the details below." });
-
-        if (!isEditing && !coverImageFile && metadata.title && metadata.summary) {
-          setIsGeneratingCover(true);
-          toast({ title: "AI Cover Generation", description: "Attempting to generate a cover image..." });
-          try {
-            const currentFormData = form.getValues();
-            const summaryForCover = metadata.summary.length >= 10 ? metadata.summary : `A book titled "${metadata.title}". If summary is short, use title.`;
-            const coverResult = await generateBookCover({ title: metadata.title, summary: summaryForCover, category: currentFormData.category });
-            if (coverResult.coverImageDataUri) {
-              setCoverPreviewUrl(coverResult.coverImageDataUri);
-              toast({ title: "AI Cover Generated!", description: "A cover image has been generated." });
-            } else {
-              setCoverPreviewUrl(null);
-              toast({ title: "AI Cover Failed", description: "Could not generate cover. A placeholder will be used, you can still add the book.", variant: "destructive" });
+        if (textContent.trim().length > 0) {
+            const metadata = await extractBookMetadata({ textContent });
+            form.setValue("title", metadata.title || form.getValues("title"));
+            form.setValue("author", metadata.author || form.getValues("author"));
+            form.setValue("summary", metadata.summary || form.getValues("summary"));
+            toast({ title: "Metadata Extracted", description: "Review and edit the details below." });
+    
+            if (!isEditing && !coverImageFile && metadata.title && metadata.summary) {
+              setIsGeneratingCover(true);
+              toast({ title: "AI Cover Generation", description: "Attempting to generate a cover image..." });
+              try {
+                const currentFormData = form.getValues();
+                const summaryForCover = metadata.summary.length >= 10 ? metadata.summary : `A book titled "${metadata.title}". If summary is short, use title.`;
+                const coverResult = await generateBookCover({ title: metadata.title, summary: summaryForCover, category: currentFormData.category });
+                if (coverResult.coverImageDataUri) {
+                  setCoverPreviewUrl(coverResult.coverImageDataUri);
+                  toast({ title: "AI Cover Generated!", description: "A cover image has been generated." });
+                } else {
+                  setCoverPreviewUrl(null);
+                  toast({ title: "AI Cover Failed", description: "Could not generate cover. A placeholder will be used, you can still add the book.", variant: "destructive" });
+                }
+              } catch (genError: any) {
+                console.error("Error generating cover image:", genError);
+                setCoverPreviewUrl(null);
+                toast({ title: "AI Cover Error", description: `Cover generation failed: ${genError.message || "Unknown error"}. A placeholder will be used, you can still add the book.`, variant: "destructive" });
+              } finally {
+                setIsGeneratingCover(false);
+              }
             }
-          } catch (genError: any) {
-            console.error("Error generating cover image:", genError);
-            setCoverPreviewUrl(null);
-            toast({ title: "AI Cover Error", description: `Cover generation failed: ${genError.message || "Unknown error"}. A placeholder will be used, you can still add the book.`, variant: "destructive" });
-          } finally {
-            setIsGeneratingCover(false);
-          }
+        } else {
+             toast({
+                title: "Text Extraction Failed",
+                description: "Could not extract text from this PDF. Please enter details manually.",
+                variant: "destructive"
+            });
         }
       } catch (aiError: any) { 
         console.error("Failed to extract metadata or generate cover:", aiError);
