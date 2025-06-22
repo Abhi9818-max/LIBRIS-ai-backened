@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
@@ -205,7 +204,8 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                     disableOnPinch: true // Prevents panning while zooming, which is smoother for trackpads
                 }}
                 wheel={{
-                    touchpadMode: true // Improves trackpad pinch-to-zoom gesture detection
+                    touchpadMode: true, // Improves trackpad pinch-to-zoom gesture detection
+                    panOnScroll: false, // Prevents page from drifting down when zooming out
                 }}
               >
                 <TransformComponent
@@ -302,5 +302,3 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     </Dialog>
   );
 }
-
-    
