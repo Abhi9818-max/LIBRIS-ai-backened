@@ -221,21 +221,6 @@ export default function HomePage() {
                         aria-label="Search books"
                     />
                 </div>
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                    <SelectTrigger className="w-full sm:w-[220px]" aria-label="Filter by category">
-                        <SelectValue placeholder="Filter by category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="All">All Categories</SelectItem>
-                        <SelectItem value="Novel">Novel</SelectItem>
-                        <SelectItem value="Fantasy">Fantasy</SelectItem>
-                        <SelectItem value="Science Fiction">Science Fiction</SelectItem>
-                        <SelectItem value="Mystery">Mystery</SelectItem>
-                        <SelectItem value="Manga">Manga</SelectItem>
-                        <SelectItem value="Non-Fiction">Non-Fiction</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                </Select>
             </div>
 
             <div className="flex items-center space-x-1 sm:space-x-2">
@@ -266,6 +251,26 @@ export default function HomePage() {
       </header>
 
       <main className="flex-grow container mx-auto p-4 md:p-8">
+        {books.length > 0 && (
+          <div className="flex justify-end mb-6">
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-full sm:w-[220px]" aria-label="Filter by category">
+                <SelectValue placeholder="Filter by category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Categories</SelectItem>
+                <SelectItem value="Novel">Novel</SelectItem>
+                <SelectItem value="Fantasy">Fantasy</SelectItem>
+                <SelectItem value="Science Fiction">Science Fiction</SelectItem>
+                <SelectItem value="Mystery">Mystery</SelectItem>
+                <SelectItem value="Manga">Manga</SelectItem>
+                <SelectItem value="Non-Fiction">Non-Fiction</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         {books.length === 0 ? (
           <div className="flex flex-col items-center justify-center text-center h-[60vh]">
             <SearchX className="h-24 w-24 text-muted-foreground mb-6" />
