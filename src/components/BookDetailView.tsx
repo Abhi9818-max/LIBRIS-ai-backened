@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
@@ -199,7 +200,13 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                 minScale={minScale}
                 maxScale={10}
                 limitToBounds={true}
-                panning={{ velocityDisabled: true }}
+                panning={{
+                    velocityDisabled: true,
+                    disableOnPinch: true // Prevents panning while zooming, which is smoother for trackpads
+                }}
+                wheel={{
+                    touchpadMode: true // Improves trackpad pinch-to-zoom gesture detection
+                }}
               >
                 <TransformComponent
                   wrapperStyle={{ width: '100%', height: '100%' }}
@@ -295,3 +302,5 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     </Dialog>
   );
 }
+
+    
