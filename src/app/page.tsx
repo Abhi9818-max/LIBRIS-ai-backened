@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -8,10 +7,13 @@ import BookCard from "@/components/BookCard";
 import UploadBookForm from "@/components/UploadBookForm";
 import BookDetailView from "@/components/BookDetailView";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, BookOpen, Sun, Moon, SearchX, Loader2 } from "lucide-react";
+import { PlusCircle, BookOpen, Sun, Moon, SearchX, Loader2, Search } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { useToast } from "@/hooks/use-toast";
 import { initDB, getBooks, saveBook, deleteBook } from "@/lib/db";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 
 export default function HomePage() {
   const [books, setBooks] = useState<Book[]>([]);
@@ -25,6 +27,9 @@ export default function HomePage() {
   const [selectedBookForDetail, setSelectedBookForDetail] = useState<Book | null>(null);
   const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
   const [initialDetailTab, setInitialDetailTab] = useState<'details' | 'read'>('read');
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
 
 
   // Initialize DB on component mount
@@ -166,6 +171,16 @@ export default function HomePage() {
     setIsDetailViewOpen(true);
   }, []);
 
+  const filteredBooks = books.filter(book => {
+    const lowerCaseQuery = searchQuery.toLowerCase();
+    const matchesCategory = selectedCategory === 'All' || book.category === selectedCategory;
+    const matchesSearch = 
+        !searchQuery ||
+        book.title.toLowerCase().includes(lowerCaseQuery) ||
+        book.author.toLowerCase().includes(lowerCaseQuery);
+    return matchesCategory && matchesSearch;
+  });
+
 
   if (!isClient) {
     return (
@@ -221,6 +236,35 @@ export default function HomePage() {
       </header>
 
       <main className="flex-grow container mx-auto p-4 md:p-8">
+        <div className="flex flex-col sm:flex-row gap-4 mb-8">
+          <div className="relative flex-grow">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+            <Input
+              type="search"
+              placeholder="Search by title or author..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+              aria-label="Search books"
+            />
+          </div>
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="w-full sm:w-[220px]" aria-label="Filter by category">
+              <SelectValue placeholder="Filter by category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All">All Categories</SelectItem>
+              <SelectItem value="Novel">Novel</SelectItem>
+              <SelectItem value="Fantasy">Fantasy</SelectItem>
+              <SelectItem value="Science Fiction">Science Fiction</SelectItem>
+              <SelectItem value="Mystery">Mystery</SelectItem>
+              <SelectItem value="Manga">Manga</SelectItem>
+              <SelectItem value="Non-Fiction">Non-Fiction</SelectItem>
+              <SelectItem value="Other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
         {books.length === 0 ? (
           <div className="flex flex-col items-center justify-center text-center h-[60vh]">
             <SearchX className="h-24 w-24 text-muted-foreground mb-6" />
@@ -235,9 +279,15 @@ export default function HomePage() {
               <PlusCircle className="h-5 w-5 mr-2" /> Add Your First Book
             </Button>
           </div>
+        ) : filteredBooks.length === 0 ? (
+          <div className="flex flex-col items-center justify-center text-center h-[50vh]">
+            <SearchX className="h-24 w-24 text-muted-foreground mb-6" />
+            <h2 className="text-2xl font-headline text-foreground mb-2">No Matching Books Found</h2>
+            <p className="text-muted-foreground mb-6">Try adjusting your search or filter.</p>
+          </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-            {Array.isArray(books) && books.map((book) => (
+            {filteredBooks.map((book) => (
               <BookCard
                 key={book.id}
                 book={book}
