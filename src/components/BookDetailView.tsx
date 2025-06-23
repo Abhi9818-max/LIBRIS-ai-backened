@@ -60,7 +60,6 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const [activeTab, setActiveTab] = useState(initialTab);
   const [pdfPageDimensions, setPdfPageDimensions] = useState<{ width: number; height: number } | null>(null);
   const [scale, setScale] = useState(1.0);
-  const [progressColor, setProgressColor] = useState<string>('hsl(var(--primary))');
   const [selectionPopover, setSelectionPopover] = useState<{ top: number; left: number; } | null>(null);
   const [deletingHighlight, setDeletingHighlight] = useState<Highlight | null>(null);
 
@@ -77,11 +76,6 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
       setScale(1.0);
       setSelectionPopover(null);
       setDeletingHighlight(null);
-      
-      const randomHue = Math.floor(Math.random() * 360);
-      const randomSaturation = Math.floor(Math.random() * 30) + 70;
-      const randomLightness = Math.floor(Math.random() * 20) + 50;
-      setProgressColor(`hsl(${randomHue}, ${randomSaturation}%, ${randomLightness}%)`);
     }
   }, [isOpen, initialTab, book?.id]);
   
@@ -314,7 +308,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                   </div>
                   <div className="flex space-x-2 mt-4">
                     <Button onClick={handleEditClick} size="sm"><Pencil className="mr-2 h-4 w-4" /> Edit</Button>
-                    <Button variant="outline" onClick={handleRemoveClick} size="sm"><Trash2 className="mr-2 h-4 w-4" /> Remove</Button>
+                    <Button variant="outline" onClick={() => setDeletingHighlight(book as any)} size="sm"><Trash2 className="mr-2 h-4 w-4" /> Remove</Button>
                   </div>
                 </div>
                 <div className="md:col-span-2 space-y-4">
@@ -350,7 +344,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                                 cy="18"
                                 r="15.9155"
                                 fill="none"
-                                stroke={progressColor}
+                                stroke="hsl(var(--chart-4))"
                                 strokeWidth="2"
                                 strokeDasharray={isComplete ? undefined : `${percentageRead}, 100`}
                                 strokeLinecap="round"
@@ -444,6 +438,8 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                           file={book.pdfDataUri}
                           onLoadSuccess={onDocumentLoadSuccess}
                           onLoadError={onDocumentLoadError}
+                          onPageRenderError={onPageRenderError}
+                          onPageRenderTextLayerError={onPageRenderTextLayerError}
                           loading="" 
                           className={isPdfLoading ? 'hidden' : ''}
                         >

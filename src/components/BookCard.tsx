@@ -60,7 +60,7 @@ export default function BookCard({ book, onOpenDetailView }: BookCardProps) {
                         cy="18"
                         r="15.9155"
                         fill="none"
-                        stroke="hsl(var(--primary))"
+                        stroke="hsl(var(--chart-4))"
                         strokeWidth="3.8"
                         strokeDasharray={isComplete ? "100, 100" : `${percentageRead}, 100`}
                         strokeLinecap="round"
