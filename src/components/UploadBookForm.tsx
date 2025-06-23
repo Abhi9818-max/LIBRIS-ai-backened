@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useCallback, ChangeEvent, DragEvent, useEffect } from "react";
+import { useState, useCallback, ChangeEvent, DragEvent, useEffect, useRef } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -79,6 +79,8 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     defaultValues: { title: "", author: "", summary: "", category: "Novel", totalPages: undefined, customCategory: "" },
   });
 
+  const category = form.watch('category');
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -128,6 +130,35 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       }
     }
   }, [isOpen, bookToEdit, form, resetFormState]);
+
+  useEffect(() => {
+    const { isDirty, dirtyFields } = form.formState;
+    if (isDirty && dirtyFields.category) {
+      const { title, summary } = form.getValues();
+      if (title && !isProcessingPdf && !isGeneratingCover) {
+        const regenerateCover = async () => {
+          setIsGeneratingCover(true);
+          toast({ title: "AI Cover Regeneration", description: `Generating a new cover for the '${category}' category...` });
+          try {
+            const coverResult = await generateBookCover({ title, summary, category });
+            if (coverResult.coverImageDataUri) {
+              setCoverPreviewUrl(coverResult.coverImageDataUri);
+              setCoverImageFile(null); // The new cover is from AI, not a file
+              toast({ title: "AI Cover Regenerated!", description: "The cover image has been updated." });
+            } else {
+              toast({ title: "AI Cover Failed", description: "Could not regenerate the cover.", variant: "destructive" });
+            }
+          } catch (error: any) {
+            console.error("Error regenerating cover image:", error);
+            toast({ title: "AI Cover Error", description: `Failed to regenerate cover: ${error.message || "Unknown error"}.`, variant: "destructive" });
+          } finally {
+            setIsGeneratingCover(false);
+          }
+        };
+        regenerateCover();
+      }
+    }
+  }, [category, form.formState]);
 
 
   const handlePdfFileChange = async (file: File | null) => {
