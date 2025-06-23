@@ -87,7 +87,13 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
 
     if (pdfContainerRef.current) {
         const { clientWidth } = pdfContainerRef.current;
-        const initialScale = clientWidth / dimensions.width;
+        let initialScale = clientWidth / dimensions.width;
+        
+        // On smaller screens, apply an initial zoom to better fit the content, as requested.
+        if (clientWidth < 768) {
+            initialScale *= 1.2;
+        }
+
         setScale(initialScale > 0 ? initialScale : 1.0);
     }
 
