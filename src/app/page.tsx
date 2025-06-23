@@ -13,6 +13,7 @@ import { PlusCircle, BookOpen, Sun, Moon, SearchX, Loader2, Search, ArrowLeft } 
 import { useTheme } from "@/components/theme-provider";
 import { useToast } from "@/hooks/use-toast";
 import { initDB, getBooks, saveBook, deleteBook } from "@/lib/db";
+import { defaultBooks } from "@/lib/default-books";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -50,12 +51,39 @@ export default function HomePage() {
       }
     });
   }, [toast]);
+  
+  const populateDefaultBooks = useCallback(async () => {
+    try {
+      const booksToSave = defaultBooks.map((book, index) => ({
+        ...book,
+        id: `default-${Date.now()}-${index}`
+      }));
+      await Promise.all(booksToSave.map(book => saveBook(book)));
+      const allBooks = await getBooks();
+      setBooks(allBooks);
+      toast({
+        title: "Welcome to Libris!",
+        description: "We've added a few classic books to your shelf to get you started.",
+      });
+    } catch (error) {
+      console.error("Error populating default books:", error);
+      toast({
+        title: "Error",
+        description: "Could not add default books to your library.",
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
 
   // Load books from IndexedDB when it's ready
   useEffect(() => {
     if (isDbReady) {
       getBooks().then(storedBooks => {
-        setBooks(storedBooks);
+        if (storedBooks.length === 0) {
+          populateDefaultBooks();
+        } else {
+          setBooks(storedBooks);
+        }
       }).catch(error => {
         console.error("Error loading books from IndexedDB:", error);
         toast({
@@ -65,7 +93,7 @@ export default function HomePage() {
         });
       });
     }
-  }, [isDbReady, toast]);
+  }, [isDbReady, toast, populateDefaultBooks]);
 
 
   const handleOpenUploadModal = (book: Book | null = null) => {
@@ -305,7 +333,12 @@ export default function HomePage() {
           </div>
         )}
 
-        {books.length === 0 ? (
+        {books.length === 0 && !isDbReady ? (
+          <div className="flex flex-col items-center justify-center text-center h-[60vh]">
+            <Loader2 className="h-16 w-16 text-primary animate-spin" />
+            <p className="text-xl font-headline text-primary mt-4">Preparing your library...</p>
+          </div>
+        ) : books.length === 0 ? (
           <div className="flex flex-col items-center justify-center text-center h-[60vh]">
             <SearchX className="h-24 w-24 text-muted-foreground mb-6" />
             <h2 className="text-2xl font-headline text-foreground mb-2">Your Shelf is Empty</h2>
