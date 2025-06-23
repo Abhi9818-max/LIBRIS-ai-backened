@@ -9,13 +9,19 @@ import BookCard from "@/components/BookCard";
 import UploadBookForm from "@/components/UploadBookForm";
 import BookDetailView from "@/components/BookDetailView";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, BookOpen, Sun, Moon, SearchX, Loader2, Search, ArrowLeft } from "lucide-react";
+import { PlusCircle, BookOpen, Sun, Moon, SearchX, Loader2, Search, ArrowLeft, MoreVertical } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { useToast } from "@/hooks/use-toast";
 import { initDB, getBooks, saveBook, deleteBook } from "@/lib/db";
 import { defaultBooks } from "@/lib/default-books";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 
 export default function HomePage() {
@@ -291,19 +297,28 @@ export default function HomePage() {
                     <PlusCircle className="h-5 w-5 sm:mr-2" />
                     <span className="hidden sm:inline">Add Book</span>
                     </Button>
-                    <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-9 w-9 sm:h-10 sm:w-10"
-                    aria-label="Toggle theme"
-                    onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-                    >
-                    {theme === "light" ? (
-                        <Moon className="h-[1.1rem] w-[1.1rem] sm:h-[1.2rem] sm:w-[1.2rem]" />
-                    ) : (
-                        <Sun className="h-[1.1rem] w-[1.1rem] sm:h-[1.2rem] sm:w-[1.2rem]" />
-                    )}
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9 sm:h-10 sm:w-10"
+                          aria-label="Open settings"
+                        >
+                          <MoreVertical className="h-[1.1rem] w-[1.1rem] sm:h-[1.2rem] sm:w-[1.2rem]" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setTheme(theme === "light" ? "dark" : "light")}>
+                          {theme === "light" ? (
+                            <Moon className="mr-2 h-4 w-4" />
+                          ) : (
+                            <Sun className="mr-2 h-4 w-4" />
+                          )}
+                          <span>{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </div>
         </div>
@@ -395,3 +410,5 @@ export default function HomePage() {
     </div>
   );
 }
+
+    
