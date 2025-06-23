@@ -14,7 +14,8 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2 } from "lucide-react";
+import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2, BookText } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 
 // Set up the pdf.js worker
@@ -53,7 +54,6 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
       setIsPdfLoading(true);
       setScale(1.0);
       
-      // Set random color for progress circle
       const randomHue = Math.floor(Math.random() * 360);
       const randomSaturation = Math.floor(Math.random() * 30) + 70;
       const randomLightness = Math.floor(Math.random() * 20) + 50;
@@ -168,21 +168,30 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
 
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogClose}>
-      <DialogContent className="sm:max-w-4xl lg:max-w-6xl h-[95vh] flex flex-col p-0">
-        <DialogHeader className="p-4 sm:p-6 pb-2 border-b shrink-0">
-          <DialogTitle className="font-headline text-xl sm:text-2xl truncate pr-10">{book.title || "Untitled Book"}</DialogTitle>
-          <DialogDescription className="text-sm sm:text-md">
-            By: {book.author || "Unknown Author"}
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className={cn(
+        "flex flex-col p-0 transition-all duration-300 ease-in-out",
+        activeTab === 'read' 
+          ? "w-screen h-screen max-w-full max-h-screen rounded-none border-0" 
+          : "sm:max-w-4xl lg:max-w-6xl h-[95vh]"
+      )}>
+        {activeTab === 'details' && (
+            <DialogHeader className="p-4 sm:p-6 pb-2 border-b shrink-0">
+            <DialogTitle className="font-headline text-xl sm:text-2xl truncate pr-10">{book.title || "Untitled Book"}</DialogTitle>
+            <DialogDescription className="text-sm sm:text-md">
+                By: {book.author || "Unknown Author"}
+            </DialogDescription>
+            </DialogHeader>
+        )}
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'details' | 'read')} className="flex-grow flex flex-col overflow-hidden">
-          <TabsList className="mx-auto w-fit mt-2 px-4 shrink-0">
-            <TabsTrigger value="details">Details</TabsTrigger>
-            <TabsTrigger value="read" disabled={!hasValidPdf}>Read</TabsTrigger>
-          </TabsList>
+            {activeTab === 'details' && (
+                <TabsList className="mx-auto w-fit mt-2 px-4 shrink-0">
+                    <TabsTrigger value="details">Details</TabsTrigger>
+                    <TabsTrigger value="read" disabled={!hasValidPdf}>Read</TabsTrigger>
+                </TabsList>
+            )}
           
-          <TabsContent value="details" className="flex-grow overflow-y-auto p-4 md:p-6">
+          <TabsContent value="details" className="flex-grow overflow-y-auto p-4 md:p-6 data-[state=inactive]:hidden">
             <div className="grid md:grid-cols-3 gap-6 md:gap-8">
               <div className="md:col-span-1 flex flex-col items-center">
                 <div className="aspect-[2/3] w-full max-w-[200px] relative rounded-md overflow-hidden shadow-lg">
@@ -292,8 +301,12 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                      </Document>
                   </div>
               </div>
-              <div className="p-2 border-t flex items-center justify-between shrink-0">
+              <div className="p-2 border-t flex items-center justify-between shrink-0 bg-background">
                   <div className="flex items-center justify-start w-1/3 space-x-1">
+                    <Button variant="outline" size="sm" onClick={() => setActiveTab('details')} title="Back to Details">
+                        <BookText className="mr-2 h-4 w-4" />
+                        <span className="hidden sm:inline">Details</span>
+                    </Button>
                     <Button variant="outline" size="icon" onClick={handleZoomIn} title="Zoom In"><ZoomIn className="h-4 w-4" /></Button>
                     <Button variant="outline" size="icon" onClick={handleZoomOut} title="Zoom Out"><ZoomOut className="h-4 w-4" /></Button>
                     <Button variant="outline" size="icon" onClick={handleFitToWidth} title="Fit to Width"><Maximize2 className="h-4 w-4" /></Button>
@@ -317,6 +330,10 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
            ) : (
              <div className="flex flex-col items-center justify-center h-full">
                 <p className="text-muted-foreground">No PDF available for this book.</p>
+                 <Button variant="outline" size="sm" onClick={() => setActiveTab('details')} className="mt-4">
+                    <BookText className="mr-2 h-4 w-4" />
+                    Back to Details
+                </Button>
              </div>
            )}
           </TabsContent>
