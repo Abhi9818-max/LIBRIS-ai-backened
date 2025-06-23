@@ -133,37 +133,47 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
   }, [isOpen, bookToEdit, form, resetFormState]);
 
 
-  const handleCategoryChange = async (newCategory: string) => {
-    // Manually update the form field value.
-    form.setValue('category', newCategory, { shouldDirty: true, shouldValidate: true });
-
-    // The rest is the cover generation logic, moved from the useEffect.
-    const { title, summary } = form.getValues();
+  const handleRegenerateCover = async (categoryOverride?: string) => {
+    const { title, summary, category: formCategory } = form.getValues();
+    const finalCategory = categoryOverride || formCategory;
 
     if (!title) {
-      return;
-    }
-    
-    if (isProcessingPdf || isGeneratingCover) {
+      toast({
+        title: "Missing Title",
+        description: "A title is required to generate an AI cover.",
+        variant: "destructive",
+      });
       return;
     }
 
+    if (isGeneratingCover || isProcessingPdf) return;
+
     setIsGeneratingCover(true);
-    toast({ title: "AI Cover Regeneration", description: `Generating a new cover for the '${newCategory}' category...` });
+    toast({ title: "AI Cover Regeneration", description: "Generating a new cover, please wait..." });
+
     try {
-        const coverResult = await generateBookCover({ title, summary, category: newCategory });
-        if (coverResult.coverImageDataUri) {
-            setCoverPreviewUrl(coverResult.coverImageDataUri);
-            setCoverImageFile(null);
-            toast({ title: "AI Cover Regenerated!", description: "The cover image has been updated." });
-        } else {
-            toast({ title: "AI Cover Failed", description: "Could not regenerate the cover.", variant: "destructive" });
-        }
+      const summaryForCover = summary && summary.length >= 10 ? summary : `A book titled "${title}".`;
+      const coverResult = await generateBookCover({ title, summary: summaryForCover, category: finalCategory });
+      if (coverResult.coverImageDataUri) {
+        setCoverPreviewUrl(coverResult.coverImageDataUri);
+        setCoverImageFile(null); // Invalidate manual upload
+        toast({ title: "AI Cover Regenerated!", description: "The cover image has been updated." });
+      } else {
+        toast({ title: "AI Cover Failed", description: "The AI could not generate a new cover.", variant: "destructive" });
+      }
     } catch (error: any) {
-        console.error("Error regenerating cover image:", error);
-        toast({ title: "AI Cover Error", description: `Failed to regenerate cover: ${error.message || "Unknown error"}.`, variant: "destructive" });
+      console.error("Error regenerating cover image:", error);
+      toast({ title: "AI Cover Error", description: `An error occurred: ${error.message || "Unknown error"}.`, variant: "destructive" });
     } finally {
-        setIsGeneratingCover(false);
+      setIsGeneratingCover(false);
+    }
+  };
+
+  const handleCategoryChange = (newCategory: string) => {
+    form.setValue('category', newCategory, { shouldDirty: true, shouldValidate: true });
+    
+    if (form.getValues('title')) {
+        handleRegenerateCover(newCategory);
     }
   };
 
@@ -664,6 +674,16 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
                     >
                       <FileText className="mr-2 h-4 w-4" />
                       Use 1st Page
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleRegenerateCover} 
+                      disabled={isProcessingPdf || isGeneratingCover || !form.watch('title')}
+                    >
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      Regenerate AI Cover
                     </Button>
                   </div>
               </div>
