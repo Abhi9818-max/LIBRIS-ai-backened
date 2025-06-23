@@ -286,6 +286,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                           scale={scale}
                           renderTextLayer={true}
                           onRenderError={onPageRenderError}
+                          onRenderTextLayerError={onPageRenderError}
                           className="transition-opacity duration-300"
                        />
                      </Document>
