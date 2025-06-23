@@ -269,7 +269,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
         <DialogContent className={cn(
           "flex flex-col p-0 transition-all duration-300 ease-in-out",
           activeTab === 'read' 
-            ? "w-screen h-screen max-w-full max-h-screen rounded-none border-0" 
+            ? "w-screen h-svh max-w-full max-h-svh rounded-none border-0" 
             : "sm:max-w-4xl lg:max-w-6xl h-[95vh]"
         )}>
           {activeTab === 'details' ? (
@@ -453,23 +453,21 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                               className="transition-opacity duration-300"
                           />
                         </Document>
-                         {!isPdfLoading && (
-                            <div className="absolute inset-0 pointer-events-none">
-                                {book.highlights
-                                    ?.filter((h) => h.pageNumber === pageNumber)
-                                    .map((highlight) => (
-                                    <div
-                                        key={highlight.id}
-                                        className="absolute inset-0"
-                                        style={{
-                                        ...(HIGHLIGHT_COLOR_STYLES[highlight.color] ||
-                                            HIGHLIGHT_COLOR_STYLES.yellow),
-                                        clipPath: `path('${rectsToSvgPath(highlight.rects, scale)}')`,
-                                        }}
-                                    />
-                                    ))}
-                            </div>
-                        )}
+                         <div className="absolute inset-0 pointer-events-none">
+                            {book.highlights
+                                ?.filter((h) => h.pageNumber === pageNumber)
+                                .map((highlight) => (
+                                <div
+                                    key={highlight.id}
+                                    className="absolute inset-0"
+                                    style={{
+                                    ...(HIGHLIGHT_COLOR_STYLES[highlight.color] ||
+                                        HIGHLIGHT_COLOR_STYLES.yellow),
+                                    clipPath: `path('${rectsToSvgPath(highlight.rects, scale)}')`,
+                                    }}
+                                />
+                                ))}
+                        </div>
                       </div>
                     </div>
                     {selectionPopover && (
@@ -496,28 +494,25 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                         </div>
                     )}
                 </div>
-                <div className="p-2 border-t flex items-center justify-between shrink-0 bg-background">
-                    <div className="flex items-center justify-start w-1/3 space-x-1">
-                      <Button variant="outline" size="sm" onClick={() => setActiveTab('details')} title="Back to Details">
-                          <BookText className="mr-2 h-4 w-4" />
-                          <span className="hidden sm:inline">Details</span>
-                      </Button>
-                      <Button variant="outline" size="icon" onClick={handleZoomIn} title="Zoom In"><ZoomIn className="h-4 w-4" /></Button>
-                      <Button variant="outline" size="icon" onClick={handleZoomOut} title="Zoom Out"><ZoomOut className="h-4 w-4" /></Button>
-                      <Button variant="outline" size="icon" onClick={handleFitToWidth} title="Fit to Width"><Maximize2 className="h-4 w-4" /></Button>
-                      <Button variant="outline" size="icon" onClick={handleFitToPage} title="Fit to Page"><Minimize2 className="h-4 w-4" /></Button>
-                    </div>
-                    <div className="flex items-center justify-center space-x-2 w-1/3">
+                <div className="p-3 border-t flex flex-wrap items-center justify-center gap-x-4 gap-y-3 shrink-0 bg-background">
+                    <div className="flex items-center justify-center space-x-2">
                         <Button variant="outline" size="icon" onClick={handlePreviousPage} disabled={pageNumber <= 1}><ChevronLeft className="h-4 w-4" /></Button>
                         <span className="text-sm font-medium text-muted-foreground tabular-nums whitespace-nowrap">
                             Page {pageNumber} of {numPages || '...'}
                         </span>
                         <Button variant="outline" size="icon" onClick={handleNextPage} disabled={!numPages || pageNumber >= numPages}><ChevronRight className="h-4 w-4" /></Button>
                     </div>
-                    <div className="flex items-center justify-end w-1/3">
-                        <Button onClick={handleSyncProgress} size="sm">
-                          <RefreshCw className="mr-2 h-4 w-4" />
-                          <span className="hidden sm:inline">Sync Progress</span>
+
+                    <div className="flex items-center justify-center space-x-2">
+                        <Button variant="outline" size="icon" onClick={() => setActiveTab('details')} title="Back to Details">
+                            <BookText className="h-4 w-4" />
+                        </Button>
+                        <Button variant="outline" size="icon" onClick={handleZoomIn} title="Zoom In"><ZoomIn className="h-4 w-4" /></Button>
+                        <Button variant="outline" size="icon" onClick={handleZoomOut} title="Zoom Out"><ZoomOut className="h-4 w-4" /></Button>
+                        <Button variant="outline" size="icon" className="hidden sm:inline-flex" onClick={handleFitToWidth} title="Fit to Width"><Maximize2 className="h-4 w-4" /></Button>
+                        <Button variant="outline" size="icon" className="hidden sm:inline-flex" onClick={handleFitToPage} title="Fit to Page"><Minimize2 className="h-4 w-4" /></Button>
+                        <Button onClick={handleSyncProgress} size="icon" title="Sync Progress">
+                            <RefreshCw className="h-4 w-4" />
                         </Button>
                     </div>
                 </div>
