@@ -344,7 +344,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                                 cy="18"
                                 r="15.9155"
                                 fill="none"
-                                stroke="hsl(var(--chart-4))"
+                                stroke="hsl(var(--accent))"
                                 strokeWidth="2"
                                 strokeDasharray={isComplete ? undefined : `${percentageRead}, 100`}
                                 strokeLinecap="round"
