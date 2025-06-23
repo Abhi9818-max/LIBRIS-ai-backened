@@ -13,7 +13,7 @@ import {z} from 'genkit';
 const GenerateBookCoverInputSchema = z.object({
   title: z.string().describe('The title of the book.'),
   summary: z.string().describe('A brief summary of the book.'),
-  category: z.string().optional().describe('The category of the book (e.g., Novel, Manga, Fantasy).'),
+  category: z.string().optional().default('Novel').describe('The category of the book (e.g., Novel, Manga, Fantasy).'),
 });
 export type GenerateBookCoverInput = z.infer<typeof GenerateBookCoverInputSchema>;
 
@@ -35,7 +35,7 @@ const generateBookCoverFlow = ai.defineFlow(
   async (input) => {
     try {
       let stylePrompt = "An artistic and abstract book cover. The style should be suitable for a book cover, perhaps minimalist. Focus on the title to inspire the visual theme. Avoid adding any text to the image itself.";
-      switch (input.category?.toLowerCase()) {
+      switch (input.category.toLowerCase()) {
           case 'novel':
               stylePrompt = "A book cover for a novel, with a photorealistic or painterly style. It should feature thematic elements based on the summary, with dramatic lighting. The title of the book should be considered for the main visual theme, but do not write the title on the cover.";
               break;
