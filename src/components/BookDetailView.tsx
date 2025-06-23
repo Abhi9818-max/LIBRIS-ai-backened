@@ -9,12 +9,13 @@ import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2, BookText, Highlighter } from "lucide-react";
+import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2, BookText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 
@@ -22,6 +23,14 @@ import { cn } from "@/lib/utils";
 if (typeof window !== 'undefined') {
   pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 }
+
+const HIGHLIGHT_COLOR_STYLES: Record<string, React.CSSProperties> = {
+  yellow: { backgroundColor: 'rgba(255, 255, 0, 0.4)' },
+  blue: { backgroundColor: 'rgba(173, 216, 230, 0.4)' },
+  green: { backgroundColor: 'rgba(144, 238, 144, 0.4)' },
+  pink: { backgroundColor: 'rgba(255, 192, 203, 0.4)' },
+};
+const HIGHLIGHT_COLOR_KEYS = Object.keys(HIGHLIGHT_COLOR_STYLES);
 
 interface BookDetailViewProps {
   book: Book | null;
@@ -43,6 +52,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const [scale, setScale] = useState(1.0);
   const [progressColor, setProgressColor] = useState<string>('hsl(var(--primary))');
   const [selectionPopover, setSelectionPopover] = useState<{ top: number; left: number; } | null>(null);
+  const [deletingHighlight, setDeletingHighlight] = useState<Highlight | null>(null);
 
   const pdfContainerRef = useRef<HTMLDivElement>(null);
   const pdfWrapperRef = useRef<HTMLDivElement>(null);
@@ -56,6 +66,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
       setIsPdfLoading(true);
       setScale(1.0);
       setSelectionPopover(null);
+      setDeletingHighlight(null);
       
       const randomHue = Math.floor(Math.random() * 360);
       const randomSaturation = Math.floor(Math.random() * 30) + 70;
@@ -175,7 +186,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     }
   };
 
-  const handleHighlightClick = () => {
+  const handleHighlightClick = (color: string) => {
     if (!book) return;
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed) return;
@@ -191,6 +202,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
         id: `highlight-${Date.now()}`,
         pageNumber: pageNumber,
         text: selection.toString(),
+        color: color,
         rects: clientRects.map((rect): HighlightRect => ({
             x: (rect.left - pageRect.left) / scale,
             y: (rect.top - pageRect.top) / scale,
@@ -212,6 +224,17 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     setSelectionPopover(null);
     window.getSelection()?.removeAllRanges();
   };
+  
+  const handleDeleteHighlight = () => {
+    if (!book || !deletingHighlight) return;
+
+    const updatedHighlights = book.highlights?.filter(h => h.id !== deletingHighlight.id) ?? [];
+    const updatedBook = { ...book, highlights: updatedHighlights };
+    
+    onUpdateBook(updatedBook);
+    toast({ title: "Highlight Removed" });
+    setDeletingHighlight(null);
+  };
 
   if (!isOpen || !book) {
     return null;
@@ -226,223 +249,257 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const isComplete = percentageRead >= 100;
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleDialogClose}>
-      <DialogContent className={cn(
-        "flex flex-col p-0 transition-all duration-300 ease-in-out",
-        activeTab === 'read' 
-          ? "w-screen h-screen max-w-full max-h-screen rounded-none border-0" 
-          : "sm:max-w-4xl lg:max-w-6xl h-[95vh]"
-      )}>
-        {activeTab === 'details' ? (
-            <DialogHeader className="p-4 sm:p-6 pb-2 border-b shrink-0">
-            <DialogTitle className="font-headline text-xl sm:text-2xl truncate pr-10">{book.title || "Untitled Book"}</DialogTitle>
-            <DialogDescription className="text-sm sm:text-md">
-                By: {book.author || "Unknown Author"}
-            </DialogDescription>
+    <>
+      <Dialog open={isOpen} onOpenChange={handleDialogClose}>
+        <DialogContent className={cn(
+          "flex flex-col p-0 transition-all duration-300 ease-in-out",
+          activeTab === 'read' 
+            ? "w-screen h-screen max-w-full max-h-screen rounded-none border-0" 
+            : "sm:max-w-4xl lg:max-w-6xl h-[95vh]"
+        )}>
+          {activeTab === 'details' ? (
+              <DialogHeader className="p-4 sm:p-6 pb-2 border-b shrink-0">
+              <DialogTitle className="font-headline text-xl sm:text-2xl truncate pr-10">{book.title || "Untitled Book"}</DialogTitle>
+              <DialogDescription className="text-sm sm:text-md">
+                  By: {book.author || "Unknown Author"}
+              </DialogDescription>
+              </DialogHeader>
+          ) : (
+            <DialogHeader className="sr-only">
+              <DialogTitle>Reading: {book.title || "Untitled Book"}</DialogTitle>
+              <DialogDescription>PDF reader view for {book.title || "Untitled Book"} by {book.author || "Unknown Author"}.</DialogDescription>
             </DialogHeader>
-        ) : (
-          <DialogHeader className="sr-only">
-            <DialogTitle>Reading: {book.title || "Untitled Book"}</DialogTitle>
-            <DialogDescription>PDF reader view for {book.title || "Untitled Book"} by {book.author || "Unknown Author"}.</DialogDescription>
-          </DialogHeader>
-        )}
+          )}
 
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'details' | 'read')} className="flex-grow flex flex-col overflow-hidden">
-            {activeTab === 'details' && (
-                <TabsList className="mx-auto w-fit mt-2 px-4 shrink-0">
-                    <TabsTrigger value="details">Details</TabsTrigger>
-                    <TabsTrigger value="read" disabled={!hasValidPdf}>Read</TabsTrigger>
-                </TabsList>
-            )}
-          
-          <TabsContent value="details" className="flex-grow overflow-y-auto p-4 md:p-6 data-[state=inactive]:hidden">
-            <div className="grid md:grid-cols-3 gap-6 md:gap-8">
-              <div className="md:col-span-1 flex flex-col items-center">
-                <div className="aspect-[2/3] w-full max-w-[200px] relative rounded-md overflow-hidden shadow-lg">
-                  <Image
-                    src={book.coverImageUrl || "https://placehold.co/200x300.png"}
-                    alt={`Cover of ${book.title}`}
-                    layout="fill"
-                    objectFit="cover"
-                    data-ai-hint="book cover"
-                  />
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'details' | 'read')} className="flex-grow flex flex-col overflow-hidden">
+              {activeTab === 'details' && (
+                  <TabsList className="mx-auto w-fit mt-2 px-4 shrink-0">
+                      <TabsTrigger value="details">Details</TabsTrigger>
+                      <TabsTrigger value="read" disabled={!hasValidPdf}>Read</TabsTrigger>
+                  </TabsList>
+              )}
+            
+            <TabsContent value="details" className="flex-grow overflow-y-auto p-4 md:p-6 data-[state=inactive]:hidden">
+              <div className="grid md:grid-cols-3 gap-6 md:gap-8">
+                <div className="md:col-span-1 flex flex-col items-center">
+                  <div className="aspect-[2/3] w-full max-w-[200px] relative rounded-md overflow-hidden shadow-lg">
+                    <Image
+                      src={book.coverImageUrl || "https://placehold.co/200x300.png"}
+                      alt={`Cover of ${book.title}`}
+                      layout="fill"
+                      objectFit="cover"
+                      data-ai-hint="book cover"
+                    />
+                  </div>
+                  <div className="flex space-x-2 mt-4">
+                    <Button onClick={handleEditClick} size="sm"><Pencil className="mr-2 h-4 w-4" /> Edit</Button>
+                    <Button variant="outline" onClick={handleRemoveClick} size="sm"><Trash2 className="mr-2 h-4 w-4" /> Remove</Button>
+                  </div>
                 </div>
-                <div className="flex space-x-2 mt-4">
-                  <Button onClick={handleEditClick} size="sm"><Pencil className="mr-2 h-4 w-4" /> Edit</Button>
-                  <Button variant="outline" onClick={handleRemoveClick} size="sm"><Trash2 className="mr-2 h-4 w-4" /> Remove</Button>
-                </div>
-              </div>
-              <div className="md:col-span-2 space-y-4">
-                <div className="space-y-1">
-                  <h3 className="font-headline text-lg text-foreground">Summary</h3>
-                  <ScrollArea className="h-48 border rounded-md p-3">
-                    <p className="text-sm text-muted-foreground">{book.summary || "No summary available."}</p>
-                  </ScrollArea>
-                </div>
-                 <div className="space-y-2">
-                    <h3 className="font-headline text-lg text-foreground">Information</h3>
-                    <div className="flex flex-wrap gap-2">
-                       {book.category && <Badge variant="secondary">Category: {book.category}</Badge>}
-                       {book.totalPages && <Badge variant="secondary">Pages: {book.totalPages}</Badge>}
-                    </div>
-                 </div>
-                 <div className="space-y-2">
-                    <h3 className="font-headline text-lg text-foreground">Reading Progress</h3>
-                    {book.totalPages && book.totalPages > 0 ? (
-                      <div className="flex items-center space-x-4 pt-2">
-                        <div className="relative h-20 w-20 flex-shrink-0">
-                          <svg className="h-full w-full" viewBox="0 0 36 36">
-                            <circle
-                              cx="18"
-                              cy="18"
-                              r="15.9155"
-                              fill="none"
-                              className="stroke-current text-muted/20"
-                              strokeWidth="2"
-                            />
-                            <circle
-                              cx="18"
-                              cy="18"
-                              r="15.9155"
-                              fill="none"
-                              stroke={progressColor}
-                              strokeWidth="2"
-                              strokeDasharray={isComplete ? undefined : `${percentageRead}, 100`}
-                              strokeLinecap="round"
-                              className="origin-center -rotate-90 transition-all duration-300 ease-in-out"
-                            />
-                          </svg>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-xl font-semibold text-foreground">
-                              {isComplete ? '100' : percentageRead}<span className="text-xs">%</span>
-                            </span>
+                <div className="md:col-span-2 space-y-4">
+                  <div className="space-y-1">
+                    <h3 className="font-headline text-lg text-foreground">Summary</h3>
+                    <ScrollArea className="h-48 border rounded-md p-3">
+                      <p className="text-sm text-muted-foreground">{book.summary || "No summary available."}</p>
+                    </ScrollArea>
+                  </div>
+                  <div className="space-y-2">
+                      <h3 className="font-headline text-lg text-foreground">Information</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {book.category && <Badge variant="secondary">Category: {book.category}</Badge>}
+                        {book.totalPages && <Badge variant="secondary">Pages: {book.totalPages}</Badge>}
+                      </div>
+                  </div>
+                  <div className="space-y-2">
+                      <h3 className="font-headline text-lg text-foreground">Reading Progress</h3>
+                      {book.totalPages && book.totalPages > 0 ? (
+                        <div className="flex items-center space-x-4 pt-2">
+                          <div className="relative h-20 w-20 flex-shrink-0">
+                            <svg className="h-full w-full" viewBox="0 0 36 36">
+                              <circle
+                                cx="18"
+                                cy="18"
+                                r="15.9155"
+                                fill="none"
+                                className="stroke-current text-muted/20"
+                                strokeWidth="2"
+                              />
+                              <circle
+                                cx="18"
+                                cy="18"
+                                r="15.9155"
+                                fill="none"
+                                stroke={progressColor}
+                                strokeWidth="2"
+                                strokeDasharray={isComplete ? undefined : `${percentageRead}, 100`}
+                                strokeLinecap="round"
+                                className="origin-center -rotate-90 transition-all duration-300 ease-in-out"
+                              />
+                            </svg>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <span className="text-xl font-semibold text-foreground">
+                                {isComplete ? '100' : percentageRead}<span className="text-xs">%</span>
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex flex-col">
+                            <p className="text-lg font-medium text-foreground">
+                              {isComplete ? "Completed!" : "In Progress"}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              You are on page {book.currentPage || 'N/A'} of {book.totalPages}.
+                            </p>
                           </div>
                         </div>
-                        <div className="flex flex-col">
-                          <p className="text-lg font-medium text-foreground">
-                            {isComplete ? "Completed!" : "In Progress"}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            You are on page {book.currentPage || 'N/A'} of {book.totalPages}.
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground pt-2">No progress tracked for this book.</p>
-                    )}
-                 </div>
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="read" className="flex-grow flex flex-col overflow-hidden data-[state=inactive]:hidden">
-             {hasValidPdf ? (
-             <div className="flex-grow flex flex-col overflow-hidden">
-              <div className="flex-grow bg-muted/40 overflow-auto relative" ref={pdfContainerRef} onMouseUp={handleMouseUp}>
-                  <div 
-                      className="flex justify-center transition-transform duration-200 ease-in-out"
-                      ref={pdfWrapperRef}
-                  >
-                      {isPdfLoading && (
-                        <div className="flex flex-col items-center justify-center h-full w-full absolute inset-0">
-                          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                          <p className="mt-4 text-muted-foreground">Loading PDF...</p>
-                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground pt-2">No progress tracked for this book.</p>
                       )}
-                     <div className="relative">
-                       <Document
-                         file={book.pdfDataUri}
-                         onLoadSuccess={onDocumentLoadSuccess}
-                         onLoadError={onDocumentLoadError}
-                         loading="" 
-                         className={isPdfLoading ? 'hidden' : ''}
-                       >
-                         <Page 
-                            key={`${book.id}-${pageNumber}`}
-                            pageNumber={pageNumber} 
-                            scale={scale}
-                            renderTextLayer={true}
-                            onRenderError={onPageRenderError}
-                            onRenderTextLayerError={onPageRenderError}
-                            className="transition-opacity duration-300"
-                         />
-                       </Document>
-                        {!isPdfLoading && (
-                            <div className="absolute inset-0 pointer-events-none">
-                                {book.highlights
-                                    ?.filter(h => h.pageNumber === pageNumber)
-                                    .map(highlight =>
-                                    highlight.rects.map((rect, index) => (
-                                        <div
-                                        key={`${highlight.id}-${index}`}
-                                        className="absolute bg-yellow-400/50 rounded-sm"
-                                        style={{
-                                            left: `${rect.x * scale}px`,
-                                            top: `${rect.y * scale}px`,
-                                            width: `${rect.width * scale}px`,
-                                            height: `${rect.height * scale}px`,
-                                        }}
-                                        />
-                                    ))
-                                )}
-                            </div>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="read" className="flex-grow flex flex-col overflow-hidden data-[state=inactive]:hidden">
+              {hasValidPdf ? (
+              <div className="flex-grow flex flex-col overflow-hidden">
+                <div className="flex-grow bg-muted/40 overflow-auto relative" ref={pdfContainerRef} onMouseUp={handleMouseUp}>
+                    <div 
+                        className="flex justify-center transition-transform duration-200 ease-in-out"
+                        ref={pdfWrapperRef}
+                    >
+                        {isPdfLoading && (
+                          <div className="flex flex-col items-center justify-center h-full w-full absolute inset-0">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                            <p className="mt-4 text-muted-foreground">Loading PDF...</p>
+                          </div>
                         )}
-                     </div>
-                  </div>
-                  {selectionPopover && (
-                      <div 
-                      className="absolute z-10 p-1 bg-background border rounded-md shadow-lg"
-                      style={{
-                          top: `${selectionPopover.top}px`,
-                          left: `${selectionPopover.left}px`,
-                          transform: 'translateX(-50%)',
-                      }}
-                      >
-                      <Button size="sm" onClick={handleHighlightClick} variant="outline" className="bg-background">
-                          <Highlighter className="mr-2 h-4 w-4" />
-                          Highlight
-                      </Button>
+                      <div className="relative">
+                        <Document
+                          file={book.pdfDataUri}
+                          onLoadSuccess={onDocumentLoadSuccess}
+                          onLoadError={onDocumentLoadError}
+                          loading="" 
+                          className={isPdfLoading ? 'hidden' : ''}
+                        >
+                          <Page 
+                              key={`${book.id}-${pageNumber}`}
+                              pageNumber={pageNumber} 
+                              scale={scale}
+                              renderTextLayer={true}
+                              onRenderError={onPageRenderError}
+                              onRenderTextLayerError={onPageRenderError}
+                              className="transition-opacity duration-300"
+                          />
+                        </Document>
+                          {!isPdfLoading && (
+                              <div className="absolute inset-0 pointer-events-none">
+                                  {book.highlights
+                                      ?.filter(h => h.pageNumber === pageNumber)
+                                      .map(highlight =>
+                                      highlight.rects.map((rect, index) => (
+                                          <button
+                                            key={`${highlight.id}-${index}`}
+                                            onClick={(e) => { e.stopPropagation(); setDeletingHighlight(highlight);}}
+                                            className="absolute cursor-pointer pointer-events-auto hover:ring-2 hover:ring-destructive rounded-sm"
+                                            style={{
+                                                left: `${rect.x * scale}px`,
+                                                top: `${rect.y * scale}px`,
+                                                width: `${rect.width * scale}px`,
+                                                height: `${rect.height * scale}px`,
+                                                ...(HIGHLIGHT_COLOR_STYLES[highlight.color] || HIGHLIGHT_COLOR_STYLES.yellow)
+                                            }}
+                                          />
+                                      ))
+                                  )}
+                              </div>
+                          )}
                       </div>
-                  )}
-              </div>
-              <div className="p-2 border-t flex items-center justify-between shrink-0 bg-background">
-                  <div className="flex items-center justify-start w-1/3 space-x-1">
-                    <Button variant="outline" size="sm" onClick={() => setActiveTab('details')} title="Back to Details">
-                        <BookText className="mr-2 h-4 w-4" />
-                        <span className="hidden sm:inline">Details</span>
-                    </Button>
-                    <Button variant="outline" size="icon" onClick={handleZoomIn} title="Zoom In"><ZoomIn className="h-4 w-4" /></Button>
-                    <Button variant="outline" size="icon" onClick={handleZoomOut} title="Zoom Out"><ZoomOut className="h-4 w-4" /></Button>
-                    <Button variant="outline" size="icon" onClick={handleFitToWidth} title="Fit to Width"><Maximize2 className="h-4 w-4" /></Button>
-                    <Button variant="outline" size="icon" onClick={handleFitToPage} title="Fit to Page"><Minimize2 className="h-4 w-4" /></Button>
-                  </div>
-                  <div className="flex items-center justify-center space-x-2 w-1/3">
-                      <Button variant="outline" size="icon" onClick={handlePreviousPage} disabled={pageNumber <= 1}><ChevronLeft className="h-4 w-4" /></Button>
-                      <span className="text-sm font-medium text-muted-foreground tabular-nums whitespace-nowrap">
-                          Page {pageNumber} of {numPages || '...'}
-                      </span>
-                      <Button variant="outline" size="icon" onClick={handleNextPage} disabled={!numPages || pageNumber >= numPages}><ChevronRight className="h-4 w-4" /></Button>
-                  </div>
-                  <div className="flex items-center justify-end w-1/3">
-                      <Button onClick={handleSyncProgress} size="sm">
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        <span className="hidden sm:inline">Sync Progress</span>
+                    </div>
+                    {selectionPopover && (
+                        <div 
+                        className="absolute z-10 p-1 bg-background border rounded-md shadow-lg"
+                        style={{
+                            top: `${selectionPopover.top}px`,
+                            left: `${selectionPopover.left}px`,
+                            transform: 'translateX(-50%)',
+                        }}
+                        >
+                        <div className="flex items-center gap-2">
+                           {HIGHLIGHT_COLOR_KEYS.map((color) => (
+                              <button
+                                key={color}
+                                title={`Highlight ${color}`}
+                                aria-label={`Highlight ${color}`}
+                                onClick={() => handleHighlightClick(color)}
+                                className="w-6 h-6 rounded-full border border-muted-foreground/50"
+                                style={HIGHLIGHT_COLOR_STYLES[color]}
+                              />
+                            ))}
+                        </div>
+                        </div>
+                    )}
+                </div>
+                <div className="p-2 border-t flex items-center justify-between shrink-0 bg-background">
+                    <div className="flex items-center justify-start w-1/3 space-x-1">
+                      <Button variant="outline" size="sm" onClick={() => setActiveTab('details')} title="Back to Details">
+                          <BookText className="mr-2 h-4 w-4" />
+                          <span className="hidden sm:inline">Details</span>
                       </Button>
-                  </div>
+                      <Button variant="outline" size="icon" onClick={handleZoomIn} title="Zoom In"><ZoomIn className="h-4 w-4" /></Button>
+                      <Button variant="outline" size="icon" onClick={handleZoomOut} title="Zoom Out"><ZoomOut className="h-4 w-4" /></Button>
+                      <Button variant="outline" size="icon" onClick={handleFitToWidth} title="Fit to Width"><Maximize2 className="h-4 w-4" /></Button>
+                      <Button variant="outline" size="icon" onClick={handleFitToPage} title="Fit to Page"><Minimize2 className="h-4 w-4" /></Button>
+                    </div>
+                    <div className="flex items-center justify-center space-x-2 w-1/3">
+                        <Button variant="outline" size="icon" onClick={handlePreviousPage} disabled={pageNumber <= 1}><ChevronLeft className="h-4 w-4" /></Button>
+                        <span className="text-sm font-medium text-muted-foreground tabular-nums whitespace-nowrap">
+                            Page {pageNumber} of {numPages || '...'}
+                        </span>
+                        <Button variant="outline" size="icon" onClick={handleNextPage} disabled={!numPages || pageNumber >= numPages}><ChevronRight className="h-4 w-4" /></Button>
+                    </div>
+                    <div className="flex items-center justify-end w-1/3">
+                        <Button onClick={handleSyncProgress} size="sm">
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          <span className="hidden sm:inline">Sync Progress</span>
+                        </Button>
+                    </div>
+                </div>
               </div>
-            </div>
-           ) : (
-             <div className="flex flex-col items-center justify-center h-full">
-                <p className="text-muted-foreground">No PDF available for this book.</p>
-                 <Button variant="outline" size="sm" onClick={() => setActiveTab('details')} className="mt-4">
-                    <BookText className="mr-2 h-4 w-4" />
-                    Back to Details
-                </Button>
-             </div>
-           )}
-          </TabsContent>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full">
+                  <p className="text-muted-foreground">No PDF available for this book.</p>
+                  <Button variant="outline" size="sm" onClick={() => setActiveTab('details')} className="mt-4">
+                      <BookText className="mr-2 h-4 w-4" />
+                      Back to Details
+                  </Button>
+              </div>
+            )}
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+      <AlertDialog open={!!deletingHighlight} onOpenChange={(open) => !open && setDeletingHighlight(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Highlight?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the highlight. Are you sure?
+              <blockquote className="mt-4 p-2 border-l-4 bg-muted text-muted-foreground italic text-sm">
+                {deletingHighlight?.text}
+              </blockquote>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteHighlight} 
+              className={buttonVariants({ variant: "destructive" })}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

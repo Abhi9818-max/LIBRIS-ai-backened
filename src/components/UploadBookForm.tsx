@@ -426,6 +426,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       pdfDataUri: finalPdfDataUri,
       totalPages: data.totalPages,
       currentPage: (isEditing && bookToEdit?.currentPage) ? bookToEdit.currentPage : (data.totalPages ? 1 : undefined),
+      highlights: (isEditing && bookToEdit?.highlights) ? bookToEdit.highlights : [],
     };
 
     onSaveBook(savedBook, isEditing);

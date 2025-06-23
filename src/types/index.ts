@@ -10,6 +10,7 @@ export interface Highlight {
   pageNumber: number;
   rects: HighlightRect[];
   text: string;
+  color: string;
 }
 
 export interface Book {
