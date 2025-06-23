@@ -67,8 +67,15 @@ const extractBookMetadataFlow = ai.defineFlow(
   async (input): Promise<ExtractBookMetadataOutput> => {
     try {
       const {output} = await prompt(input);
+      // Manually verify and construct the output to guarantee a valid object.
+      // This prevents crashes if the AI returns a partial or incomplete response.
       if (output) {
-        return output;
+        return {
+          title: output.title || '',
+          author: output.author || '',
+          summary: output.summary || '',
+          category: output.category || 'Novel', // Guarantee a category is always present.
+        };
       } else {
         console.warn('AI model did not return output for metadata extraction. Returning default values.');
         return defaultMetadata;
