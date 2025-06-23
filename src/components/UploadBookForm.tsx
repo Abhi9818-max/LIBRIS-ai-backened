@@ -190,32 +190,41 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
 
         if (textContent.trim().length > 0) {
             const metadata = await extractBookMetadata({ textContent });
-            form.setValue("title", metadata.title || form.getValues("title"));
-            form.setValue("author", metadata.author || form.getValues("author"));
-            form.setValue("summary", metadata.summary || form.getValues("summary"));
-            toast({ title: "Metadata Extracted", description: "Review and edit the details below." });
-    
-            if (!isEditing && !coverImageFile && metadata.title && metadata.summary) {
-              setIsGeneratingCover(true);
-              toast({ title: "AI Cover Generation", description: "Attempting to generate a cover image..." });
-              try {
-                const currentFormData = form.getValues();
-                const summaryForCover = metadata.summary.length >= 10 ? metadata.summary : `A book titled "${metadata.title}". If summary is short, use title.`;
-                const coverResult = await generateBookCover({ title: metadata.title, summary: summaryForCover, category: currentFormData.category });
-                if (coverResult.coverImageDataUri) {
-                  setCoverPreviewUrl(coverResult.coverImageDataUri);
-                  toast({ title: "AI Cover Generated!", description: "A cover image has been generated." });
-                } else {
-                  setCoverPreviewUrl(null);
-                  toast({ title: "AI Cover Failed", description: "Could not generate cover. A placeholder will be used, you can still add the book.", variant: "destructive" });
+            if (metadata && (metadata.title || metadata.author)) {
+                form.setValue("title", metadata.title || form.getValues("title"));
+                form.setValue("author", metadata.author || form.getValues("author"));
+                form.setValue("summary", metadata.summary || form.getValues("summary"));
+                form.setValue("category", metadata.category || form.getValues("category") || "Novel");
+                toast({ title: "AI Companion ✨", description: "I've analyzed the PDF and filled in the details. Please review." });
+        
+                if (!isEditing && !coverImageFile && metadata.title) {
+                  setIsGeneratingCover(true);
+                  toast({ title: "AI Cover Generation", description: "Attempting to generate a cover image..." });
+                  try {
+                    const currentFormData = form.getValues();
+                    const summaryForCover = metadata.summary && metadata.summary.length >= 10 ? metadata.summary : `A book titled "${metadata.title}".`;
+                    const coverResult = await generateBookCover({ title: metadata.title, summary: summaryForCover, category: currentFormData.category });
+                    if (coverResult.coverImageDataUri) {
+                      setCoverPreviewUrl(coverResult.coverImageDataUri);
+                      toast({ title: "AI Cover Generated!", description: "A cover image has been generated." });
+                    } else {
+                      setCoverPreviewUrl(null);
+                      toast({ title: "AI Cover Failed", description: "Could not generate cover. A placeholder will be used.", variant: "destructive" });
+                    }
+                  } catch (genError: any) {
+                    console.error("Error generating cover image:", genError);
+                    setCoverPreviewUrl(null);
+                    toast({ title: "AI Cover Error", description: `Cover generation failed: ${genError.message || "Unknown error"}. A placeholder will be used.`, variant: "destructive" });
+                  } finally {
+                    setIsGeneratingCover(false);
+                  }
                 }
-              } catch (genError: any) {
-                console.error("Error generating cover image:", genError);
-                setCoverPreviewUrl(null);
-                toast({ title: "AI Cover Error", description: `Cover generation failed: ${genError.message || "Unknown error"}. A placeholder will be used, you can still add the book.`, variant: "destructive" });
-              } finally {
-                setIsGeneratingCover(false);
-              }
+            } else {
+                toast({
+                    title: "AI Analysis Complete",
+                    description: "I couldn't find metadata in this PDF. Please fill in the details manually.",
+                    variant: "destructive"
+                });
             }
         } else {
              toast({
@@ -228,21 +237,11 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         console.error("Failed to extract metadata or generate cover:", aiError);
         toast({
           title: "AI Processing Error",
-          description: `AI processing failed: ${aiError.message || "Unknown error"}. Please fill in details manually. PDF is still attached if it was read successfully.`,
+          description: `AI processing failed: ${aiError.message || "Unknown error"}. Please fill in details manually.`,
           variant: "destructive",
         });
-         if (isEditing && !coverImageFile && bookToEdit?.coverImageUrl) {
-            setCoverPreviewUrl(bookToEdit.coverImageUrl); 
-        } else if (!currentPdfDataUri) { 
-            setCoverPreviewUrl(null);
-        }
       } finally {
         setIsProcessingPdf(false);
-         if (!isEditing && !coverImageFile && !isGeneratingCover && currentPdfDataUri) { 
-             if (!form.getValues("title") && !form.getValues("summary")) { 
-                setCoverPreviewUrl(null); 
-             }
-        }
       }
     } else { 
       if (!isEditing) { 
@@ -312,11 +311,11 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       setCoverImageFile(null);
       if (isEditing && bookToEdit) {
         setCoverPreviewUrl(bookToEdit.coverImageUrl); 
-      } else if (currentPdfDataUri && form.getValues("title") && form.getValues("summary")) { 
+      } else if (currentPdfDataUri && form.getValues("title")) { 
         setIsGeneratingCover(true);
         toast({ title: "AI Cover Generation", description: "Attempting to generate a cover image..." });
         const metadata = form.getValues();
-        const summaryForCover = metadata.summary.length >= 10 ? metadata.summary : `A book titled "${metadata.title}". If summary is short, use title.`;
+        const summaryForCover = metadata.summary.length >= 10 ? metadata.summary : `A book titled "${metadata.title}".`;
         generateBookCover({ title: metadata.title, summary: summaryForCover, category: metadata.category })
           .then(coverResult => {
             if (coverResult.coverImageDataUri) {
@@ -324,13 +323,13 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
               toast({ title: "AI Cover Generated!", description: "A cover image has been generated." });
             } else {
               setCoverPreviewUrl(null); 
-              toast({ title: "AI Cover Failed", description: "Could not generate cover. A placeholder will be used, you can still add the book.", variant: "destructive" });
+              toast({ title: "AI Cover Failed", description: "Could not generate cover. A placeholder will be used.", variant: "destructive" });
             }
           })
           .catch(genError => {
             console.error("Error generating cover image:", genError);
             setCoverPreviewUrl(null);
-            toast({ title: "AI Cover Error", description: "Cover generation failed. A placeholder will be used, you can still add the book.", variant: "destructive" });
+            toast({ title: "AI Cover Error", description: "Cover generation failed. A placeholder will be used.", variant: "destructive" });
           })
           .finally(() => setIsGeneratingCover(false));
       } else {
@@ -515,7 +514,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="font-headline">Category</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a category" />
