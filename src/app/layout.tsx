@@ -4,6 +4,7 @@ import { Inter, Alegreya } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider } from '@/context/AuthContext';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const alegreya = Alegreya({
@@ -31,8 +32,10 @@ export default function RootLayout({
       </head>
       <body className={`${inter.variable} ${alegreya.variable} font-body antialiased bg-background text-foreground`}>
         <ThemeProvider storageKey="libris-theme">
-          {children}
-          <Toaster />
+          <AuthProvider>
+            {children}
+            <Toaster />
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

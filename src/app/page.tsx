@@ -3,65 +3,64 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Fuse from "fuse.js";
 import type { Book } from "@/types";
 import BookCard from "@/components/BookCard";
 import UploadBookForm from "@/components/UploadBookForm";
 import BookDetailView from "@/components/BookDetailView";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, BookOpen, Sun, Moon, SearchX, Loader2, Search, ArrowLeft, MoreVertical } from "lucide-react";
-import { useTheme } from "@/components/theme-provider";
+import { PlusCircle, BookOpen, SearchX, Loader2, Search, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { initDB, getBooks, saveBook, deleteBook } from "@/lib/db";
 import { defaultBooks } from "@/lib/default-books";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { Separator } from "@/components/ui/separator";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { useAuth } from "@/context/AuthContext";
+import { UserNav } from "@/components/auth/UserNav";
 
 
 export default function HomePage() {
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+
   const [books, setBooks] = useState<Book[]>([]);
   const [isClient, setIsClient] = useState(false);
   const [isDbReady, setIsDbReady] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [editingBook, setEditingBook] = useState<Book | null>(null);
-  const { theme, setTheme } = useTheme();
   const { toast } = useToast();
 
   const [selectedBookForDetail, setSelectedBookForDetail] = useState<Book | null>(null);
   const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
   const [initialDetailTab, setInitialDetailTab] = useState<'details' | 'read'>('read');
-  const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [mobileSearchActive, setMobileSearchActive] = useState(false);
 
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/auth');
+    }
+  }, [user, authLoading, router]);
 
-  // Initialize DB on component mount
   useEffect(() => {
     setIsClient(true);
-    initDB().then(success => {
-      if (success) {
-        setIsDbReady(true);
-      } else {
-        toast({
-          title: "Database Error",
-          description: "Could not initialize the local database. Your books cannot be saved.",
-          variant: "destructive",
-        });
-      }
-    });
-  }, [toast]);
+    if (user) {
+      initDB().then(success => {
+        if (success) {
+          setIsDbReady(true);
+        } else {
+          toast({
+            title: "Database Error",
+            description: "Could not initialize the local database. Your books cannot be saved.",
+            variant: "destructive",
+          });
+        }
+      });
+    }
+  }, [toast, user]);
   
   const populateDefaultBooks = useCallback(async () => {
     try {
@@ -87,9 +86,8 @@ export default function HomePage() {
     }
   }, [toast]);
 
-  // Load books from IndexedDB when it's ready
   useEffect(() => {
-    if (isDbReady) {
+    if (isDbReady && user) {
       getBooks().then(storedBooks => {
         if (storedBooks.length === 0) {
           populateDefaultBooks();
@@ -105,7 +103,7 @@ export default function HomePage() {
         });
       });
     }
-  }, [isDbReady, toast, populateDefaultBooks]);
+  }, [isDbReady, user, toast, populateDefaultBooks]);
 
 
   const handleOpenUploadModal = (book: Book | null = null) => {
@@ -120,23 +118,9 @@ export default function HomePage() {
 
   const handleSaveBook = async (bookData: Book, isEditing: boolean) => {
     try {
-      const savedBookData = await saveBook(bookData);
-      setBooks((prevBooks) => {
-        if (isEditing) {
-          const updatedBooks = prevBooks.map((b) => (b.id === savedBookData.id ? savedBookData : b));
-          if (selectedBookForDetail && selectedBookForDetail.id === savedBookData.id) {
-            setSelectedBookForDetail(savedBookData); 
-          }
-          return updatedBooks;
-        }
-        // For new books, just refetch from DB to get the sorted list
-        getBooks().then(setBooks);
-        return prevBooks; // temporarily return old state
-      });
-      // A cleaner way to update for new book:
-       if (!isEditing) {
-          getBooks().then(setBooks);
-       }
+      await saveBook(bookData);
+      const allBooks = await getBooks();
+      setBooks(allBooks);
       handleCloseUploadModal();
     } catch (error) {
       console.error("Error saving book to DB:", error);
@@ -202,7 +186,7 @@ export default function HomePage() {
         variant: "destructive",
       });
     }
-  }, [books, selectedBookForDetail, toast]);
+  }, [selectedBookForDetail, toast]);
 
   const handleOpenDetailView = useCallback((book: Book, tab: 'details' | 'read' = 'read') => {
     setSelectedBookForDetail(book);
@@ -221,7 +205,7 @@ export default function HomePage() {
 
     const fuse = new Fuse(categoryFiltered, {
       keys: ['title', 'author'],
-      threshold: 0.4, // Adjust for strictness. 0 is exact, 1 is anything.
+      threshold: 0.4,
       ignoreLocation: true,
     });
 
@@ -229,22 +213,17 @@ export default function HomePage() {
   }, [books, searchQuery, selectedCategory]);
 
 
-  if (!isClient) {
+  if (!isClient || authLoading) {
     return (
       <div className="flex flex-col min-h-screen bg-background items-center justify-center">
-        <BookOpen className="h-16 w-16 text-primary animate-pulse" />
+        <Loader2 className="h-16 w-16 text-primary animate-spin" />
         <p className="text-xl font-headline text-primary mt-4">Loading Libris...</p>
       </div>
     );
   }
   
-  if (!isDbReady) {
-     return (
-      <div className="flex flex-col min-h-screen bg-background items-center justify-center">
-        <Loader2 className="h-16 w-16 text-primary animate-spin" />
-        <p className="text-xl font-headline text-primary mt-4">Preparing your library...</p>
-      </div>
-    );
+  if (!user) {
+    return null;
   }
 
   return (
@@ -294,109 +273,78 @@ export default function HomePage() {
                         <Search className="h-5 w-5"/>
                     </Button>
                     <Button 
-                    aria-label="Add new book" 
-                    onClick={() => handleOpenUploadModal()} 
-                    size="sm" 
-                    className="px-2 py-1 sm:px-3 sm:py-2 h-9 sm:h-10"
+                      aria-label="Add new book" 
+                      onClick={() => handleOpenUploadModal()} 
+                      size="sm" 
+                      className="px-2 py-1 sm:px-3 sm:py-2 h-9 sm:h-10"
                     >
-                    <PlusCircle className="h-5 w-5 sm:mr-2" />
-                    <span className="hidden sm:inline">Add Book</span>
+                      <PlusCircle className="h-5 w-5 sm:mr-2" />
+                      <span className="hidden sm:inline">Add Book</span>
                     </Button>
-                    <Sheet open={isSettingsSheetOpen} onOpenChange={setIsSettingsSheetOpen}>
-                      <SheetTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-9 w-9 sm:h-10 sm:w-10"
-                          aria-label="Open settings"
-                        >
-                          <MoreVertical className="h-[1.1rem] w-[1.1rem] sm:h-[1.2rem] sm:w-[1.2rem]" />
-                        </Button>
-                      </SheetTrigger>
-                      <SheetContent>
-                        <SheetHeader>
-                          <SheetTitle>Settings</SheetTitle>
-                        </SheetHeader>
-                        <div className="py-4">
-                           <Separator />
-                        </div>
-                        <div className="flex items-center justify-between">
-                           <Label htmlFor="dark-mode-toggle" className="font-normal">
-                              <div className="flex items-center gap-2">
-                                  {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-                                  <span>Dark Mode</span>
-                              </div>
-                           </Label>
-                           <Switch
-                              id="dark-mode-toggle"
-                              checked={theme === 'dark'}
-                              onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
-                           />
-                        </div>
-                      </SheetContent>
-                    </Sheet>
+                    <UserNav />
                 </div>
             </div>
         </div>
       </header>
 
       <main className="flex-grow container mx-auto p-4 md:p-8">
-        {books.length > 0 && (
-          <div className="flex justify-start mb-6">
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-1/2 sm:w-[220px]" aria-label="Filter by category">
-                <SelectValue placeholder="Filter by category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">All Categories</SelectItem>
-                <SelectItem value="Novel">Novel</SelectItem>
-                <SelectItem value="Fantasy">Fantasy</SelectItem>
-                <SelectItem value="Science Fiction">Science Fiction</SelectItem>
-                <SelectItem value="Mystery">Mystery</SelectItem>
-                <SelectItem value="Manga">Manga</SelectItem>
-                <SelectItem value="Non-Fiction">Non-Fiction</SelectItem>
-                <SelectItem value="Other">Other</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-
-        {books.length === 0 && !isDbReady ? (
-          <div className="flex flex-col items-center justify-center text-center h-[60vh]">
-            <Loader2 className="h-16 w-16 text-primary animate-spin" />
-            <p className="text-xl font-headline text-primary mt-4">Preparing your library...</p>
-          </div>
-        ) : books.length === 0 ? (
-          <div className="flex flex-col items-center justify-center text-center h-[60vh]">
-            <SearchX className="h-24 w-24 text-muted-foreground mb-6" />
-            <h2 className="text-2xl font-headline text-foreground mb-2">Your Shelf is Empty</h2>
-            <p className="text-muted-foreground mb-6">Click "Add Book" to start building your digital library.</p>
-            <Button 
-              aria-label="Add your first book" 
-              onClick={() => handleOpenUploadModal()}
-              size="sm"
-              className="px-3 py-2 sm:px-4"
-            >
-              <PlusCircle className="h-5 w-5 mr-2" /> Add Your First Book
-            </Button>
-          </div>
-        ) : filteredBooks.length === 0 ? (
-          <div className="flex flex-col items-center justify-center text-center h-[50vh]">
-            <SearchX className="h-24 w-24 text-muted-foreground mb-6" />
-            <h2 className="text-2xl font-headline text-foreground mb-2">No Matching Books Found</h2>
-            <p className="text-muted-foreground mb-6">Try adjusting your search or filter.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-            {filteredBooks.map((book) => (
-              <BookCard
-                key={book.id}
-                book={book}
-                onOpenDetailView={handleOpenDetailView}
-              />
-            ))}
-          </div>
-        )}
+        {!isDbReady ? (
+            <div className="flex flex-col items-center justify-center text-center h-[60vh]">
+              <Loader2 className="h-16 w-16 text-primary animate-spin" />
+              <p className="text-xl font-headline text-primary mt-4">Preparing your library...</p>
+            </div>
+          ) : books.length > 0 ? (
+            <>
+              <div className="flex justify-start mb-6">
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <SelectTrigger className="w-1/2 sm:w-[220px]" aria-label="Filter by category">
+                    <SelectValue placeholder="Filter by category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="All">All Categories</SelectItem>
+                    <SelectItem value="Novel">Novel</SelectItem>
+                    <SelectItem value="Fantasy">Fantasy</SelectItem>
+                    <SelectItem value="Science Fiction">Science Fiction</SelectItem>
+                    <SelectItem value="Mystery">Mystery</SelectItem>
+                    <SelectItem value="Manga">Manga</SelectItem>
+                    <SelectItem value="Non-Fiction">Non-Fiction</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {filteredBooks.length === 0 ? (
+                 <div className="flex flex-col items-center justify-center text-center h-[50vh]">
+                    <SearchX className="h-24 w-24 text-muted-foreground mb-6" />
+                    <h2 className="text-2xl font-headline text-foreground mb-2">No Matching Books Found</h2>
+                    <p className="text-muted-foreground mb-6">Try adjusting your search or filter.</p>
+                  </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
+                  {filteredBooks.map((book) => (
+                    <BookCard
+                      key={book.id}
+                      book={book}
+                      onOpenDetailView={handleOpenDetailView}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+             <div className="flex flex-col items-center justify-center text-center h-[60vh]">
+              <SearchX className="h-24 w-24 text-muted-foreground mb-6" />
+              <h2 className="text-2xl font-headline text-foreground mb-2">Your Shelf is Empty</h2>
+              <p className="text-muted-foreground mb-6">Click "Add Book" to start building your digital library.</p>
+              <Button 
+                aria-label="Add your first book" 
+                onClick={() => handleOpenUploadModal()}
+                size="sm"
+                className="px-3 py-2 sm:px-4"
+              >
+                <PlusCircle className="h-5 w-5 mr-2" /> Add Your First Book
+              </Button>
+            </div>
+          )}
       </main>
 
       {isUploadModalOpen && (
@@ -426,7 +374,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-    
-
-    
