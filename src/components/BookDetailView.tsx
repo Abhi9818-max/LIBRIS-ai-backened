@@ -350,7 +350,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                                 cy="18"
                                 r="15.9155"
                                 fill="none"
-                                stroke="hsl(var(--accent))"
+                                stroke="#0891b2"
                                 strokeWidth="2"
                                 strokeDasharray={isComplete ? undefined : `${percentageRead}, 100`}
                                 strokeLinecap="round"
@@ -540,11 +540,11 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Highlight?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently remove the highlight. Are you sure?
-            </AlertDialogDescription>
           </AlertDialogHeader>
-          <blockquote className="p-2 border-l-4 bg-muted text-muted-foreground italic text-sm">
+          <AlertDialogDescription>
+            This will permanently remove the highlight. Are you sure?
+          </AlertDialogDescription>
+          <blockquote className="mt-4 p-2 border-l-4 bg-muted text-muted-foreground italic text-sm">
             {deletingHighlight?.text}
           </blockquote>
           <AlertDialogFooter>

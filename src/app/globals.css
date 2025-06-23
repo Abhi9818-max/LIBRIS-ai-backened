@@ -51,32 +51,32 @@
   }
 
   .dark {
-    --background: 30 10% 12%; /* Dark brown */
+    --background: 0 0% 8%; /* Near Black */
     --foreground: 45 30% 90%; /* Pale gold text */
 
-    --card: 30 10% 15%;
+    --card: 0 0% 12%;
     --card-foreground: 45 30% 90%;
 
-    --popover: 30 10% 15%;
+    --popover: 0 0% 12%;
     --popover-foreground: 45 30% 90%;
 
     --primary: 46 65% 52%; /* Muted Gold, same as light */
     --primary-foreground: 46 100% 10%;
 
-    --secondary: 30 10% 25%; /* Darker secondary for dark mode */
+    --secondary: 0 0% 18%; /* Darker secondary for dark mode */
     --secondary-foreground: 45 30% 90%;
 
-    --muted: 30 10% 20%; /* Darker muted */
+    --muted: 0 0% 15%; /* Darker muted */
     --muted-foreground: 45 20% 65%;
 
     --accent: 38 69% 59%; /* Softer Gold, same as light */
-    --accent-foreground: 30 10% 12%; /* Dark background for contrast */
+    --accent-foreground: 0 0% 8%; /* Dark background for contrast */
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 30 10% 30%; /* Darker brown-gray border */
-    --input: 30 10% 25%; /* Dark input background */
+    --border: 0 0% 20%; /* Darker gray border */
+    --input: 0 0% 18%; /* Dark input background */
     --ring: 46 65% 52%; /* Primary gold for rings */
     
     --chart-1: 220 70% 50%;
