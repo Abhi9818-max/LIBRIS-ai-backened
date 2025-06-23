@@ -56,7 +56,8 @@ export default function HomePage() {
     try {
       const booksToSave = defaultBooks.map((book, index) => ({
         ...book,
-        id: `default-${Date.now()}-${index}`
+        id: `default-${Date.now()}-${index}`,
+        highlights: [],
       }));
       await Promise.all(booksToSave.map(book => saveBook(book)));
       const allBooks = await getBooks();
@@ -168,31 +169,27 @@ export default function HomePage() {
     setTimeout(() => handleOpenUploadModal(book), 150); 
   }, [handleCloseDetailView]);
 
-  const handleUpdateProgress = useCallback(async (bookId: string, currentPage: number) => {
-    const bookToUpdate = books.find(b => b.id === bookId);
-    if (bookToUpdate) {
-      const updatedBook = { ...bookToUpdate, currentPage };
-      try {
-        await saveBook(updatedBook);
-        setBooks(prevBooks =>
-          prevBooks.map(book => {
-            if (book.id === bookId) {
-              if (selectedBookForDetail && selectedBookForDetail.id === bookId) {
-                setSelectedBookForDetail(updatedBook); 
-              }
-              return updatedBook;
+  const handleUpdateBook = useCallback(async (updatedBook: Book) => {
+    try {
+      await saveBook(updatedBook);
+      setBooks(prevBooks =>
+        prevBooks.map(book => {
+          if (book.id === updatedBook.id) {
+            if (selectedBookForDetail && selectedBookForDetail.id === updatedBook.id) {
+              setSelectedBookForDetail(updatedBook); 
             }
-            return book;
-          })
-        );
-      } catch (error) {
-         console.error("Error updating progress in DB:", error);
-        toast({
-          title: "Sync Error",
-          description: "Could not save your reading progress.",
-          variant: "destructive",
-        });
-      }
+            return updatedBook;
+          }
+          return book;
+        })
+      );
+    } catch (error) {
+       console.error("Error updating book in DB:", error);
+      toast({
+        title: "Sync Error",
+        description: "Could not save your changes.",
+        variant: "destructive",
+      });
     }
   }, [books, selectedBookForDetail, toast]);
 
@@ -386,7 +383,7 @@ export default function HomePage() {
         onClose={handleCloseDetailView}
         onEditBook={handleEditBookInDetailView}
         onRemoveBook={handleRemoveBook}
-        onUpdateProgress={handleUpdateProgress}
+        onUpdateBook={handleUpdateBook}
         initialTab={initialDetailTab}
       />
 

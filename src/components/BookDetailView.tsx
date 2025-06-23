@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import type { Book } from "@/types";
+import type { Book, Highlight, HighlightRect } from "@/types";
 import Image from "next/image";
 import { Document, Page, pdfjs, type PDFDocumentProxy } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2, BookText } from "lucide-react";
+import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2, BookText, Highlighter } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 
@@ -29,11 +29,11 @@ interface BookDetailViewProps {
   onClose: () => void;
   onEditBook: (book: Book) => void;
   onRemoveBook: (id: string) => void;
-  onUpdateProgress: (bookId: string, currentPage: number) => void;
+  onUpdateBook: (book: Book) => void;
   initialTab?: 'details' | 'read';
 }
 
-export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRemoveBook, onUpdateProgress, initialTab = 'read' }: BookDetailViewProps) {
+export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRemoveBook, onUpdateBook, initialTab = 'read' }: BookDetailViewProps) {
   const { toast } = useToast();
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState<number>(1);
@@ -42,8 +42,10 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const [pdfPageDimensions, setPdfPageDimensions] = useState<{ width: number; height: number } | null>(null);
   const [scale, setScale] = useState(1.0);
   const [progressColor, setProgressColor] = useState<string>('hsl(var(--primary))');
+  const [selectionPopover, setSelectionPopover] = useState<{ top: number; left: number; } | null>(null);
 
   const pdfContainerRef = useRef<HTMLDivElement>(null);
+  const pdfWrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -53,6 +55,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
       setPdfPageDimensions(null);
       setIsPdfLoading(true);
       setScale(1.0);
+      setSelectionPopover(null);
       
       const randomHue = Math.floor(Math.random() * 360);
       const randomSaturation = Math.floor(Math.random() * 30) + 70;
@@ -109,7 +112,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   
   const handleSyncProgress = () => {
     if (book) {
-      onUpdateProgress(book.id, pageNumber);
+      onUpdateBook({ ...book, currentPage: pageNumber });
       toast({
         title: "Progress Synced!",
         description: `Your progress for "${book.title}" has been saved to page ${pageNumber}.`,
@@ -152,6 +155,62 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     if (!open) {
       onClose();
     }
+  };
+  
+  const handleMouseUp = () => {
+    const selection = window.getSelection();
+    if (selection && !selection.isCollapsed && selection.toString().trim() !== '') {
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        const containerRect = pdfContainerRef.current?.getBoundingClientRect();
+
+        if (containerRect) {
+            setSelectionPopover({
+                top: rect.bottom - containerRect.top + pdfContainerRef.current!.scrollTop + 8,
+                left: rect.left - containerRect.left + rect.width / 2 + pdfContainerRef.current!.scrollLeft,
+            });
+        }
+    } else {
+        setSelectionPopover(null);
+    }
+  };
+
+  const handleHighlightClick = () => {
+    if (!book) return;
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed) return;
+
+    const pageContainer = pdfWrapperRef.current?.querySelector('.react-pdf__Page');
+    if (!pageContainer) return;
+
+    const pageRect = pageContainer.getBoundingClientRect();
+    const range = selection.getRangeAt(0);
+    const clientRects = Array.from(range.getClientRects());
+    
+    const newHighlight: Highlight = {
+        id: `highlight-${Date.now()}`,
+        pageNumber: pageNumber,
+        text: selection.toString(),
+        rects: clientRects.map((rect): HighlightRect => ({
+            x: (rect.left - pageRect.left) / scale,
+            y: (rect.top - pageRect.top) / scale,
+            width: rect.width / scale,
+            height: rect.height / scale,
+        })).filter(r => r.width > 0 && r.height > 0),
+    };
+
+    if (newHighlight.rects.length === 0) {
+        toast({ title: "Highlight Error", description: "Could not create a highlight from this selection.", variant: "destructive" });
+        return;
+    }
+
+    const updatedHighlights = [...(book.highlights || []), newHighlight];
+    const updatedBook = { ...book, highlights: updatedHighlights };
+
+    onUpdateBook(updatedBook);
+    toast({ title: "Highlight Saved!" });
+    setSelectionPopover(null);
+    window.getSelection()?.removeAllRanges();
   };
 
   if (!isOpen || !book) {
@@ -279,32 +338,72 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
           <TabsContent value="read" className="flex-grow flex flex-col overflow-hidden data-[state=inactive]:hidden">
              {hasValidPdf ? (
              <div className="flex-grow flex flex-col overflow-hidden">
-              <div className="flex-grow bg-muted/40 overflow-auto" ref={pdfContainerRef}>
-                  <div className="flex justify-center transition-transform duration-200 ease-in-out">
+              <div className="flex-grow bg-muted/40 overflow-auto relative" ref={pdfContainerRef} onMouseUp={handleMouseUp}>
+                  <div 
+                      className="flex justify-center transition-transform duration-200 ease-in-out"
+                      ref={pdfWrapperRef}
+                  >
                       {isPdfLoading && (
                         <div className="flex flex-col items-center justify-center h-full w-full absolute inset-0">
                           <Loader2 className="h-8 w-8 animate-spin text-primary" />
                           <p className="mt-4 text-muted-foreground">Loading PDF...</p>
                         </div>
                       )}
-                     <Document
-                       file={book.pdfDataUri}
-                       onLoadSuccess={onDocumentLoadSuccess}
-                       onLoadError={onDocumentLoadError}
-                       loading="" 
-                       className={isPdfLoading ? 'hidden' : ''}
-                     >
-                       <Page 
-                          key={`${book.id}-${pageNumber}`}
-                          pageNumber={pageNumber} 
-                          scale={scale}
-                          renderTextLayer={true}
-                          onRenderError={onPageRenderError}
-                          onRenderTextLayerError={onPageRenderError}
-                          className="transition-opacity duration-300"
-                       />
-                     </Document>
+                     <div className="relative">
+                       <Document
+                         file={book.pdfDataUri}
+                         onLoadSuccess={onDocumentLoadSuccess}
+                         onLoadError={onDocumentLoadError}
+                         loading="" 
+                         className={isPdfLoading ? 'hidden' : ''}
+                       >
+                         <Page 
+                            key={`${book.id}-${pageNumber}`}
+                            pageNumber={pageNumber} 
+                            scale={scale}
+                            renderTextLayer={true}
+                            onRenderError={onPageRenderError}
+                            onRenderTextLayerError={onPageRenderError}
+                            className="transition-opacity duration-300"
+                         />
+                       </Document>
+                        {!isPdfLoading && (
+                            <div className="absolute inset-0 pointer-events-none">
+                                {book.highlights
+                                    ?.filter(h => h.pageNumber === pageNumber)
+                                    .map(highlight =>
+                                    highlight.rects.map((rect, index) => (
+                                        <div
+                                        key={`${highlight.id}-${index}`}
+                                        className="absolute bg-yellow-400/50 rounded-sm"
+                                        style={{
+                                            left: `${rect.x * scale}px`,
+                                            top: `${rect.y * scale}px`,
+                                            width: `${rect.width * scale}px`,
+                                            height: `${rect.height * scale}px`,
+                                        }}
+                                        />
+                                    ))
+                                )}
+                            </div>
+                        )}
+                     </div>
                   </div>
+                  {selectionPopover && (
+                      <div 
+                      className="absolute z-10 p-1 bg-background border rounded-md shadow-lg"
+                      style={{
+                          top: `${selectionPopover.top}px`,
+                          left: `${selectionPopover.left}px`,
+                          transform: 'translateX(-50%)',
+                      }}
+                      >
+                      <Button size="sm" onClick={handleHighlightClick} variant="outline" className="bg-background">
+                          <Highlighter className="mr-2 h-4 w-4" />
+                          Highlight
+                      </Button>
+                      </div>
+                  )}
               </div>
               <div className="p-2 border-t flex items-center justify-between shrink-0 bg-background">
                   <div className="flex items-center justify-start w-1/3 space-x-1">
