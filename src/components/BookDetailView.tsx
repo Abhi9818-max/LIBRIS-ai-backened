@@ -545,11 +545,11 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
             <AlertDialogTitle>Delete Highlight?</AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently remove the highlight. Are you sure?
-              <blockquote className="mt-4 p-2 border-l-4 bg-muted text-muted-foreground italic text-sm">
-                {deletingHighlight?.text}
-              </blockquote>
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <blockquote className="p-2 border-l-4 bg-muted text-muted-foreground italic text-sm">
+            {deletingHighlight?.text}
+          </blockquote>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction 
