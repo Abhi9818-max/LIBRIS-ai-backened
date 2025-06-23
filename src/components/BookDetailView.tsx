@@ -280,10 +280,10 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
         )}>
           {activeTab === 'details' ? (
               <DialogHeader className="p-4 sm:p-6 pb-2 border-b shrink-0">
-              <DialogTitle className="font-headline text-xl sm:text-2xl truncate pr-10">{book.title || "Untitled Book"}</DialogTitle>
-              <DialogDescription className="text-sm sm:text-md">
-                  By: {book.author || "Unknown Author"}
-              </DialogDescription>
+                <DialogTitle className="font-headline text-xl sm:text-2xl truncate pr-10">{book.title || "Untitled Book"}</DialogTitle>
+                <DialogDescription className="text-sm sm:text-md">
+                    By: {book.author || "Unknown Author"}
+                </DialogDescription>
               </DialogHeader>
           ) : (
             <DialogHeader className="sr-only">
@@ -320,7 +320,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                 <div className="md:col-span-2 space-y-4">
                   <div className="space-y-1">
                     <h3 className="font-headline text-lg text-foreground">Summary</h3>
-                    <ScrollArea className="h-48 border rounded-md p-3">
+                    <ScrollArea className="h-32 border rounded-md p-3">
                       <p className="text-sm text-muted-foreground">{book.summary || "No summary available."}</p>
                     </ScrollArea>
                   </div>
@@ -376,6 +376,51 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                         <p className="text-sm text-muted-foreground pt-2">No progress tracked for this book.</p>
                       )}
                   </div>
+                   <div className="space-y-2">
+                      <h3 className="font-headline text-lg text-foreground">Highlights</h3>
+                      {book.highlights && book.highlights.length > 0 ? (
+                        <ScrollArea className="h-40 border rounded-md p-3">
+                          <div className="space-y-4">
+                            {book.highlights
+                              .sort((a, b) => a.pageNumber - b.pageNumber)
+                              .map((highlight) => (
+                              <div key={highlight.id} className="group flex items-start justify-between gap-2">
+                                <div 
+                                  className="flex-grow cursor-pointer" 
+                                  onClick={() => {
+                                      setActiveTab('read');
+                                      setPageNumber(highlight.pageNumber);
+                                  }}
+                                  title={`Go to page ${highlight.pageNumber}`}
+                                >
+                                  <blockquote 
+                                    className="text-sm text-muted-foreground italic border-l-4 pl-3 py-1 transition-colors group-hover:border-primary/70"
+                                    style={{ borderLeftColor: (HIGHLIGHT_COLOR_STYLES[highlight.color] || HIGHLIGHT_COLOR_STYLES.yellow).backgroundColor as string }}
+                                  >
+                                    "{highlight.text.length > 150 ? `${highlight.text.substring(0, 150)}...` : highlight.text}"
+                                  </blockquote>
+                                  <p className="text-xs text-muted-foreground/80 mt-1">Page {highlight.pageNumber}</p>
+                                </div>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-7 w-7 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={() => setDeletingHighlight(highlight)}
+                                  aria-label="Delete highlight"
+                                >
+                                  <Trash2 className="h-4 w-4 hover:text-destructive" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      ) : (
+                        <div className="text-sm text-muted-foreground pt-2 border rounded-md p-3 text-center">
+                            <p>No highlights yet.</p>
+                            <p className="text-xs">Select text in the "Read" tab to create one.</p>
+                        </div>
+                      )}
+                    </div>
                 </div>
               </div>
             </TabsContent>
@@ -419,11 +464,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                                     .map((highlight) => (
                                     <div
                                         key={highlight.id}
-                                        onClick={(e) => {
-                                        e.stopPropagation();
-                                        setDeletingHighlight(highlight);
-                                        }}
-                                        className="absolute inset-0 cursor-pointer pointer-events-auto hover:ring-2 hover:ring-destructive rounded-sm"
+                                        className="absolute inset-0"
                                         style={{
                                         ...(HIGHLIGHT_COLOR_STYLES[highlight.color] ||
                                             HIGHLIGHT_COLOR_STYLES.yellow),
