@@ -15,7 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2, BookText } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getBookColor } from "@/lib/utils";
 
 
 // Set up the pdf.js worker
@@ -268,6 +268,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     : 0;
     
   const isComplete = percentageRead >= 100;
+  const progressColor = getBookColor(book.id);
 
   return (
     <>
@@ -350,7 +351,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                                 cy="18"
                                 r="15.9155"
                                 fill="none"
-                                stroke="#0891b2"
+                                stroke={progressColor}
                                 strokeWidth="2"
                                 strokeDasharray={isComplete ? undefined : `${percentageRead}, 100`}
                                 strokeLinecap="round"
@@ -540,10 +541,10 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Highlight?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the highlight. Are you sure?
+            </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogDescription>
-            This will permanently remove the highlight. Are you sure?
-          </AlertDialogDescription>
           <blockquote className="mt-4 p-2 border-l-4 bg-muted text-muted-foreground italic text-sm">
             {deletingHighlight?.text}
           </blockquote>

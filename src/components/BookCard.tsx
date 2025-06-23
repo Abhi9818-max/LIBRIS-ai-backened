@@ -6,6 +6,7 @@ import { Card, CardFooter, CardHeader, CardTitle, CardDescription } from "@/comp
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Info, BookOpen } from "lucide-react";
+import { getBookColor } from "@/lib/utils";
 
 interface BookCardProps {
   book: Book;
@@ -18,6 +19,7 @@ export default function BookCard({ book, onOpenDetailView }: BookCardProps) {
     : 0;
 
   const isComplete = percentageRead >= 100;
+  const progressColor = getBookColor(book.id);
 
   return (
     <Card className="flex flex-col overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out animate-fade-in">
@@ -60,7 +62,7 @@ export default function BookCard({ book, onOpenDetailView }: BookCardProps) {
                         cy="18"
                         r="15.9155"
                         fill="none"
-                        stroke="#0891b2"
+                        stroke={progressColor}
                         strokeWidth="3.8"
                         strokeDasharray={isComplete ? "100, 100" : `${percentageRead}, 100`}
                         strokeLinecap="round"
