@@ -25,10 +25,10 @@ if (typeof window !== 'undefined') {
 }
 
 const HIGHLIGHT_COLOR_STYLES: Record<string, React.CSSProperties> = {
-  yellow: { backgroundColor: 'rgba(255, 255, 0, 0.4)' },
-  blue: { backgroundColor: 'rgba(173, 216, 230, 0.4)' },
-  green: { backgroundColor: 'rgba(144, 238, 144, 0.4)' },
-  pink: { backgroundColor: 'rgba(255, 192, 203, 0.4)' },
+  yellow: { backgroundColor: 'rgba(255, 242, 0, 0.5)' },
+  blue: { backgroundColor: 'rgba(127, 213, 255, 0.5)' },
+  green: { backgroundColor: 'rgba(127, 255, 127, 0.5)' },
+  pink: { backgroundColor: 'rgba(255, 128, 191, 0.5)' },
 };
 const HIGHLIGHT_COLOR_KEYS = Object.keys(HIGHLIGHT_COLOR_STYLES);
 
@@ -392,7 +392,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                           />
                         </Document>
                           {!isPdfLoading && (
-                              <div className="absolute inset-0 pointer-events-none">
+                              <div className="absolute inset-0">
                                   {book.highlights
                                       ?.filter(h => h.pageNumber === pageNumber)
                                       .map(highlight =>
