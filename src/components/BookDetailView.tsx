@@ -48,7 +48,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     if (isOpen) {
       setActiveTab(initialTab);
       setNumPages(0);
-      setPageNumber(1);
+      setPageNumber(book?.currentPage || 1);
       setPdfPageDimensions(null);
       setIsPdfLoading(true);
       setScale(1.0);
@@ -59,7 +59,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
       const randomLightness = Math.floor(Math.random() * 20) + 50;
       setProgressColor(`hsl(${randomHue}, ${randomSaturation}%, ${randomLightness}%)`);
     }
-  }, [isOpen, initialTab, book]);
+  }, [isOpen, initialTab, book?.id]);
   
   const onDocumentLoadSuccess = useCallback(async (pdf: PDFDocumentProxy): Promise<void> => {
     setNumPages(pdf.numPages);
@@ -73,9 +73,8 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
         setScale(initialScale > 0 ? initialScale : 1.0);
     }
 
-    setPageNumber(book?.currentPage || 1);
     setIsPdfLoading(false);
-  }, [book?.currentPage]);
+  }, []);
 
   const onDocumentLoadError = useCallback((error: Error) => {
     console.error("Failed to load PDF:", error);
