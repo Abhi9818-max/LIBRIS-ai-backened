@@ -1,7 +1,9 @@
 import { initializeApp, getApps, getApp, type FirebaseOptions } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+// The following are not needed for basic auth functionality, so they are not included
+// in the initial setup check.
+// import { getFirestore } from "firebase/firestore";
+// import { getStorage } from "firebase/storage";
 
 const firebaseConfig: FirebaseOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -12,14 +14,21 @@ const firebaseConfig: FirebaseOptions = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-const missingConfig = Object.entries(firebaseConfig).filter(([, value]) => !value);
+// We only check for the keys required for auth to avoid noisy console errors for new users.
+const requiredConfigForAuth = {
+  apiKey: firebaseConfig.apiKey,
+  authDomain: firebaseConfig.authDomain,
+  projectId: firebaseConfig.projectId,
+  appId: firebaseConfig.appId,
+}
+const missingConfig = Object.entries(requiredConfigForAuth).filter(([, value]) => !value);
 
 if (missingConfig.length > 0 && typeof window !== 'undefined') {
     const errorMessage = `
     Firebase configuration is missing!
     -----------------------------------
     The following environment variables are not set:
-    ${missingConfig.map(([key]) => key).join('\n')}
+    ${missingConfig.map(([key]) => `NEXT_PUBLIC_FIREBASE_${key.replace(/([A-Z])/g, '_$1').toUpperCase()}`).join('\n')}
     
     Please create a .env.local file in the root of your project and add your Firebase project's credentials to it.
     You can find these in your Firebase project's settings page (Project settings > General > Your apps > Web app).
@@ -28,24 +37,19 @@ if (missingConfig.length > 0 && typeof window !== 'undefined') {
     NEXT_PUBLIC_FIREBASE_API_KEY=AIza...
     NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
     NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
-    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
-    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
     NEXT_PUBLIC_FIREBASE_APP_ID=1:...
     
     IMPORTANT: Getting these credentials is free on Firebase's "Spark Plan". After creating the file, you must restart your development server.
     `;
     
-    // We can't throw an error here on the server-side during build, as env vars might not be available yet.
-    // Instead, we let the application start and the logic on the page will guide the user.
-    // However, for client-side execution, we can provide this helpful guide.
     console.error(errorMessage);
 }
 
 
-// Initialize Firebase
+// Initialize Firebase with the full config, so other services work if configured.
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
+// const db = getFirestore(app);
+// const storage = getStorage(app);
 
-export { app, auth, db, storage, firebaseConfig, missingConfig };
+export { app, auth, firebaseConfig, missingConfig };

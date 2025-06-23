@@ -17,6 +17,12 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+        port: '',
+        pathname: '/**',
+      }
     ],
   },
   devIndicators: {
@@ -36,10 +42,10 @@ const nextConfig: NextConfig = {
       `script-src ${scriptSrcDirectives.join(' ')}`,
       `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
       `font-src 'self' https://fonts.gstatic.com`,
-      `img-src 'self' data: https://placehold.co`,
+      `img-src 'self' data: https://placehold.co https://lh3.googleusercontent.com`,
       `object-src 'self' blob:`, // For viewing PDFs from blob URLs
       `worker-src 'self' blob: https://cdnjs.cloudflare.com`, // Allow worker scripts from self, blob, and CDN
-      `connect-src 'self' https://generativelanguage.googleapis.com https://firebasehosting.googleapis.com https://cdnjs.cloudflare.com`, // For Genkit, Firebase, and CDN resources
+      `connect-src 'self' https://generativelanguage.googleapis.com https://firebasehosting.googleapis.com https://cdnjs.cloudflare.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com`,
     ].join('; ');
 
     return [
@@ -48,7 +54,7 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: 'Content-Security-Policy',
-            value: cspHeader.replace(/\s{2,}/g, ' ').trim(), // Replace multiple spaces with single
+            value: cspHeader.replace(/\s{2,}/g, ' ').trim(),
           },
         ],
       },
