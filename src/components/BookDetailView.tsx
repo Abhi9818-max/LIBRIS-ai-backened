@@ -174,13 +174,18 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
           ? "w-screen h-screen max-w-full max-h-screen rounded-none border-0" 
           : "sm:max-w-4xl lg:max-w-6xl h-[95vh]"
       )}>
-        {activeTab === 'details' && (
+        {activeTab === 'details' ? (
             <DialogHeader className="p-4 sm:p-6 pb-2 border-b shrink-0">
             <DialogTitle className="font-headline text-xl sm:text-2xl truncate pr-10">{book.title || "Untitled Book"}</DialogTitle>
             <DialogDescription className="text-sm sm:text-md">
                 By: {book.author || "Unknown Author"}
             </DialogDescription>
             </DialogHeader>
+        ) : (
+          <DialogHeader className="sr-only">
+            <DialogTitle>Reading: {book.title || "Untitled Book"}</DialogTitle>
+            <DialogDescription>PDF reader view for {book.title || "Untitled Book"} by {book.author || "Unknown Author"}.</DialogDescription>
+          </DialogHeader>
         )}
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'details' | 'read')} className="flex-grow flex flex-col overflow-hidden">
