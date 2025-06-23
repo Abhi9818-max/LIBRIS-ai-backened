@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useState, useCallback, ChangeEvent, DragEvent, useEffect, useRef } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useState, useCallback, ChangeEvent, DragEvent, useEffect } from "react";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import type { Book } from "@/types";
@@ -73,15 +73,12 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
   const { toast } = useToast();
   const isEditing = !!bookToEdit;
   const standardCategories = ['Novel', 'Fantasy', 'Science Fiction', 'Mystery', 'Manga', 'Non-Fiction'];
-  const isMounted = useRef(false);
 
 
   const form = useForm<BookFormData>({
     resolver: zodResolver(BookFormSchema),
     defaultValues: { title: "", author: "", summary: "", category: "Novel", totalPages: undefined, customCategory: "" },
   });
-
-  const category = form.watch('category');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -132,50 +129,44 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       } else {
         resetFormState();
       }
-      // Reset mounted state on open to prevent effect from firing with old data
-      isMounted.current = false;
     }
   }, [isOpen, bookToEdit, form, resetFormState]);
 
-  useEffect(() => {
-    // This effect should only run on user interaction, not on initial load or programmatic changes.
-    // We check `isMounted.current` to avoid running on the first render of the form.
-    if (!isMounted.current) {
-        // We set it to true after the first render so the effect can run on subsequent changes.
-        isMounted.current = true;
-        return;
+
+  const handleCategoryChange = async (newCategory: string) => {
+    // Manually update the form field value.
+    form.setValue('category', newCategory, { shouldDirty: true, shouldValidate: true });
+
+    // The rest is the cover generation logic, moved from the useEffect.
+    const { title, summary } = form.getValues();
+
+    if (!title) {
+      return;
     }
     
-    // This check prevents running when the form is populated for editing,
-    // as `isDirty` and `dirtyFields` are only true after manual user input.
-    if (!form.formState.isDirty || !form.formState.dirtyFields.category) {
-        return;
+    if (isProcessingPdf || isGeneratingCover) {
+      return;
     }
 
-    const { title, summary } = form.getValues();
-    if (title && !isProcessingPdf && !isGeneratingCover) {
-        const regenerateCover = async () => {
-            setIsGeneratingCover(true);
-            toast({ title: "AI Cover Regeneration", description: `Generating a new cover for the '${category}' category...` });
-            try {
-                const coverResult = await generateBookCover({ title, summary, category });
-                if (coverResult.coverImageDataUri) {
-                    setCoverPreviewUrl(coverResult.coverImageDataUri);
-                    setCoverImageFile(null); // The new cover is from AI, not a file
-                    toast({ title: "AI Cover Regenerated!", description: "The cover image has been updated." });
-                } else {
-                    toast({ title: "AI Cover Failed", description: "Could not regenerate the cover.", variant: "destructive" });
-                }
-            } catch (error: any) {
-                console.error("Error regenerating cover image:", error);
-                toast({ title: "AI Cover Error", description: `Failed to regenerate cover: ${error.message || "Unknown error"}.`, variant: "destructive" });
-            } finally {
-                setIsGeneratingCover(false);
-            }
-        };
-        regenerateCover();
+    setIsGeneratingCover(true);
+    toast({ title: "AI Cover Regeneration", description: `Generating a new cover for the '${newCategory}' category...` });
+    try {
+        const coverResult = await generateBookCover({ title, summary, category: newCategory });
+        if (coverResult.coverImageDataUri) {
+            setCoverPreviewUrl(coverResult.coverImageDataUri);
+            setCoverImageFile(null);
+            toast({ title: "AI Cover Regenerated!", description: "The cover image has been updated." });
+        } else {
+            toast({ title: "AI Cover Failed", description: "Could not regenerate the cover.", variant: "destructive" });
+        }
+    } catch (error: any) {
+        console.error("Error regenerating cover image:", error);
+        toast({ title: "AI Cover Error", description: `Failed to regenerate cover: ${error.message || "Unknown error"}.`, variant: "destructive" });
+    } finally {
+        setIsGeneratingCover(false);
     }
-  }, [category, form, isGeneratingCover, isProcessingPdf, toast]);
+  };
+
 
   const handlePdfFileChange = async (file: File | null) => {
     if (file) {
@@ -579,7 +570,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="font-headline">Category</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select onValueChange={handleCategoryChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a category" />
