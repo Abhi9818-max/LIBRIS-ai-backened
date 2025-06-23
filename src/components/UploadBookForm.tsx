@@ -25,6 +25,15 @@ const BookFormSchema = z.object({
   summary: z.string().min(1, "Summary is required"),
   category: z.string().min(1, "Category is required"),
   totalPages: z.coerce.number().min(1, "Total pages must be at least 1").optional(),
+  customCategory: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.category === 'Other' && (!data.customCategory || data.customCategory.trim() === '')) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Custom category name is required.',
+      path: ['customCategory']
+    });
+  }
 });
 
 type BookFormData = z.infer<typeof BookFormSchema>;
@@ -62,10 +71,12 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
   const [isGeneratingCover, setIsGeneratingCover] = useState(false);
   const { toast } = useToast();
   const isEditing = !!bookToEdit;
+  const standardCategories = ['Novel', 'Fantasy', 'Science Fiction', 'Mystery', 'Manga', 'Non-Fiction'];
+
 
   const form = useForm<BookFormData>({
     resolver: zodResolver(BookFormSchema),
-    defaultValues: { title: "", author: "", summary: "", category: "Novel", totalPages: undefined },
+    defaultValues: { title: "", author: "", summary: "", category: "Novel", totalPages: undefined, customCategory: "" },
   });
 
   useEffect(() => {
@@ -84,7 +95,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
   }, [toast]);
 
   const resetFormState = useCallback(() => {
-    form.reset({ title: "", author: "", summary: "", category: "Novel", totalPages: undefined });
+    form.reset({ title: "", author: "", summary: "", category: "Novel", totalPages: undefined, customCategory: "" });
     setPdfFile(null);
     setPdfFileName("");
     setCurrentPdfDataUri(null);
@@ -97,11 +108,14 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
   useEffect(() => {
     if (isOpen) {
       if (bookToEdit) {
+        const isCustomCategory = bookToEdit.category && !standardCategories.includes(bookToEdit.category);
+
         form.reset({
           title: bookToEdit.title,
           author: bookToEdit.author,
           summary: bookToEdit.summary,
-          category: bookToEdit.category || "Novel",
+          category: isCustomCategory ? 'Other' : (bookToEdit.category || 'Novel'),
+          customCategory: isCustomCategory ? bookToEdit.category : '',
           totalPages: bookToEdit.totalPages,
         });
         setCoverPreviewUrl(bookToEdit.coverImageUrl);
@@ -248,7 +262,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         setPdfFile(null);
         setPdfFileName("");
         setCurrentPdfDataUri(null);
-        form.reset({ title: "", author: "", summary: "", category: "Novel", totalPages: undefined });
+        form.reset({ title: "", author: "", summary: "", category: "Novel", totalPages: undefined, customCategory: "" });
         setCoverPreviewUrl(null);
       } else if (bookToEdit) { 
         setPdfFile(null); 
@@ -404,6 +418,8 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     const finalPdfDataUri = currentPdfDataUri || "";
     const finalPdfFileName = pdfFileName || "";
     const finalCoverImageUrl = coverPreviewUrl || "https://placehold.co/200x300.png";
+    const finalCategory = data.category === 'Other' && data.customCategory ? data.customCategory.trim() : data.category;
+
 
     if (!isEditing && !finalPdfDataUri) {
         toast({
@@ -419,7 +435,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       title: data.title,
       author: data.author,
       summary: data.summary,
-      category: data.category,
+      category: finalCategory,
       coverImageUrl: finalCoverImageUrl,
       pdfFileName: finalPdfFileName,
       pdfDataUri: finalPdfDataUri,
@@ -534,6 +550,22 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
                 </FormItem>
               )}
             />
+
+            {form.watch('category') === 'Other' && (
+              <FormField
+                control={form.control}
+                name="customCategory"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-headline">Custom Category</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Historical Fiction" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             
 
             <FormField

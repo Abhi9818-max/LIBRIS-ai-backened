@@ -194,6 +194,17 @@ export default function HomePage() {
     setIsDetailViewOpen(true);
   }, []);
 
+  const allCategories = useMemo(() => {
+    const defaultCategories = ['Novel', 'Fantasy', 'Science Fiction', 'Mystery', 'Manga', 'Non-Fiction'];
+    const categoriesFromBooks = books.map(book => book.category).filter(Boolean) as string[];
+    const uniqueCategories = Array.from(new Set([...defaultCategories, ...categoriesFromBooks]));
+    
+    uniqueCategories.sort((a, b) => a.localeCompare(b));
+    uniqueCategories.push('Other');
+    
+    return Array.from(new Set(uniqueCategories));
+  }, [books]);
+
   const filteredBooks = useMemo(() => {
     const categoryFiltered = books.filter(book =>
       selectedCategory === 'All' || book.category === selectedCategory
@@ -302,13 +313,9 @@ export default function HomePage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="All">All Categories</SelectItem>
-                    <SelectItem value="Novel">Novel</SelectItem>
-                    <SelectItem value="Fantasy">Fantasy</SelectItem>
-                    <SelectItem value="Science Fiction">Science Fiction</SelectItem>
-                    <SelectItem value="Mystery">Mystery</SelectItem>
-                    <SelectItem value="Manga">Manga</SelectItem>
-                    <SelectItem value="Non-Fiction">Non-Fiction</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
+                    {allCategories.map(category => (
+                      <SelectItem key={category} value={category}>{category}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
