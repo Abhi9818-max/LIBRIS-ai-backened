@@ -589,7 +589,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
                 <FormItem>
                   <FormLabel className="font-headline">Total Pages</FormLabel>
                   <FormControl>
-                     <Input type="number" placeholder="e.g., 350" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} value={field.value ?? ''} />
+                     <Input type="number" placeholder="e.g., 350" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} value={field.value || ''} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
