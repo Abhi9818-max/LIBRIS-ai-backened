@@ -17,7 +17,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { UploadCloud, ImageUp, Loader2, Sparkles, FileText } from "lucide-react";
-import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from 'pdfjs-dist';
+// Dynamically import pdfjs-dist by only importing the types statically.
+import type { PDFDocumentProxy } from 'pdfjs-dist';
 
 const BookFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -84,16 +85,18 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      try {
-        GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
-      } catch (e) {
-        console.error("Error setting pdf.js worker source:", e);
-        toast({
-          title: "PDF Worker Error",
-          description: "Could not initialize the PDF processing worker. Page counting and metadata extraction might fail.",
-          variant: "destructive",
-        });
-      }
+      import('pdfjs-dist').then(({ GlobalWorkerOptions }) => {
+        try {
+            GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+        } catch (e) {
+            console.error("Error setting pdf.js worker source:", e);
+            toast({
+              title: "PDF Worker Error",
+              description: "Could not initialize the PDF processing worker. Page counting and metadata extraction might fail.",
+              variant: "destructive",
+            });
+        }
+      });
     }
   }, [toast]);
 
@@ -129,13 +132,17 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       } else {
         resetFormState();
       }
+      // Reset mounted state on open to prevent effect from firing with old data
+      isMounted.current = false;
     }
   }, [isOpen, bookToEdit, form, resetFormState]);
 
   useEffect(() => {
     // This effect should only run on user interaction, not on initial load or programmatic changes.
-    // We check `isMounted.current` to avoid running on the first render.
+    // We check `isMounted.current` to avoid running on the first render of the form.
     if (!isMounted.current) {
+        // We set it to true after the first render so the effect can run on subsequent changes.
+        isMounted.current = true;
         return;
     }
     
@@ -169,12 +176,6 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         regenerateCover();
     }
   }, [category, form, isGeneratingCover, isProcessingPdf, toast]);
-
-  // This effect tracks if the component has mounted to prevent other effects from running on initial render.
-  useEffect(() => {
-      isMounted.current = true;
-      return () => { isMounted.current = false; };
-  }, []);
 
   const handlePdfFileChange = async (file: File | null) => {
     if (file) {
@@ -232,6 +233,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       }
 
       try {
+        const { getDocument, GlobalWorkerOptions } = await import('pdfjs-dist');
         if (!GlobalWorkerOptions.workerSrc) throw new Error("PDF worker source not set.");
         const loadingTask = getDocument({data: atob(pdfDataUriForProcessing.substring(pdfDataUriForProcessing.indexOf(',') + 1))});
         const pdfDoc: PDFDocumentProxy = await loadingTask.promise;
@@ -413,6 +415,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     toast({ title: "Generating Cover", description: "Creating cover from the first page of the PDF..." });
 
     try {
+      const { getDocument } = await import('pdfjs-dist');
       const loadingTask = getDocument({ data: atob(currentPdfDataUri.substring(currentPdfDataUri.indexOf(',') + 1)) });
       const pdf = await loadingTask.promise;
       const page = await pdf.getPage(1);
