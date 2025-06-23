@@ -25,10 +25,10 @@ if (typeof window !== 'undefined') {
 }
 
 const HIGHLIGHT_COLOR_STYLES: Record<string, React.CSSProperties> = {
-  yellow: { backgroundColor: 'rgba(255, 242, 0, 0.5)' },
-  blue: { backgroundColor: 'rgba(127, 213, 255, 0.5)' },
-  green: { backgroundColor: 'rgba(127, 255, 127, 0.5)' },
-  pink: { backgroundColor: 'rgba(255, 128, 191, 0.5)' },
+  yellow: { backgroundColor: 'rgba(255, 255, 0, 0.4)' },
+  green: { backgroundColor: 'rgba(144, 238, 144, 0.4)' },
+  blue: { backgroundColor: 'rgba(135, 206, 235, 0.4)' },
+  peach: { backgroundColor: 'rgba(255, 218, 185, 0.4)' },
 };
 const HIGHLIGHT_COLOR_KEYS = Object.keys(HIGHLIGHT_COLOR_STYLES);
 
@@ -112,6 +112,17 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     });
   }, [toast]);
 
+  const onPageRenderTextLayerError = useCallback((error: Error) => {
+    if (error.name === 'AbortException') {
+      return;
+    }
+    console.error("Failed to render PDF text layer:", error);
+    toast({
+      title: "PDF Text Layer Error",
+      description: "Could not render text layer for selection. Highlighting may not work.",
+      variant: "destructive"
+    });
+  }, [toast]);
 
   const handlePreviousPage = () => {
     setPageNumber(prev => Math.max(prev - 1, 1));
@@ -387,12 +398,12 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                               scale={scale}
                               renderTextLayer={true}
                               onRenderError={onPageRenderError}
-                              onRenderTextLayerError={onPageRenderError}
+                              onRenderTextLayerError={onPageRenderTextLayerError}
                               className="transition-opacity duration-300"
                           />
                         </Document>
                           {!isPdfLoading && (
-                              <div className="absolute inset-0">
+                              <div className="absolute inset-0 pointer-events-none">
                                   {book.highlights
                                       ?.filter(h => h.pageNumber === pageNumber)
                                       .map(highlight =>
