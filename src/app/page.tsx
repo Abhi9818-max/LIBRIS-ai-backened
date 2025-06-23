@@ -17,11 +17,15 @@ import { defaultBooks } from "@/lib/default-books";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 
 export default function HomePage() {
@@ -36,6 +40,7 @@ export default function HomePage() {
   const [selectedBookForDetail, setSelectedBookForDetail] = useState<Book | null>(null);
   const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
   const [initialDetailTab, setInitialDetailTab] = useState<'details' | 'read'>('read');
+  const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -297,8 +302,8 @@ export default function HomePage() {
                     <PlusCircle className="h-5 w-5 sm:mr-2" />
                     <span className="hidden sm:inline">Add Book</span>
                     </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+                    <Sheet open={isSettingsSheetOpen} onOpenChange={setIsSettingsSheetOpen}>
+                      <SheetTrigger asChild>
                         <Button
                           variant="outline"
                           size="icon"
@@ -307,18 +312,29 @@ export default function HomePage() {
                         >
                           <MoreVertical className="h-[1.1rem] w-[1.1rem] sm:h-[1.2rem] sm:w-[1.2rem]" />
                         </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setTheme(theme === "light" ? "dark" : "light")}>
-                          {theme === "light" ? (
-                            <Moon className="mr-2 h-4 w-4" />
-                          ) : (
-                            <Sun className="mr-2 h-4 w-4" />
-                          )}
-                          <span>{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                      </SheetTrigger>
+                      <SheetContent>
+                        <SheetHeader>
+                          <SheetTitle>Settings</SheetTitle>
+                        </SheetHeader>
+                        <div className="py-4">
+                           <Separator />
+                        </div>
+                        <div className="flex items-center justify-between">
+                           <Label htmlFor="dark-mode-toggle" className="font-normal">
+                              <div className="flex items-center gap-2">
+                                  {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                                  <span>Dark Mode</span>
+                              </div>
+                           </Label>
+                           <Switch
+                              id="dark-mode-toggle"
+                              checked={theme === 'dark'}
+                              onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
+                           />
+                        </div>
+                      </SheetContent>
+                    </Sheet>
                 </div>
             </div>
         </div>
@@ -410,5 +426,7 @@ export default function HomePage() {
     </div>
   );
 }
+
+    
 
     
