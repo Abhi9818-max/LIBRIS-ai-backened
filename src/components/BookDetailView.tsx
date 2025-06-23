@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
@@ -25,10 +24,11 @@ if (typeof window !== 'undefined') {
 }
 
 const HIGHLIGHT_COLOR_STYLES: Record<string, React.CSSProperties> = {
-  yellow: { backgroundColor: 'rgba(255, 255, 0, 0.4)' },
-  green: { backgroundColor: 'rgba(144, 238, 144, 0.4)' },
-  blue: { backgroundColor: 'rgba(135, 206, 235, 0.4)' },
-  peach: { backgroundColor: 'rgba(255, 218, 185, 0.4)' },
+    'yellow': { backgroundColor: 'rgba(255, 255, 102, 0.4)' }, // #FFFF66
+    'green': { backgroundColor: 'rgba(204, 255, 204, 0.4)' },  // #CCFFCC
+    'blue': { backgroundColor: 'rgba(204, 229, 255, 0.4)' },   // #CCE5FF
+    'peach': { backgroundColor: 'rgba(255, 218, 185, 0.4)' },  // #FFDAB9
+    'lavender': { backgroundColor: 'rgba(230, 230, 250, 0.4)' } // #E6E6FA
 };
 const HIGHLIGHT_COLOR_KEYS = Object.keys(HIGHLIGHT_COLOR_STYLES);
 
@@ -41,6 +41,16 @@ interface BookDetailViewProps {
   onUpdateBook: (book: Book) => void;
   initialTab?: 'details' | 'read';
 }
+
+// Helper function to convert rectangle data into an SVG path for clip-path
+const rectsToSvgPath = (rects: HighlightRect[], scale: number): string => {
+  if (!rects || rects.length === 0) return '';
+  // For each rectangle, create a path command (Move, horizontal line, vertical line, horizontal line, close)
+  // and scale it according to the current zoom level.
+  return rects
+    .map(rect => `M${rect.x * scale},${rect.y * scale} h${rect.width * scale} v${rect.height * scale} h-${rect.width * scale} z`)
+    .join(' ');
+};
 
 export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRemoveBook, onUpdateBook, initialTab = 'read' }: BookDetailViewProps) {
   const { toast } = useToast();
@@ -402,28 +412,27 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                               className="transition-opacity duration-300"
                           />
                         </Document>
-                          {!isPdfLoading && (
-                              <div className="absolute inset-0 pointer-events-none">
-                                  {book.highlights
-                                      ?.filter(h => h.pageNumber === pageNumber)
-                                      .map(highlight =>
-                                      highlight.rects.map((rect, index) => (
-                                          <button
-                                            key={`${highlight.id}-${index}`}
-                                            onClick={(e) => { e.stopPropagation(); setDeletingHighlight(highlight);}}
-                                            className="absolute cursor-pointer pointer-events-auto hover:ring-2 hover:ring-destructive rounded-sm"
-                                            style={{
-                                                left: `${rect.x * scale}px`,
-                                                top: `${rect.y * scale}px`,
-                                                width: `${rect.width * scale}px`,
-                                                height: `${rect.height * scale}px`,
-                                                ...(HIGHLIGHT_COLOR_STYLES[highlight.color] || HIGHLIGHT_COLOR_STYLES.yellow)
-                                            }}
-                                          />
-                                      ))
-                                  )}
-                              </div>
-                          )}
+                         {!isPdfLoading && (
+                            <div className="absolute inset-0 pointer-events-none">
+                                {book.highlights
+                                    ?.filter((h) => h.pageNumber === pageNumber)
+                                    .map((highlight) => (
+                                    <div
+                                        key={highlight.id}
+                                        onClick={(e) => {
+                                        e.stopPropagation();
+                                        setDeletingHighlight(highlight);
+                                        }}
+                                        className="absolute inset-0 cursor-pointer pointer-events-auto hover:ring-2 hover:ring-destructive rounded-sm"
+                                        style={{
+                                        ...(HIGHLIGHT_COLOR_STYLES[highlight.color] ||
+                                            HIGHLIGHT_COLOR_STYLES.yellow),
+                                        clipPath: `path('${rectsToSvgPath(highlight.rects, scale)}')`,
+                                        }}
+                                    />
+                                    ))}
+                            </div>
+                        )}
                       </div>
                     </div>
                     {selectionPopover && (
