@@ -72,6 +72,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
   const { toast } = useToast();
   const isEditing = !!bookToEdit;
   const standardCategories = ['Novel', 'Fantasy', 'Science Fiction', 'Mystery', 'Manga', 'Non-Fiction'];
+  const isMounted = useRef(false);
 
 
   const form = useForm<BookFormData>({
@@ -132,34 +133,48 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
   }, [isOpen, bookToEdit, form, resetFormState]);
 
   useEffect(() => {
-    const { isDirty, dirtyFields } = form.formState;
-    if (isDirty && dirtyFields.category) {
-      const { title, summary } = form.getValues();
-      if (title && !isProcessingPdf && !isGeneratingCover) {
+    // This effect should only run on user interaction, not on initial load or programmatic changes.
+    // We check `isMounted.current` to avoid running on the first render.
+    if (!isMounted.current) {
+        return;
+    }
+    
+    // This check prevents running when the form is populated for editing,
+    // as `isDirty` and `dirtyFields` are only true after manual user input.
+    if (!form.formState.isDirty || !form.formState.dirtyFields.category) {
+        return;
+    }
+
+    const { title, summary } = form.getValues();
+    if (title && !isProcessingPdf && !isGeneratingCover) {
         const regenerateCover = async () => {
-          setIsGeneratingCover(true);
-          toast({ title: "AI Cover Regeneration", description: `Generating a new cover for the '${category}' category...` });
-          try {
-            const coverResult = await generateBookCover({ title, summary, category });
-            if (coverResult.coverImageDataUri) {
-              setCoverPreviewUrl(coverResult.coverImageDataUri);
-              setCoverImageFile(null); // The new cover is from AI, not a file
-              toast({ title: "AI Cover Regenerated!", description: "The cover image has been updated." });
-            } else {
-              toast({ title: "AI Cover Failed", description: "Could not regenerate the cover.", variant: "destructive" });
+            setIsGeneratingCover(true);
+            toast({ title: "AI Cover Regeneration", description: `Generating a new cover for the '${category}' category...` });
+            try {
+                const coverResult = await generateBookCover({ title, summary, category });
+                if (coverResult.coverImageDataUri) {
+                    setCoverPreviewUrl(coverResult.coverImageDataUri);
+                    setCoverImageFile(null); // The new cover is from AI, not a file
+                    toast({ title: "AI Cover Regenerated!", description: "The cover image has been updated." });
+                } else {
+                    toast({ title: "AI Cover Failed", description: "Could not regenerate the cover.", variant: "destructive" });
+                }
+            } catch (error: any) {
+                console.error("Error regenerating cover image:", error);
+                toast({ title: "AI Cover Error", description: `Failed to regenerate cover: ${error.message || "Unknown error"}.`, variant: "destructive" });
+            } finally {
+                setIsGeneratingCover(false);
             }
-          } catch (error: any) {
-            console.error("Error regenerating cover image:", error);
-            toast({ title: "AI Cover Error", description: `Failed to regenerate cover: ${error.message || "Unknown error"}.`, variant: "destructive" });
-          } finally {
-            setIsGeneratingCover(false);
-          }
         };
         regenerateCover();
-      }
     }
-  }, [category, form.formState]);
+  }, [category, form, isGeneratingCover, isProcessingPdf, toast]);
 
+  // This effect tracks if the component has mounted to prevent other effects from running on initial render.
+  useEffect(() => {
+      isMounted.current = true;
+      return () => { isMounted.current = false; };
+  }, []);
 
   const handlePdfFileChange = async (file: File | null) => {
     if (file) {
