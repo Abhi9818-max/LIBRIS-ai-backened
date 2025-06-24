@@ -227,13 +227,14 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     const selection = window.getSelection();
     if (selection && !selection.isCollapsed && selection.toString().trim() !== '') {
         const range = selection.getRangeAt(0);
-        const rect = range.getBoundingClientRect();
-        const containerRect = pdfWrapperRef.current?.getBoundingClientRect();
+        const selectionRect = range.getBoundingClientRect();
+        // Use the scrolling container as the reference for coordinates
+        const containerRect = pdfContainerRef.current?.getBoundingClientRect();
 
-        if (containerRect) {
+        if (containerRect && pdfContainerRef.current) {
             setSelectionPopover({
-                top: rect.bottom - containerRect.top + pdfContainerRef.current!.scrollTop,
-                left: rect.left - containerRect.left + rect.width / 2 + pdfContainerRef.current!.scrollLeft,
+                top: selectionRect.bottom - containerRect.top + pdfContainerRef.current.scrollTop,
+                left: selectionRect.left - containerRect.left + (selectionRect.width / 2) + pdfContainerRef.current.scrollLeft,
             });
         }
     } else {
@@ -646,7 +647,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                   >
                       <div 
                           ref={pdfWrapperRef}
-                          className="inline-block relative"
+                          className="inline-block"
                       >
                           {isPdfLoading && (
                             <div className="flex flex-col items-center justify-center h-full w-full absolute inset-0">
@@ -654,7 +655,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                               <p className="mt-4 text-muted-foreground">Loading PDF...</p>
                             </div>
                           )}
-                        <div className="relative pt-20 pb-24 px-2 sm:px-4 text-left">
+                        <div className="relative pt-20 pb-24 px-2 sm:px-4">
                           <Document
                             file={book.pdfDataUri}
                             onLoadSuccess={onDocumentLoadSuccess}
