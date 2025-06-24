@@ -13,6 +13,7 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
   signInAsGuest: () => void;
   signOutUser: () => Promise<void>;
+  exitGuestModeAndSignIn: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -72,19 +73,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push('/');
   };
 
-  const signOutUser = async () => {
+  const exitGuestModeAndSignIn = () => {
     if (typeof window !== 'undefined') {
         sessionStorage.removeItem('isGuest');
     }
     setIsGuest(false);
+    router.push('/auth');
+  };
 
-    if (!isFirebaseConfigured || !auth.currentUser) {
-        router.push('/auth');
-        return;
-    };
+  const signOutUser = async () => {
+    // This function is now ONLY for authenticated users.
+    if (!isFirebaseConfigured || !auth.currentUser) return;
     
     try {
       await signOut(auth);
+      // `onAuthStateChanged` will handle the user state update and trigger redirect.
       router.push('/auth');
     } catch (error) {
       console.error("Sign-out failed:", error);
@@ -99,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signInWithGoogle,
     signInAsGuest,
     signOutUser,
+    exitGuestModeAndSignIn,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

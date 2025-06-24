@@ -18,7 +18,7 @@ import {
 import { LogOut, Moon, Sun, User as UserIcon, LogIn, Settings } from "lucide-react";
 
 export function UserNav() {
-  const { user, isGuest, signOutUser } = useAuth();
+  const { user, isGuest, signOutUser, exitGuestModeAndSignIn } = useAuth();
   const { theme, setTheme } = useTheme();
   const router = useRouter();
 
@@ -53,7 +53,7 @@ export function UserNav() {
             </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={signOutUser}>
+            <DropdownMenuItem onClick={exitGuestModeAndSignIn}>
                 <LogIn className="mr-2 h-4 w-4" />
                 <span>Sign In / Sign Up</span>
             </DropdownMenuItem>
