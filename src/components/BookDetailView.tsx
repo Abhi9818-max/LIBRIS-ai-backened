@@ -303,13 +303,20 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
       if (result && result.media) {
         setAudioDataUri(result.media);
       } else {
-        throw new Error("The AI did not return any audio data.");
+        // The flow returned an empty/falsy media string, which indicates a failure on the server.
+        // We can show a toast message here directly.
+        toast({
+          title: "Narration Failed",
+          description: "The AI narrator was unable to generate audio for this page. Please try again.",
+          variant: "destructive",
+        });
       }
     } catch (error: any) {
-      console.error("Text-to-speech failed:", error);
+      // This will catch network errors or other unexpected exceptions from the flow call itself.
+      console.error("Text-to-speech call failed:", error);
       toast({
         title: "Narration Failed",
-        description: `Could not generate audio for this page. ${error.message || ""}`,
+        description: `An unexpected error occurred. ${error.message || "Please check your connection and try again."}`,
         variant: "destructive",
       });
     } finally {
