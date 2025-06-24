@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { UploadCloud, ImageUp, Loader2, Sparkles, FileText } from "lucide-react";
+import { cn } from "@/lib/utils";
 // Dynamically import pdfjs-dist by only importing the types statically.
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 
@@ -70,6 +71,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
   const [isProcessingPdf, setIsProcessingPdf] = useState(false);
   const [isGeneratingCover, setIsGeneratingCover] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const { toast } = useToast();
   const isEditing = !!bookToEdit;
   const standardCategories = ['Novel', 'Fantasy', 'Science Fiction', 'Mystery', 'Manga', 'Non-Fiction'];
@@ -286,26 +288,26 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     e.target.value = ""; 
   };
   
-  const onDrop = useCallback((event: DragEvent<HTMLDivElement>) => {
+  const onDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    event.currentTarget.classList.remove('border-primary');
+    setIsDragging(false);
     if (event.dataTransfer.files && event.dataTransfer.files[0]) {
       handlePdfFileChange(event.dataTransfer.files[0]);
     }
-  }, []); 
+  };
 
-  const onDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
+  const onDragOver = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    event.currentTarget.classList.add('border-primary');
-  }, []);
+    setIsDragging(true);
+  };
 
-  const onDragLeave = useCallback((event: DragEvent<HTMLDivElement>) => {
+  const onDragLeave = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    event.currentTarget.classList.remove('border-primary');
-  }, []);
+    setIsDragging(false);
+  };
 
 
   const handleCoverImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -452,27 +454,46 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div 
-              className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-md transition-colors"
-              onDrop={onDrop}
-              onDragOver={onDragOver}
-              onDragLeave={onDragLeave}
-            >
-              <div className="space-y-1 text-center">
-                <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
-                <div className="flex text-sm text-muted-foreground">
-                  <Label
-                    htmlFor="pdf-upload"
-                    className="relative cursor-pointer rounded-md font-medium text-primary hover:text-accent focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-ring"
-                  >
-                    <span>{pdfFileName ? "Change PDF" : (isEditing ? "Upload New PDF (Optional)" : "Upload a PDF")}</span>
-                    <Input id="pdf-upload" name="pdf-upload" type="file" className="sr-only" onChange={onPdfInputChange} accept="application/pdf" />
-                  </Label>
-                  {!pdfFileName && <p className="pl-1">or drag and drop</p>}
+             {pdfFileName ? (
+              <div className="flex items-center justify-between rounded-lg border bg-muted/50 p-4">
+                <div className="flex items-center gap-3 overflow-hidden">
+                    <FileText className="h-6 w-6 shrink-0 text-primary" />
+                    <div className="flex flex-col overflow-hidden">
+                        <span className="text-sm font-medium text-foreground truncate" title={pdfFileName}>{pdfFileName}</span>
+                        <span className="text-xs text-muted-foreground">PDF selected</span>
+                    </div>
                 </div>
-                <p className="text-xs text-muted-foreground">{pdfFileName || (isEditing && bookToEdit?.pdfFileName ? "Keep existing PDF" : "PDF up to 100MB (Note: Processing very large files may be slow or fail due to browser/server limits)")}</p>
+                <Button type="button" variant="outline" size="sm" asChild>
+                    <Label htmlFor="pdf-upload" className="cursor-pointer">
+                        Change
+                        <Input id="pdf-upload" name="pdf-upload" type="file" className="sr-only" onChange={onPdfInputChange} accept="application/pdf" />
+                    </Label>
+                </Button>
               </div>
-            </div>
+            ) : (
+              <div
+                className={cn(
+                    "relative flex w-full flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg transition-colors duration-200 ease-in-out hover:border-primary/50 hover:bg-muted/50",
+                    isDragging && "border-primary bg-primary/10"
+                )}
+                onDrop={onDrop}
+                onDragOver={onDragOver}
+                onDragLeave={onDragLeave}
+              >
+                  <Input id="pdf-upload" name="pdf-upload" type="file" className="sr-only" onChange={onPdfInputChange} accept="application/pdf" />
+                  <label htmlFor="pdf-upload" className="absolute inset-0 h-full w-full cursor-pointer rounded-md" aria-label="Upload PDF"></label>
+                  <div className="pointer-events-none text-center">
+                      <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
+                      <p className="mt-4 text-sm font-medium text-foreground">
+                          <span className="text-primary">Click to upload</span> or drag and drop
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                          PDF up to 100MB
+                      </p>
+                  </div>
+              </div>
+            )}
+
 
             {isProcessingPdf && (
               <div className="flex items-center justify-center p-4 text-primary">
