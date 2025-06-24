@@ -81,14 +81,16 @@ const textToSpeechFlow = ai.defineFlow(
       });
       
       if (!media?.url) {
-        throw new Error('No audio media was returned from the AI model.');
+        console.warn('No audio media was returned from the AI model.');
+        return { media: '' };
       }
 
       // The media URL is a data URI with base64-encoded PCM data. We need to extract it.
       const audioBase64 = media.url.substring(media.url.indexOf(',') + 1);
 
       if (!audioBase64) {
-        throw new Error('The AI model returned empty audio data.');
+        console.warn('The AI model returned empty audio data.');
+        return { media: '' };
       }
 
       const audioBuffer = Buffer.from(audioBase64, 'base64');
@@ -97,14 +99,15 @@ const textToSpeechFlow = ai.defineFlow(
       const wavBase64 = await toWav(audioBuffer);
 
       if (!wavBase64) {
-        throw new Error('Failed to convert audio to WAV format.');
+        console.warn('Failed to convert audio to WAV format.');
+        return { media: '' };
       }
 
       return {
         media: 'data:audio/wav;base64,' + wavBase64,
       };
     } catch (error) {
-        console.error("Fatal error in textToSpeechFlow:", error);
+        console.error("Fatal error in textToSpeechFlow, returning empty media to prevent crash:", error);
         // Return an empty object to prevent crashing the server flow.
         // The client will handle the empty response and show an error toast.
         return { media: '' };

@@ -155,10 +155,16 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       setPdfFile(file); 
       setPdfFileName(file.name);
       
-      if (!isEditing || (isEditing && file)) { 
-         form.reset({ title: bookToEdit?.title || "", author: bookToEdit?.author || "", summary: bookToEdit?.summary || "", category: bookToEdit?.category || "Novel", totalPages: bookToEdit?.totalPages }); 
-         if (!isEditing) setCoverPreviewUrl(null); 
-      }
+      // If a new PDF is selected, reset form fields to trigger re-analysis.
+      form.reset({
+        title: "",
+        author: "",
+        summary: "",
+        category: "Novel",
+        totalPages: undefined,
+        customCategory: "",
+      });
+      setCoverPreviewUrl(null); 
       
       setIsProcessingPdf(true);
       let pdfDataUriForProcessing = "";
@@ -215,7 +221,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
                 form.setValue("category", metadata.category || form.getValues("category") || "Novel");
                 toast({ title: "AI Companion ✨", description: "I've analyzed the PDF and filled in the details. Please review." });
         
-                if (!isEditing && !coverImageFile && metadata.title) {
+                if (metadata.title) {
                   setIsGeneratingCover(true);
                   toast({ title: "AI Cover Generation", description: "Attempting to generate a cover image..." });
                   try {
