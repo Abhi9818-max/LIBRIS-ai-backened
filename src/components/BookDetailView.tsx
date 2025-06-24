@@ -10,6 +10,7 @@ import 'react-pdf/dist/esm/Page/TextLayer.css';
 import { generateWhatIfStory, StorySandboxOutput } from "@/ai/flows/story-sandbox-flow";
 import type { StorySandboxInput } from "@/ai/flows/story-sandbox-flow";
 import { generateSceneImage } from "@/ai/flows/generate-scene-image-flow";
+import { suggestReadingMood, type SuggestReadingMoodOutput } from "@/ai/flows/suggest-reading-mood-flow";
 
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -19,7 +20,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2, ArrowLeft, Sparkles, Image as ImageIcon, Save } from "lucide-react";
+import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2, ArrowLeft, Sparkles, Image as ImageIcon, Save, Music } from "lucide-react";
 import { cn, getBookColor } from "@/lib/utils";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
@@ -80,6 +81,9 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const [isVisualizing, setIsVisualizing] = useState(false);
   const [visualizationResult, setVisualizationResult] = useState<{ image: string; text: string; pageNumber: number; rects: HighlightRect[] } | null>(null);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
+  
+  const [moodSuggestion, setMoodSuggestion] = useState<{ moodDescription: string; soundtrack: string[] } | null>(null);
+  const [isSuggestingMood, setIsSuggestingMood] = useState(false);
 
 
   const pdfContainerRef = useRef<HTMLDivElement>(null);
@@ -103,6 +107,8 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
       setIsVisualizing(false);
       setVisualizationResult(null);
       setViewingImage(null);
+      setMoodSuggestion(null);
+      setIsSuggestingMood(false);
     }
   }, [isOpen, initialTab, book?.id]);
   
@@ -395,6 +401,31 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     setVisualizationResult(null); // Close the dialog
   };
 
+  const handleSuggestMood = async () => {
+    if (!book) return;
+
+    setIsSuggestingMood(true);
+    setMoodSuggestion(null);
+
+    try {
+      const result: SuggestReadingMoodOutput = await suggestReadingMood({
+        title: book.title,
+        summary: book.summary,
+        category: book.category || 'Novel',
+      });
+      setMoodSuggestion(result);
+    } catch (error) {
+      console.error("Failed to suggest mood:", error);
+      toast({
+        title: "Suggestion Failed",
+        description: "The AI was unable to generate a suggestion. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSuggestingMood(false);
+    }
+  };
+
   if (!isOpen || !book) {
     return null;
   }
@@ -472,6 +503,46 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                         {book.category && <Badge variant="secondary">Category: {book.category}</Badge>}
                         {book.totalPages && <Badge variant="secondary">Pages: {book.totalPages}</Badge>}
                       </div>
+                  </div>
+                  <div className="space-y-2">
+                      <h3 className="font-headline text-lg text-foreground">Reading Ambiance</h3>
+                      {!moodSuggestion && (
+                        <Button onClick={handleSuggestMood} disabled={isSuggestingMood} variant="outline" size="sm">
+                          {isSuggestingMood ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Working...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="mr-2 h-4 w-4" />
+                              Set the Mood
+                            </>
+                          )}
+                        </Button>
+                      )}
+                      {isSuggestingMood && !moodSuggestion && (
+                          <div className="space-y-2 pt-2">
+                              <Skeleton className="h-4 w-3/4" />
+                              <Skeleton className="h-4 w-1/2" />
+                          </div>
+                      )}
+                      {moodSuggestion && (
+                        <div className="border rounded-md p-3 bg-muted/50 space-y-3 animate-fade-in">
+                            <p className="text-sm italic text-muted-foreground">"{moodSuggestion.moodDescription}"</p>
+                            <div>
+                                <h4 className="font-semibold text-sm flex items-center gap-2 mb-2">
+                                    <Music className="h-4 w-4 text-primary" />
+                                    Suggested Soundtrack
+                                </h4>
+                                <div className="flex flex-wrap gap-2">
+                                    {moodSuggestion.soundtrack.map((item, index) => (
+                                        <Badge key={index} variant="secondary">{item}</Badge>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                      )}
                   </div>
                   <div className="space-y-2">
                       <h3 className="font-headline text-lg text-foreground">Reading Progress</h3>
