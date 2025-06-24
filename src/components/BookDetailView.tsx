@@ -18,7 +18,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2, BookText, Sparkles } from "lucide-react";
+import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2, ArrowLeft, Sparkles } from "lucide-react";
 import { cn, getBookColor } from "@/lib/utils";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
@@ -538,110 +538,120 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
             </TabsContent>
 
 
-            <TabsContent value="read" className="flex-grow flex flex-col overflow-hidden data-[state=inactive]:hidden">
+            <TabsContent value="read" className="flex-grow flex flex-col overflow-hidden data-[state=inactive]:hidden bg-muted/40">
               {hasValidPdf ? (
-              <div className="flex-grow flex flex-col overflow-hidden">
-                <div className="flex-grow bg-muted/40 overflow-auto relative p-2 sm:p-4" ref={pdfContainerRef} onMouseUp={handleMouseUp}>
-                    <div 
-                        className="mx-auto"
-                        ref={pdfWrapperRef}
-                    >
-                        {isPdfLoading && (
-                          <div className="flex flex-col items-center justify-center h-full w-full absolute inset-0">
-                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                            <p className="mt-4 text-muted-foreground">Loading PDF...</p>
+                <div className="flex-grow relative overflow-hidden">
+                  <div ref={pdfContainerRef} className="h-full w-full overflow-auto" onMouseUp={handleMouseUp}>
+                      <div 
+                          className="mx-auto pt-20 pb-24 px-2 sm:px-4"
+                          ref={pdfWrapperRef}
+                      >
+                          {isPdfLoading && (
+                            <div className="flex flex-col items-center justify-center h-full w-full absolute inset-0">
+                              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                              <p className="mt-4 text-muted-foreground">Loading PDF...</p>
+                            </div>
+                          )}
+                        <div className="relative">
+                          <Document
+                            file={book.pdfDataUri}
+                            onLoadSuccess={onDocumentLoadSuccess}
+                            onLoadError={onDocumentLoadError}
+                            onPageRenderError={onPageRenderError}
+                            onPageRenderTextLayerError={onPageRenderTextLayerError}
+                            loading="" 
+                            className={isPdfLoading ? 'hidden' : ''}
+                          >
+                            {pageWidth && <Page 
+                                key={`${book.id}-${pageNumber}`}
+                                pageNumber={pageNumber} 
+                                width={pageWidth}
+                                renderTextLayer={true}
+                                onRenderError={onPageRenderError}
+                                onRenderTextLayerError={onPageRenderTextLayerError}
+                                className="transition-opacity duration-300"
+                            />}
+                          </Document>
+                          <div className="absolute inset-0 pointer-events-none">
+                              {book.highlights
+                                  ?.filter((h) => h.pageNumber === pageNumber)
+                                  .map((highlight) => (
+                                  <div
+                                      key={highlight.id}
+                                      className="absolute inset-0"
+                                      style={{
+                                      ...(HIGHLIGHT_COLOR_STYLES[highlight.color] ||
+                                          HIGHLIGHT_COLOR_STYLES.yellow),
+                                      clipPath: `path('${rectsToSvgPath(highlight.rects, currentScale)}')`,
+                                      }}
+                                  />
+                                  ))}
                           </div>
-                        )}
-                      <div className="relative">
-                        <Document
-                          file={book.pdfDataUri}
-                          onLoadSuccess={onDocumentLoadSuccess}
-                          onLoadError={onDocumentLoadError}
-                          onPageRenderError={onPageRenderError}
-                          onPageRenderTextLayerError={onPageRenderTextLayerError}
-                          loading="" 
-                          className={isPdfLoading ? 'hidden' : ''}
-                        >
-                          {pageWidth && <Page 
-                              key={`${book.id}-${pageNumber}`}
-                              pageNumber={pageNumber} 
-                              width={pageWidth}
-                              renderTextLayer={true}
-                              onRenderError={onPageRenderError}
-                              onRenderTextLayerError={onPageRenderTextLayerError}
-                              className="transition-opacity duration-300"
-                          />}
-                        </Document>
-                         <div className="absolute inset-0 pointer-events-none">
-                            {book.highlights
-                                ?.filter((h) => h.pageNumber === pageNumber)
-                                .map((highlight) => (
-                                <div
-                                    key={highlight.id}
-                                    className="absolute inset-0"
-                                    style={{
-                                    ...(HIGHLIGHT_COLOR_STYLES[highlight.color] ||
-                                        HIGHLIGHT_COLOR_STYLES.yellow),
-                                    clipPath: `path('${rectsToSvgPath(highlight.rects, currentScale)}')`,
-                                    }}
-                                />
-                                ))}
                         </div>
                       </div>
-                    </div>
-                    {selectionPopover && (
-                        <div 
-                        className="absolute z-10 p-1 bg-background border rounded-md shadow-lg"
-                        style={{
-                            top: `${selectionPopover.top}px`,
-                            left: `${selectionPopover.left}px`,
-                            transform: 'translateX(-50%)',
-                        }}
-                        >
-                        <div className="flex items-center gap-2">
-                           {HIGHLIGHT_COLOR_KEYS.map((color) => (
-                              <button
-                                key={color}
-                                title={`Highlight ${color}`}
-                                aria-label={`Highlight ${color}`}
-                                onClick={() => handleHighlightClick(color)}
-                                className="w-6 h-6 rounded-full border border-muted-foreground/50"
-                                style={HIGHLIGHT_COLOR_STYLES[color]}
-                              />
-                            ))}
-                        </div>
-                        </div>
-                    )}
-                </div>
-                <div className="p-3 border-t flex flex-wrap items-center justify-between gap-x-4 gap-y-3 shrink-0 bg-background">
-                    <div className="flex items-center justify-center space-x-2">
-                        <Button variant="outline" size="icon" onClick={handlePreviousPage} disabled={pageNumber <= 1}><ChevronLeft className="h-4 w-4" /></Button>
-                        <span className="text-sm font-medium text-muted-foreground tabular-nums whitespace-nowrap">
-                            Page {pageNumber} of {numPages || '...'}
-                        </span>
-                        <Button variant="outline" size="icon" onClick={handleNextPage} disabled={!numPages || pageNumber >= numPages}><ChevronRight className="h-4 w-4" /></Button>
-                    </div>
+                      {selectionPopover && (
+                          <div 
+                          className="absolute z-20 p-1 bg-background border rounded-md shadow-lg"
+                          style={{
+                              top: `${selectionPopover.top}px`,
+                              left: `${selectionPopover.left}px`,
+                              transform: 'translateX(-50%)',
+                          }}
+                          >
+                          <div className="flex items-center gap-2">
+                            {HIGHLIGHT_COLOR_KEYS.map((color) => (
+                                <button
+                                  key={color}
+                                  title={`Highlight ${color}`}
+                                  aria-label={`Highlight ${color}`}
+                                  onClick={() => handleHighlightClick(color)}
+                                  className="w-6 h-6 rounded-full border border-muted-foreground/50"
+                                  style={HIGHLIGHT_COLOR_STYLES[color]}
+                                />
+                              ))}
+                          </div>
+                          </div>
+                      )}
+                  </div>
+                  
+                  {/* Top Control Bar */}
+                  <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-2 sm:p-4 bg-gradient-to-b from-background/80 to-transparent pointer-events-none">
+                      <Button variant="secondary" size="icon" onClick={() => setActiveTab('details')} title="Back to Details" className="pointer-events-auto">
+                          <ArrowLeft className="h-5 w-5" />
+                      </Button>
+                      <div className="text-center font-headline text-lg truncate px-4 pointer-events-none text-shadow">
+                          {book.title}
+                      </div>
+                       <Button variant="secondary" onClick={handleSyncProgress} size="sm" className="shrink-0 pointer-events-auto">
+                          <RefreshCw className="h-4 w-4 sm:mr-2" />
+                          <span className="hidden sm:inline">Sync</span>
+                      </Button>
+                  </div>
+                  
+                  {/* Bottom Control Bar */}
+                  <div className="absolute bottom-0 left-0 right-0 z-10 flex items-center justify-between gap-2 p-2 sm:p-4 bg-gradient-to-t from-background/80 to-transparent pointer-events-none">
+                       <div className="flex items-center gap-2 pointer-events-auto">
+                          <Button variant="secondary" size="icon" onClick={handlePreviousPage} disabled={pageNumber <= 1}><ChevronLeft className="h-5 w-5" /></Button>
+                          <Button variant="secondary" size="icon" onClick={handleNextPage} disabled={!numPages || pageNumber >= numPages}><ChevronRight className="h-5 w-5" /></Button>
+                      </div>
 
-                    <div className="flex items-center justify-center space-x-2">
-                        <Button variant="outline" size="icon" onClick={() => setActiveTab('details')} title="Back to Details">
-                            <BookText className="h-4 w-4" />
-                        </Button>
-                        
-                        <Button variant="outline" size="icon" onClick={handleZoomIn} title="Zoom In"><ZoomIn className="h-4 w-4" /></Button>
-                        <Button variant="outline" size="icon" onClick={handleZoomOut} title="Zoom Out"><ZoomOut className="h-4 w-4" /></Button>
-                        <Button variant="outline" size="icon" className="hidden sm:inline-flex" onClick={handleFitToWidth} title="Fit to Width"><Maximize2 className="h-4 w-4" /></Button>
-                        <Button variant="outline" size="icon" className="hidden sm:inline-flex" onClick={handleFitToPage} title="Fit to Page"><Minimize2 className="h-4 w-4" /></Button>
-                        <Button onClick={handleSyncProgress} size="icon" title="Sync Progress">
-                            <RefreshCw className="h-4 w-4" />
-                        </Button>
-                    </div>
+                      <span className="text-sm font-medium text-foreground tabular-nums whitespace-nowrap bg-background/60 backdrop-blur-sm rounded-md px-3 py-1.5 border pointer-events-none">
+                          {pageNumber} / {numPages || '...'}
+                      </span>
+                      
+                      <div className="flex items-center gap-2 pointer-events-auto">
+                          <Button variant="secondary" size="icon" onClick={handleZoomOut} title="Zoom Out"><ZoomOut className="h-5 w-5" /></Button>
+                          <Button variant="secondary" size="icon" onClick={handleZoomIn} title="Zoom In"><ZoomIn className="h-5 w-5" /></Button>
+                          <Button variant="secondary" size="icon" className="hidden sm:inline-flex" onClick={handleFitToWidth} title="Fit to Width"><Maximize2 className="h-5 w-5" /></Button>
+                          <Button variant="secondary" size="icon" className="hidden sm:inline-flex" onClick={handleFitToPage} title="Fit to Page"><Minimize2 className="h-5 w-5" /></Button>
+                      </div>
+                  </div>
                 </div>
-              </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full">
                   <p className="text-muted-foreground">No PDF available for this book.</p>
-                  <Button variant="outline" size="sm" onClick={() => setActiveTab('details')} className="mt-4">
-                      <BookText className="mr-2 h-4 w-4" />
+                   <Button variant="outline" size="sm" onClick={() => setActiveTab('details')} className="mt-4">
+                      <ArrowLeft className="mr-2 h-4 w-4" />
                       Back to Details
                   </Button>
               </div>
@@ -694,5 +704,3 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     </>
   );
 }
-
-    
