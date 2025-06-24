@@ -34,13 +34,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (typeof window !== 'undefined') {
-        const guestStatus = sessionStorage.getItem('isGuest') === 'true';
-        if (guestStatus) {
-            setIsGuest(true);
-            setLoading(false);
-            return;
-        }
+    if (typeof window !== 'undefined' && sessionStorage.getItem('isGuest') === 'true') {
+        setIsGuest(true);
+        setLoading(false);
+        return;
     }
 
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -72,9 +69,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         return;
     }
+    setLoading(true);
     const provider = new GoogleAuthProvider();
     try {
-      setLoading(true);
       await signInWithRedirect(auth, provider);
     } catch (error: any) {
       console.error("Google sign-in redirect failed to initiate:", error);
@@ -90,11 +87,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInAsGuest = () => {
+    setLoading(true);
     if (typeof window !== 'undefined') {
         sessionStorage.setItem('isGuest', 'true');
     }
     setIsGuest(true);
     setUser(null);
+    setLoading(false);
     router.push('/');
   };
 
@@ -106,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOutUser = async () => {
     if (!isFirebaseConfigured) return;
-    
+    setLoading(true);
     if (auth.currentUser) {
         try {
           await signOut(auth);
@@ -124,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if(typeof window !== 'undefined') {
         sessionStorage.removeItem('isGuest');
     }
+    // onAuthStateChanged will set loading to false and the auth page will show
     router.push('/auth');
   };
 
