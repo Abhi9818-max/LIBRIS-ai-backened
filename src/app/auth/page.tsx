@@ -22,9 +22,9 @@ export default function AuthPage() {
 
     if (loading) {
         return (
-            <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-muted/40">
+            <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-background">
                 <Loader2 className="h-16 w-16 animate-spin text-primary" />
-                <p className="mt-4 text-lg font-headline text-muted-foreground">Loading authentication...</p>
+                <p className="mt-4 text-lg text-muted-foreground">Loading authentication...</p>
             </main>
         );
     }
@@ -34,8 +34,8 @@ export default function AuthPage() {
     }
 
     return (
-        <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-muted/40">
-            <Card className="w-full max-w-sm shadow-xl">
+        <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-background">
+            <Card className="w-full max-w-sm shadow-lg animate-fade-in">
                 <CardHeader className="text-center">
                     <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
                         <BookOpen className="h-9 w-9 text-primary" />
@@ -54,7 +54,7 @@ export default function AuthPage() {
                         </Alert>
                     ) : (
                         <div className="flex flex-col space-y-4">
-                            <Button onClick={signInWithGoogle} disabled={loading}>
+                            <Button onClick={signInWithGoogle} disabled={loading} className="w-full">
                                 <Chrome className="mr-2 h-5 w-5" />
                                 Sign in with Google
                             </Button>
@@ -70,7 +70,7 @@ export default function AuthPage() {
                               </div>
                             </div>
                             
-                            <Button variant="secondary" onClick={signInAsGuest} disabled={loading}>
+                            <Button variant="secondary" onClick={signInAsGuest} disabled={loading} className="w-full">
                                  <UserIcon className="mr-2 h-5 w-5" />
                                  Continue as Guest
                             </Button>

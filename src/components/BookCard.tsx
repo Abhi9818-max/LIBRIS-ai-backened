@@ -23,7 +23,7 @@ export default function BookCard({ book, onOpenDetailView }: BookCardProps) {
   const progressColor = getBookColor(book.id);
 
   return (
-    <Card className="flex flex-col overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out animate-fade-in">
+    <Card className="flex flex-col overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out animate-fade-in">
       <CardHeader className="p-4 pb-2">
         <div 
           className="aspect-[2/3] w-full relative mb-2 rounded-md overflow-hidden cursor-pointer"
@@ -45,7 +45,7 @@ export default function BookCard({ book, onOpenDetailView }: BookCardProps) {
         
         <div className="flex items-center justify-between mt-2 gap-2">
             {book.category && (
-                <Badge variant="outline" className="truncate">{book.category}</Badge>
+                <Badge variant="secondary" className="truncate">{book.category}</Badge>
             )}
             {book.totalPages && book.totalPages > 0 && book.currentPage !== undefined ? (
                 <div className="relative h-12 w-12 flex-shrink-0" title={`${percentageRead}% complete`}>
@@ -84,7 +84,6 @@ export default function BookCard({ book, onOpenDetailView }: BookCardProps) {
       
       <CardFooter className="p-4 pt-2 flex flex-col gap-2">
         <Button
-          variant="secondary"
           size="sm"
           onClick={() => onOpenDetailView(book, 'read')}
           aria-label={`Read ${book.title}`}
@@ -93,7 +92,7 @@ export default function BookCard({ book, onOpenDetailView }: BookCardProps) {
           <BookOpen className="mr-2 h-4 w-4" /> Read
         </Button>
         <Button
-          variant="outline"
+          variant="secondary"
           size="sm"
           onClick={() => onOpenDetailView(book, 'details')}
           aria-label={`View details for ${book.title}`}

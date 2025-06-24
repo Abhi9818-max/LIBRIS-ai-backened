@@ -227,7 +227,7 @@ export default function HomePage() {
     return (
       <div className="flex flex-col min-h-screen bg-background items-center justify-center">
         <Loader2 className="h-16 w-16 text-primary animate-spin" />
-        <p className="text-xl font-headline text-primary mt-4">Loading Libris...</p>
+        <p className="text-xl font-headline text-muted-foreground mt-4">Loading Libris...</p>
       </div>
     );
   }
@@ -238,10 +238,10 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="py-4 px-4 md:px-8 border-b border-border shadow-sm sticky top-0 bg-background/95 backdrop-blur-sm z-10">
+      <header className="sticky top-0 z-10 border-b border-border bg-background/80 py-4 px-4 backdrop-blur-sm md:px-8">
         <div className="container mx-auto flex items-center justify-between gap-4">
             <Link href="/" className="text-2xl sm:text-3xl font-headline text-primary flex items-center shrink-0">
-                <BookOpen className="h-7 w-7 sm:h-8 sm:w-8 mr-2 sm:mr-3 text-accent" />
+                <BookOpen className="h-7 w-7 sm:h-8 sm:w-8 mr-2 sm:mr-3 text-primary" />
                 Libris
             </Link>
 
@@ -264,68 +264,72 @@ export default function HomePage() {
         {!isDbReady ? (
             <div className="flex flex-col items-center justify-center text-center h-[60vh]">
               <Loader2 className="h-16 w-16 text-primary animate-spin" />
-              <p className="text-xl font-headline text-primary mt-4">Preparing your library...</p>
+              <p className="text-xl font-headline text-muted-foreground mt-4">Preparing your library...</p>
             </div>
-          ) : books.length > 0 ? (
+          ) : (
             <>
-              <div className="flex flex-col sm:flex-row items-center sm:justify-start gap-4 mb-8">
-                <div className="relative w-full sm:max-w-xs md:max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
-                    <Input
-                        type="search"
-                        placeholder="Search by title or author..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10 w-full"
-                        aria-label="Search books"
-                    />
-                </div>
-                <div className="w-full sm:w-auto">
-                    <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                      <SelectTrigger className="w-full sm:w-[220px]" aria-label="Filter by category">
-                        <SelectValue placeholder="Filter by category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="All">All Categories</SelectItem>
-                        {allCategories.map(category => (
-                          <SelectItem key={category} value={category}>{category}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+              <div className="mb-8 rounded-lg border bg-card p-4 shadow-sm">
+                <div className="flex flex-col sm:flex-row items-center sm:justify-start gap-4">
+                  <div className="relative w-full sm:max-w-xs md:max-w-sm">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+                      <Input
+                          type="search"
+                          placeholder="Search by title or author..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-10 w-full"
+                          aria-label="Search books"
+                      />
+                  </div>
+                  <div className="w-full sm:w-auto">
+                      <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                        <SelectTrigger className="w-full sm:w-[220px]" aria-label="Filter by category">
+                          <SelectValue placeholder="Filter by category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="All">All Categories</SelectItem>
+                          {allCategories.map(category => (
+                            <SelectItem key={category} value={category}>{category}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                  </div>
                 </div>
               </div>
-              {filteredBooks.length === 0 ? (
-                 <div className="flex flex-col items-center justify-center text-center h-[50vh]">
-                    <SearchX className="h-24 w-24 text-muted-foreground mb-6" />
-                    <h2 className="text-2xl font-headline text-foreground mb-2">No Matching Books Found</h2>
-                    <p className="text-muted-foreground mb-6">Try adjusting your search or filter.</p>
+
+              {books.length > 0 ? (
+                filteredBooks.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center text-center h-[50vh]">
+                      <SearchX className="h-24 w-24 text-muted-foreground mb-6" />
+                      <h2 className="text-2xl font-headline text-foreground mb-2">No Matching Books Found</h2>
+                      <p className="text-muted-foreground mb-6">Try adjusting your search or filter.</p>
+                    </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
+                    {filteredBooks.map((book) => (
+                      <BookCard
+                        key={book.id}
+                        book={book}
+                        onOpenDetailView={handleOpenDetailView}
+                      />
+                    ))}
                   </div>
+                )
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-                  {filteredBooks.map((book) => (
-                    <BookCard
-                      key={book.id}
-                      book={book}
-                      onOpenDetailView={handleOpenDetailView}
-                    />
-                  ))}
+                <div className="flex flex-col items-center justify-center text-center h-[60vh]">
+                  <SearchX className="h-24 w-24 text-muted-foreground mb-6" />
+                  <h2 className="text-2xl font-headline text-foreground mb-2">Your Shelf is Empty</h2>
+                  <p className="text-muted-foreground mb-6">Click "Add Book" to start building your digital library.</p>
+                  <Button 
+                    aria-label="Add your first book" 
+                    onClick={() => handleOpenUploadModal()}
+                    size="lg"
+                  >
+                    <PlusCircle className="h-5 w-5 mr-2" /> Add Your First Book
+                  </Button>
                 </div>
               )}
             </>
-          ) : (
-             <div className="flex flex-col items-center justify-center text-center h-[60vh]">
-              <SearchX className="h-24 w-24 text-muted-foreground mb-6" />
-              <h2 className="text-2xl font-headline text-foreground mb-2">Your Shelf is Empty</h2>
-              <p className="text-muted-foreground mb-6">Click "Add Book" to start building your digital library.</p>
-              <Button 
-                aria-label="Add your first book" 
-                onClick={() => handleOpenUploadModal()}
-                size="sm"
-                className="px-3 py-2 sm:px-4"
-              >
-                <PlusCircle className="h-5 w-5 mr-2" /> Add Your First Book
-              </Button>
-            </div>
           )}
       </main>
 
@@ -348,7 +352,7 @@ export default function HomePage() {
         initialTab={initialDetailTab}
       />
 
-      <footer className="py-4 px-4 md:px-8 border-t border-border mt-auto">
+      <footer className="py-4 px-4 md:px-8 border-t border-border mt-auto bg-background">
         <div className="container mx-auto text-center text-sm text-muted-foreground">
           &copy; {new Date().getFullYear()} Libris. All rights reserved.
         </div>
