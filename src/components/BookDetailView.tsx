@@ -9,6 +9,7 @@ import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
 import { generateWhatIfStory, StorySandboxOutput } from "@/ai/flows/story-sandbox-flow";
 import type { StorySandboxInput } from "@/ai/flows/story-sandbox-flow";
+import { generateSceneImage } from "@/ai/flows/generate-scene-image-flow";
 
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -18,11 +19,12 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2, ArrowLeft, Sparkles } from "lucide-react";
+import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2, ArrowLeft, Sparkles, Image as ImageIcon } from "lucide-react";
 import { cn, getBookColor } from "@/lib/utils";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { Skeleton } from "./ui/skeleton";
+import { Separator } from "./ui/separator";
 
 
 // Set up the pdf.js worker
@@ -74,6 +76,9 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const [sandboxPrompt, setSandboxPrompt] = useState("");
   const [generatedStory, setGeneratedStory] = useState("");
   const [isGeneratingStory, setIsGeneratingStory] = useState(false);
+  
+  const [isVisualizing, setIsVisualizing] = useState(false);
+  const [visualizationResult, setVisualizationResult] = useState<{ image: string; text: string } | null>(null);
 
   const pdfContainerRef = useRef<HTMLDivElement>(null);
   const pdfWrapperRef = useRef<HTMLDivElement>(null);
@@ -93,6 +98,8 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
       setSandboxPrompt("");
       setGeneratedStory("");
       setIsGeneratingStory(false);
+      setIsVisualizing(false);
+      setVisualizationResult(null);
     }
   }, [isOpen, initialTab, book?.id]);
   
@@ -307,6 +314,35 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
       setGeneratedStory("Sorry, the muse is not with me right now. Please try again later.");
     } finally {
       setIsGeneratingStory(false);
+    }
+  };
+
+  const handleVisualizeClick = async () => {
+    const selection = window.getSelection();
+    const selectedText = selection?.toString().trim();
+
+    if (!selectedText) {
+      toast({ title: "No Text Selected", description: "Please select a passage to visualize." });
+      return;
+    }
+    
+    setIsVisualizing(true);
+    toast({ title: "Visualizing Scene ✨", description: "The AI is creating an image..." });
+    
+    try {
+      const result = await generateSceneImage({ text: selectedText });
+      if (result.imageDataUri) {
+        setVisualizationResult({ image: result.imageDataUri, text: selectedText });
+      } else {
+        toast({ title: "Visualization Failed", description: "The AI couldn't generate an image for this selection.", variant: "destructive" });
+      }
+    } catch (error) {
+      console.error("Failed to visualize scene:", error);
+      toast({ title: "Visualization Error", description: "An unexpected error occurred.", variant: "destructive" });
+    } finally {
+      setIsVisualizing(false);
+      setSelectionPopover(null);
+      window.getSelection()?.removeAllRanges();
     }
   };
 
@@ -598,18 +634,30 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                               transform: 'translateX(-50%)',
                           }}
                           >
-                          <div className="flex items-center gap-2">
-                            {HIGHLIGHT_COLOR_KEYS.map((color) => (
-                                <button
-                                  key={color}
-                                  title={`Highlight ${color}`}
-                                  aria-label={`Highlight ${color}`}
-                                  onClick={() => handleHighlightClick(color)}
-                                  className="w-6 h-6 rounded-full border border-muted-foreground/50"
-                                  style={HIGHLIGHT_COLOR_STYLES[color]}
-                                />
-                              ))}
-                          </div>
+                            <div className="flex items-center gap-1">
+                                {HIGHLIGHT_COLOR_KEYS.map((color) => (
+                                    <button
+                                    key={color}
+                                    title={`Highlight ${color}`}
+                                    aria-label={`Highlight ${color}`}
+                                    onClick={() => handleHighlightClick(color)}
+                                    className="w-6 h-6 rounded-full border border-muted-foreground/50"
+                                    style={HIGHLIGHT_COLOR_STYLES[color]}
+                                    />
+                                ))}
+                                <Separator orientation="vertical" className="h-6 mx-1" />
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    title="Visualize Scene"
+                                    aria-label="Visualize Scene"
+                                    onClick={handleVisualizeClick}
+                                    disabled={isVisualizing}
+                                >
+                                    {isVisualizing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+                                </Button>
+                            </div>
                           </div>
                       )}
                   </div>
@@ -698,6 +746,29 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
             >
               Delete Book
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={!!visualizationResult} onOpenChange={(open) => !open && setVisualizationResult(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Scene Visualized</AlertDialogTitle>
+            <AlertDialogDescription>
+              The AI generated this image based on the selected text.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="mt-4 space-y-4">
+             {visualizationResult?.image && (
+                <div className="relative aspect-video w-full rounded-md overflow-hidden border">
+                    <Image src={visualizationResult.image} alt="AI generated scene" layout="fill" objectFit="cover" data-ai-hint="fantasy landscape"/>
+                </div>
+            )}
+            <blockquote className="p-2 border-l-4 bg-muted text-muted-foreground italic text-sm">
+                {visualizationResult?.text}
+            </blockquote>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setVisualizationResult(null)}>Close</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
