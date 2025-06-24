@@ -12,6 +12,7 @@ interface AuthContextType {
   isGuest: boolean;
   loading: boolean;
   isFirebaseConfigured: boolean;
+  missingConfigKeys: string[];
   signInWithGoogle: () => Promise<void>;
   signInAsGuest: () => void;
   signOutUser: () => Promise<void>;
@@ -36,14 +37,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (typeof window !== 'undefined' && sessionStorage.getItem('isGuest') === 'true') {
         setIsGuest(true);
+        setUser(null);
         setLoading(false);
         return;
     }
 
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
-      setIsGuest(false);
       if (currentUser) {
+        setIsGuest(false);
         sessionStorage.removeItem('isGuest');
       }
       setLoading(false);
@@ -65,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         toast({
             variant: 'destructive',
             title: 'Firebase Not Configured',
-            description: 'Cannot sign in. Please check your .env.local file.',
+            description: 'Cannot sign in. Please complete the setup instructions.',
         });
         return;
     }
@@ -74,7 +76,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await signInWithRedirect(auth, provider);
     } catch (error: any) {
-      console.error("Google sign-in redirect failed to initiate:", error);
       let description = `Could not start sign-in process. (${error.code || 'Unknown error'})`;
       toast({
           variant: 'destructive',
@@ -123,7 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if(typeof window !== 'undefined') {
         sessionStorage.removeItem('isGuest');
     }
-    // onAuthStateChanged will set loading to false and the auth page will show
+    setLoading(false);
     router.push('/auth');
   };
 
@@ -132,6 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isGuest,
     loading,
     isFirebaseConfigured,
+    missingConfigKeys: missingConfig.map(([key]) => `NEXT_PUBLIC_FIREBASE_${key.replace(/([A-Z])/g, '_$1').toUpperCase()}`),
     signInWithGoogle,
     signInAsGuest,
     signOutUser,

@@ -11,7 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
 
 export default function AuthPage() {
-    const { user, isGuest, signInWithGoogle, signInAsGuest, loading, isFirebaseConfigured } = useAuth();
+    const { user, isGuest, signInWithGoogle, signInAsGuest, loading, isFirebaseConfigured, missingConfigKeys } = useAuth();
     const router = useRouter();
 
     useEffect(() => {
@@ -19,14 +19,6 @@ export default function AuthPage() {
             router.push('/');
         }
     }, [user, isGuest, loading, router]);
-
-    const handleGoogleSignIn = () => {
-        signInWithGoogle();
-    };
-
-    const handleGuestSignIn = () => {
-        signInAsGuest();
-    };
 
     if (loading) {
         return (
@@ -40,7 +32,6 @@ export default function AuthPage() {
     }
     
     if (user || isGuest) {
-        // The useEffect above will handle the redirect, so we return null to avoid a flash of the login form.
         return null;
     }
 
@@ -60,12 +51,17 @@ export default function AuthPage() {
                             <AlertTriangle className="h-4 w-4" />
                             <AlertTitle>Firebase Not Configured</AlertTitle>
                             <AlertDescription>
-                                Please set up your <code className="font-mono text-sm bg-destructive/20 p-1 rounded">.env.local</code> file to use authentication. See the console for details.
+                                <p>Your app is missing required Firebase credentials.</p>
+                                <p className="mt-2">Please create a <code className="font-mono text-sm bg-destructive/20 p-1 rounded">.env.local</code> file in your project root and add the following variables:</p>
+                                <ul className="list-disc pl-5 mt-1 text-xs">
+                                    {missingConfigKeys.map(key => <li key={key}><code className="font-mono bg-destructive/20 p-1 rounded">{key}</code></li>)}
+                                </ul>
+                                 <p className="mt-2 text-xs">After updating the file, you must restart your development server. See the developer console for more details.</p>
                             </AlertDescription>
                         </Alert>
                     ) : (
                         <div className="flex flex-col space-y-4">
-                            <Button onClick={handleGoogleSignIn} disabled={loading} className="w-full">
+                            <Button onClick={signInWithGoogle} disabled={loading} className="w-full">
                                 <Chrome className="mr-2 h-5 w-5" />
                                 Sign in with Google
                             </Button>
@@ -81,7 +77,7 @@ export default function AuthPage() {
                               </div>
                             </div>
                             
-                            <Button variant="secondary" onClick={handleGuestSignIn} disabled={loading} className="w-full">
+                            <Button variant="secondary" onClick={signInAsGuest} disabled={loading} className="w-full">
                                  <UserIcon className="mr-2 h-5 w-5" />
                                  Continue as Guest
                             </Button>
