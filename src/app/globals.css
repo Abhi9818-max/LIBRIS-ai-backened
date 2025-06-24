@@ -106,7 +106,7 @@
     browser's highlight background is visible over the original, clean text
     from the canvas. This fixes the visual glitch without breaking selection.
   */
-  .react-pdf__Page__textLayer > span::selection {
-    color: transparent;
+  .react-pdf__Page__textLayer *::selection {
+    color: transparent !important;
   }
 }
