@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2, BookText, Headphones } from "lucide-react";
 import { cn, getBookColor } from "@/lib/utils";
 import { textToSpeech } from "@/ai/flows/text-to-speech-flow";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 
 // Set up the pdf.js worker
@@ -68,6 +69,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const [pageText, setPageText] = useState('');
   const [audioDataUri, setAudioDataUri] = useState<string | null>(null);
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+  const [narratorVoice, setNarratorVoice] = useState('Algenib');
 
   const pdfContainerRef = useRef<HTMLDivElement>(null);
   const pdfWrapperRef = useRef<HTMLDivElement>(null);
@@ -292,7 +294,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     setAudioDataUri(null);
 
     try {
-      const result = await textToSpeech(pageText);
+      const result = await textToSpeech({ text: pageText, voice: narratorVoice });
       if (result.media) {
         setAudioDataUri(result.media);
       } else {
@@ -587,9 +589,24 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                         <Button variant="outline" size="icon" onClick={() => setActiveTab('details')} title="Back to Details">
                             <BookText className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="icon" onClick={handleListenToPage} disabled={isGeneratingAudio} title="Listen to this page">
-                          {isGeneratingAudio ? <Loader2 className="h-4 w-4 animate-spin"/> : <Headphones className="h-4 w-4" />}
-                        </Button>
+                        
+                        <div className="flex items-center gap-1">
+                            <Select value={narratorVoice} onValueChange={setNarratorVoice}>
+                                <SelectTrigger className="w-[140px] h-10" aria-label="Select narrator voice">
+                                    <SelectValue placeholder="Select a voice" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Algenib">Narrator 1 (M)</SelectItem>
+                                    <SelectItem value="Achernar">Narrator 2 (M)</SelectItem>
+                                    <SelectItem value="Sirius">Narrator 3 (F)</SelectItem>
+                                    <SelectItem value="Vega">Narrator 4 (F)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Button variant="outline" size="icon" onClick={handleListenToPage} disabled={isGeneratingAudio} title="Listen to this page">
+                              {isGeneratingAudio ? <Loader2 className="h-4 w-4 animate-spin"/> : <Headphones className="h-4 w-4" />}
+                            </Button>
+                        </div>
+                        
                         <Button variant="outline" size="icon" onClick={handleZoomIn} title="Zoom In"><ZoomIn className="h-4 w-4" /></Button>
                         <Button variant="outline" size="icon" onClick={handleZoomOut} title="Zoom Out"><ZoomOut className="h-4 w-4" /></Button>
                         <Button variant="outline" size="icon" className="hidden sm:inline-flex" onClick={handleFitToWidth} title="Fit to Width"><Maximize2 className="h-4 w-4" /></Button>
