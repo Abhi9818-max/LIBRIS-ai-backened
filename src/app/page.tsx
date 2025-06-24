@@ -240,7 +240,7 @@ export default function HomePage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="sticky top-0 z-10 border-b border-border bg-background/80 py-3 px-4 backdrop-blur-sm md:px-8">
-        <div className="container relative mx-auto flex items-center justify-between gap-2 overflow-hidden md:gap-4">
+        <div className="relative mx-auto flex w-full items-center justify-between gap-2 overflow-hidden md:gap-4">
             
             {/* Mobile Search Overlay */}
             <div className={`absolute inset-x-0 top-1/2 -translate-y-1/2 z-20 flex w-full items-center gap-2 bg-background px-4 transition-all duration-300 md:hidden ${isMobileSearchOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
