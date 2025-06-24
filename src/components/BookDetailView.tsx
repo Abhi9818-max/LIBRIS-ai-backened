@@ -67,6 +67,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const [scale, setScale] = useState(1.0);
   const [selectionPopover, setSelectionPopover] = useState<{ top: number; left: number; } | null>(null);
   const [deletingHighlight, setDeletingHighlight] = useState<Highlight | null>(null);
+  const [isConfirmingDeleteBook, setIsConfirmingDeleteBook] = useState(false);
   
   const [sandboxPrompt, setSandboxPrompt] = useState("");
   const [generatedStory, setGeneratedStory] = useState("");
@@ -86,6 +87,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
       setScale(1.0);
       setSelectionPopover(null);
       setDeletingHighlight(null);
+      setIsConfirmingDeleteBook(false);
       setSandboxPrompt("");
       setGeneratedStory("");
       setIsGeneratingStory(false);
@@ -177,7 +179,10 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   };
 
   const handleRemoveClick = () => {
-    if (book) onRemoveBook(book.id);
+    if (book) {
+      setIsConfirmingDeleteBook(false);
+      onRemoveBook(book.id);
+    }
   };
   
   const handleZoomIn = () => setScale(prevScale => prevScale * 1.2);
@@ -363,7 +368,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                   </div>
                   <div className="flex space-x-2 mt-4">
                     <Button onClick={handleEditClick} size="sm"><Pencil className="mr-2 h-4 w-4" /> Edit</Button>
-                    <Button variant="outline" onClick={() => setDeletingHighlight(book as any)} size="sm"><Trash2 className="mr-2 h-4 w-4" /> Remove</Button>
+                    <Button variant="outline" onClick={() => setIsConfirmingDeleteBook(true)} size="sm"><Trash2 className="mr-2 h-4 w-4" /> Remove</Button>
                   </div>
                 </div>
                 <div className="md:col-span-2 space-y-4">
@@ -658,6 +663,25 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
               className={buttonVariants({ variant: "destructive" })}
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={isConfirmingDeleteBook} onOpenChange={setIsConfirmingDeleteBook}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this book?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove "{book.title}" and all its data, including highlights and reading progress. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleRemoveClick} 
+              className={buttonVariants({ variant: "destructive" })}
+            >
+              Delete Book
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
