@@ -368,7 +368,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                   </div>
                   <div className="flex space-x-2 mt-4">
                     <Button onClick={handleEditClick} size="sm"><Pencil className="mr-2 h-4 w-4" /> Edit</Button>
-                    <Button variant="outline" onClick={() => setIsConfirmingDeleteBook(true)} size="sm"><Trash2 className="mr-2 h-4 w-4" /> Remove</Button>
+                    <Button variant="destructive" onClick={() => setIsConfirmingDeleteBook(true)} size="sm"><Trash2 className="mr-2 h-4 w-4" /> Remove Book</Button>
                   </div>
                 </div>
                 <div className="md:col-span-2 space-y-4">
@@ -536,9 +536,9 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
             <TabsContent value="read" className="flex-grow flex flex-col overflow-hidden data-[state=inactive]:hidden">
               {hasValidPdf ? (
               <div className="flex-grow flex flex-col overflow-hidden">
-                <div className="flex-grow bg-muted/40 overflow-auto relative" ref={pdfContainerRef} onMouseUp={handleMouseUp}>
+                <div className="flex-grow bg-muted/40 overflow-auto relative p-2 sm:p-4" ref={pdfContainerRef} onMouseUp={handleMouseUp}>
                     <div 
-                        className="flex justify-center transition-transform duration-200 ease-in-out"
+                        className="mx-auto transition-transform duration-200 ease-in-out"
                         ref={pdfWrapperRef}
                     >
                         {isPdfLoading && (
