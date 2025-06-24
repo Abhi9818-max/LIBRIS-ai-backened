@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2, BookText, Headphones } from "lucide-react";
 import { cn, getBookColor } from "@/lib/utils";
-import { textToSpeech } from "@/ai/flows/text-to-speech-flow";
+import { textToSpeech, type TextToSpeechOutput } from "@/ai/flows/text-to-speech-flow";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 
@@ -294,8 +294,8 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     setAudioDataUri(null);
 
     try {
-      const result = await textToSpeech({ text: pageText, voice: narratorVoice });
-      if (result.media) {
+      const result: TextToSpeechOutput = await textToSpeech({ text: pageText, voice: narratorVoice });
+      if (result && result.media) {
         setAudioDataUri(result.media);
       } else {
         throw new Error("The AI did not return any audio data.");
@@ -315,7 +315,17 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
 
   useEffect(() => {
     if (audioDataUri && audioPlayerRef.current) {
-        audioPlayerRef.current.play().catch(e => console.error("Audio autoplay was blocked:", e));
+        const playPromise = audioPlayerRef.current.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(error => {
+                if (error.name === 'AbortError') {
+                    // This is expected when the user navigates away quickly.
+                    // We can safely ignore it.
+                    return; 
+                }
+                console.error("Audio autoplay was blocked or failed:", error);
+            });
+        }
     }
   }, [audioDataUri]);
 
