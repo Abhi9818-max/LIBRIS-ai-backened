@@ -74,56 +74,63 @@ const textToSpeechFlow = ai.defineFlow(
     outputSchema: TextToSpeechOutputSchema,
   },
   async (input) => {
-    const { text, voice } = input;
-    if (!text || text.trim().length === 0) {
-        throw new Error("Input text cannot be empty.");
-    }
-    
-    // The TTS model has a limit on input characters. We truncate to leave room for the narration enrichment.
-    const maxChars = 4000;
-    const truncatedText = text.length > maxChars ? text.substring(0, maxChars) : text;
+    try {
+      const { text, voice } = input;
+      if (!text || text.trim().length === 0) {
+          throw new Error("Input text cannot be empty.");
+      }
+      
+      // The TTS model has a limit on input characters. We truncate to leave room for the narration enrichment.
+      const maxChars = 4000;
+      const truncatedText = text.length > maxChars ? text.substring(0, maxChars) : text;
 
-    // Step 1: Use an LLM to enrich the text for more natural, emotional narration.
-    const narrationResult = await prepareNarrationPrompt({ text: truncatedText });
-    const textForSpeech = narrationResult.output?.narratedText || truncatedText;
+      // Step 1: Use an LLM to enrich the text for more natural, emotional narration.
+      const narrationResult = await prepareNarrationPrompt({ text: truncatedText });
+      const textForSpeech = narrationResult.output?.narratedText || truncatedText;
 
 
-    // Step 2: Generate audio from the enriched text.
-    const {media} = await ai.generate({
-      model: 'googleai/gemini-2.5-flash-preview-tts',
-      config: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: {voiceName: voice || 'Algenib'},
+      // Step 2: Generate audio from the enriched text.
+      const {media} = await ai.generate({
+        model: 'googleai/gemini-2.5-flash-preview-tts',
+        config: {
+          responseModalities: ['AUDIO'],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {voiceName: voice || 'Algenib'},
+            },
           },
         },
-      },
-      prompt: textForSpeech,
-    });
-    
-    if (!media?.url) {
-      throw new Error('No audio media was returned from the AI model.');
+        prompt: textForSpeech,
+      });
+      
+      if (!media?.url) {
+        throw new Error('No audio media was returned from the AI model.');
+      }
+
+      // The media URL is a data URI with base64-encoded PCM data. We need to extract it.
+      const audioBase64 = media.url.substring(media.url.indexOf(',') + 1);
+
+      if (!audioBase64) {
+        throw new Error('The AI model returned empty audio data.');
+      }
+
+      const audioBuffer = Buffer.from(audioBase64, 'base64');
+      
+      // Convert the raw PCM data to a proper WAV format.
+      const wavBase64 = await toWav(audioBuffer);
+
+      if (!wavBase64) {
+        throw new Error('Failed to convert audio to WAV format.');
+      }
+
+      return {
+        media: 'data:audio/wav;base64,' + wavBase64,
+      };
+    } catch (error) {
+        console.error("Fatal error in textToSpeechFlow:", error);
+        // Re-throw a generic error to the client to avoid leaking implementation details.
+        // The client's try/catch will handle this and show a friendly toast message.
+        throw new Error("The AI narrator failed to generate audio. Please try again.");
     }
-
-    // The media URL is a data URI with base64-encoded PCM data. We need to extract it.
-    const audioBase64 = media.url.substring(media.url.indexOf(',') + 1);
-
-    if (!audioBase64) {
-      throw new Error('The AI model returned empty audio data.');
-    }
-
-    const audioBuffer = Buffer.from(audioBase64, 'base64');
-    
-    // Convert the raw PCM data to a proper WAV format.
-    const wavBase64 = await toWav(audioBuffer);
-
-    if (!wavBase64) {
-      throw new Error('Failed to convert audio to WAV format.');
-    }
-
-    return {
-      media: 'data:audio/wav;base64,' + wavBase64,
-    };
   }
 );
