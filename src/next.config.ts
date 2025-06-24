@@ -31,7 +31,15 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
-    const scriptSrcDirectives = ["'self'", "https://cdnjs.cloudflare.com"];
+    // Get the auth domain from environment variables to use in the CSP.
+    const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "";
+
+    const scriptSrcDirectives = [
+      "'self'",
+      "https://apis.google.com", // For Google Sign-In script
+      "https://www.gstatic.com", // For Firebase JS SDK
+      "https://cdnjs.cloudflare.com", // For pdf.js worker
+    ];
     if (process.env.NODE_ENV === "development") {
       scriptSrcDirectives.push("'unsafe-eval'");
       scriptSrcDirectives.push("'unsafe-inline'");
@@ -45,7 +53,10 @@ const nextConfig: NextConfig = {
       `img-src 'self' data: https://placehold.co https://lh3.googleusercontent.com`,
       `object-src 'self' blob:`, // For viewing PDFs from blob URLs
       `worker-src 'self' blob: https://cdnjs.cloudflare.com`, // Allow worker scripts from self, blob, and CDN
-      `connect-src 'self' https://generativelanguage.googleapis.com https://firebasehosting.googleapis.com https://cdnjs.cloudflare.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com`,
+      // Allow iframes from your Firebase auth domain and Google for the sign-in popup
+      `frame-src 'self' ${authDomain ? `https://${authDomain}` : ''} https://accounts.google.com`,
+      // Explicitly list all required domains for auth and other services
+      `connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://generativelanguage.googleapis.com https://firebasehosting.googleapis.com https://cdnjs.cloudflare.com`,
     ].join('; ');
 
     return [
