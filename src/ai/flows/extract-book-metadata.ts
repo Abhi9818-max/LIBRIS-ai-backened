@@ -1,4 +1,3 @@
-
 'use server';
 
 /**
@@ -37,15 +36,15 @@ const prompt = ai.definePrompt({
   name: 'extractBookMetadataPrompt',
   input: {schema: ExtractBookMetadataInputSchema},
   output: {schema: ExtractBookMetadataOutputSchema},
-  prompt: `You are an expert librarian AI specializing in analyzing book manuscripts. Your task is to meticulously extract key metadata from the provided text, which represents the first few pages of a book.
+  prompt: `You are an expert librarian AI specializing in analyzing book manuscripts. Your task is to meticulously extract key metadata from the provided text, which represents the first few pages of a book. Even if the text is very sparse (e.g., only a title page), do your best to identify a plausible title and author.
 
 Follow these instructions carefully:
-1.  **Identify the Title:** Scan the text for the most prominent and centrally located text. This is almost always the book's title. Be precise and capture the full title.
-2.  **Identify the Author:** The author's name is typically located just below the title, often preceded by "by". Extract the full name.
-3.  **Generate a Compelling Summary:** Read all the provided text. Synthesize a concise, one-paragraph summary that would entice someone to read the book. Capture the main plot points, characters, or core ideas presented in the opening pages. If the text is sparse (e.g., only a title page), use the title and author to infer the genre and create a plausible and engaging summary.
+1.  **Identify the Title:** Scan the text for the most prominent text. This is often the largest, most centered text, or written in all capital letters. This is almost always the book's title. Be precise and capture the full title. If no clear title is present, use your best judgment to identify what is most likely the title.
+2.  **Identify the Author:** The author's name is typically located just below the title, often preceded by "by" or "written by". If no such phrase is present, look for a name that appears to be a person's name near the title. Extract the full name.
+3.  **Generate a Compelling Summary:** Read all the provided text. Synthesize a concise, one-paragraph summary that would entice someone to read the book. If the text is too sparse (e.g., only a title page), use the title and author to infer the genre and create a plausible and engaging summary based on that inference.
 4.  **Determine the Category:** Based on all the information you have gathered (title, author, summary), classify the book into ONE of the following categories: Novel, Fantasy, Science Fiction, Mystery, Manga, Non-Fiction, Other. Choose the most fitting category.
 
-Return ONLY a single, valid JSON object matching the requested schema. Do not add any conversational text or markdown formatting around the JSON.
+Return ONLY a single, valid JSON object matching the requested schema. Do not add any conversational text or markdown formatting around the JSON. Prioritize finding a title and author above all else.
 
 Text to Analyze:
 {{{textContent}}}`,
