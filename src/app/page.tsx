@@ -21,7 +21,7 @@ import { UserNav } from "@/components/auth/UserNav";
 
 
 export default function HomePage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, isGuest, loading: authLoading } = useAuth();
   const router = useRouter();
 
   const [books, setBooks] = useState<Book[]>([]);
@@ -40,14 +40,14 @@ export default function HomePage() {
   const [mobileSearchActive, setMobileSearchActive] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (!authLoading && !user && !isGuest) {
       router.push('/auth');
     }
-  }, [user, authLoading, router]);
+  }, [user, isGuest, authLoading, router]);
 
   useEffect(() => {
     setIsClient(true);
-    if (user) {
+    if (user || isGuest) {
       initDB().then(success => {
         if (success) {
           setIsDbReady(true);
@@ -60,7 +60,7 @@ export default function HomePage() {
         }
       });
     }
-  }, [toast, user]);
+  }, [toast, user, isGuest]);
   
   const populateDefaultBooks = useCallback(async () => {
     try {
@@ -87,7 +87,7 @@ export default function HomePage() {
   }, [toast]);
 
   useEffect(() => {
-    if (isDbReady && user) {
+    if (isDbReady && (user || isGuest)) {
       getBooks().then(storedBooks => {
         if (storedBooks.length === 0) {
           populateDefaultBooks();
@@ -103,7 +103,7 @@ export default function HomePage() {
         });
       });
     }
-  }, [isDbReady, user, toast, populateDefaultBooks]);
+  }, [isDbReady, user, isGuest, toast, populateDefaultBooks]);
 
 
   const handleOpenUploadModal = (book: Book | null = null) => {
@@ -233,7 +233,7 @@ export default function HomePage() {
     );
   }
   
-  if (!user) {
+  if (!user && !isGuest) {
     return null;
   }
 

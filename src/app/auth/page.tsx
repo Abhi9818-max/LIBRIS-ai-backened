@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { BookOpen, Chrome, AlertTriangle } from "lucide-react";
+import { BookOpen, Chrome, AlertTriangle, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,14 +10,14 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
 
 export default function AuthPage() {
-    const { user, signInWithGoogle, loading, isFirebaseConfigured } = useAuth();
+    const { user, isGuest, signInWithGoogle, signInAsGuest, loading, isFirebaseConfigured } = useAuth();
     const router = useRouter();
 
     useEffect(() => {
-        if (!loading && user) {
+        if (!loading && (user || isGuest)) {
             router.push('/');
         }
-    }, [user, loading, router]);
+    }, [user, isGuest, loading, router]);
 
     if (loading) {
         return (
@@ -28,7 +28,7 @@ export default function AuthPage() {
         );
     }
     
-    if (user) {
+    if (user || isGuest) {
         return null;
     }
 
@@ -57,12 +57,28 @@ export default function AuthPage() {
                                 <Chrome className="mr-2 h-5 w-5" />
                                 Sign in with Google
                             </Button>
+                            
+                            <div className="relative">
+                              <div className="absolute inset-0 flex items-center">
+                                <span className="w-full border-t" />
+                              </div>
+                              <div className="relative flex justify-center text-xs uppercase">
+                                <span className="bg-card px-2 text-muted-foreground">
+                                  Or
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <Button variant="secondary" onClick={signInAsGuest} disabled={loading}>
+                                 <UserIcon className="mr-2 h-5 w-5" />
+                                 Continue as Guest
+                            </Button>
                         </div>
                     )}
                 </CardContent>
                 <CardFooter>
                      <p className="text-center text-xs text-muted-foreground">
-                        Sign in to save your books, track progress, and access your library from anywhere.
+                        Sign in to save books across devices, or continue as a guest to try it out.
                     </p>
                 </CardFooter>
             </Card>

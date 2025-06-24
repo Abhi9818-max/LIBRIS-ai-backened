@@ -7,9 +7,11 @@ import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
   user: User | null;
+  isGuest: boolean;
   loading: boolean;
   isFirebaseConfigured: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInAsGuest: () => void;
   signOutUser: () => Promise<void>;
 }
 
@@ -17,6 +19,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const isFirebaseConfigured = missingConfig.length === 0;
@@ -26,8 +29,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       return;
     }
+
+    // Check for guest status first on client-side
+    if (typeof window !== 'undefined') {
+        const guestStatus = sessionStorage.getItem('isGuest') === 'true';
+        if (guestStatus) {
+            setIsGuest(true);
+            setLoading(false);
+            return; // Don't setup firebase listener for guests
+        }
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
+      setIsGuest(false);
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('isGuest');
+      }
       setLoading(false);
     });
 
@@ -45,8 +63,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const signInAsGuest = () => {
+    if (typeof window !== 'undefined') {
+        sessionStorage.setItem('isGuest', 'true');
+    }
+    setIsGuest(true);
+    setUser(null);
+    router.push('/');
+  };
+
   const signOutUser = async () => {
-    if (!isFirebaseConfigured) return;
+    if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('isGuest');
+    }
+    setIsGuest(false);
+
+    if (!isFirebaseConfigured || !auth.currentUser) {
+        router.push('/auth');
+        return;
+    };
+    
     try {
       await signOut(auth);
       router.push('/auth');
@@ -57,9 +93,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = {
     user,
+    isGuest,
     loading,
     isFirebaseConfigured,
     signInWithGoogle,
+    signInAsGuest,
     signOutUser,
   };
 
