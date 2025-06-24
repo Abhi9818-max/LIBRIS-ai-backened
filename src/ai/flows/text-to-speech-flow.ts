@@ -107,10 +107,20 @@ const textToSpeechFlow = ai.defineFlow(
     }
 
     // The media URL is a data URI with base64-encoded PCM data. We need to extract it.
-    const audioBuffer = Buffer.from(media.url.substring(media.url.indexOf(',') + 1), 'base64');
+    const audioBase64 = media.url.substring(media.url.indexOf(',') + 1);
+
+    if (!audioBase64) {
+      throw new Error('The AI model returned empty audio data.');
+    }
+
+    const audioBuffer = Buffer.from(audioBase64, 'base64');
     
     // Convert the raw PCM data to a proper WAV format.
     const wavBase64 = await toWav(audioBuffer);
+
+    if (!wavBase64) {
+      throw new Error('Failed to convert audio to WAV format.');
+    }
 
     return {
       media: 'data:audio/wav;base64,' + wavBase64,

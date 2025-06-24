@@ -576,12 +576,15 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                     <div className="flex-1 min-w-[150px]">
                       {audioDataUri && (
                         <audio
+                          key={audioDataUri}
                           ref={audioPlayerRef}
                           controls
-                          src={audioDataUri}
                           className="w-full h-8"
                           onEnded={handleNextPage}
-                        />
+                        >
+                          <source src={audioDataUri} type="audio/wav" />
+                           Your browser does not support the audio element.
+                        </audio>
                       )}
                     </div>
                     
