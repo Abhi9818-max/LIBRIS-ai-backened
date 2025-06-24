@@ -7,7 +7,7 @@ import Image from "next/image";
 import { Document, Page, pdfjs, type PDFDocumentProxy } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
-import { generateWhatIfStory } from "@/ai/flows/story-sandbox-flow";
+import { generateWhatIfStory, StorySandboxInput, StorySandboxOutput } from "@/ai/flows/story-sandbox-flow";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -103,13 +103,8 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
 
     if (pdfContainerRef.current) {
         const { clientWidth } = pdfContainerRef.current;
-        let initialScale = clientWidth / dimensions.width;
+        const initialScale = clientWidth / dimensions.width;
         
-        // On smaller screens, apply an initial zoom to better fit the content, as requested.
-        if (clientWidth < 768) {
-            initialScale *= 1.2;
-        }
-
         setScale(initialScale > 0 ? initialScale : 1.0);
     }
 
@@ -289,7 +284,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     setGeneratedStory("");
 
     try {
-      const result = await generateWhatIfStory({
+      const result: StorySandboxOutput = await generateWhatIfStory({
         title: book.title,
         author: book.author,
         summary: book.summary,
@@ -368,7 +363,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                   </div>
                   <div className="flex space-x-2 mt-4">
                     <Button onClick={handleEditClick} size="sm"><Pencil className="mr-2 h-4 w-4" /> Edit</Button>
-                    <Button variant="destructive" onClick={() => setIsConfirmingDeleteBook(true)} size="sm"><Trash2 className="mr-2 h-4 w-4" /> Remove Book</Button>
+                    <Button variant="destructive" onClick={() => setIsConfirmingDeleteBook(true)} size="sm"><Trash2 className="mr-2 h-4 w-4" /> Remove</Button>
                   </div>
                 </div>
                 <div className="md:col-span-2 space-y-4">
