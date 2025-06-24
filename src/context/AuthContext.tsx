@@ -2,7 +2,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, type User, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signInWithRedirect, GoogleAuthProvider, type User, signOut } from 'firebase/auth';
 import { auth, missingConfig } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -34,20 +34,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // On initial load, check for guest status from session storage.
     if (typeof window !== 'undefined') {
         const guestStatus = sessionStorage.getItem('isGuest') === 'true';
         if (guestStatus) {
             setIsGuest(true);
             setLoading(false);
-            return; // Don't attach Firebase listener for guests.
+            return;
         }
     }
 
-    // If not a guest, listen for Firebase auth changes.
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
-      setIsGuest(false); // A logged-in user or a logged-out user is not a guest.
+      setIsGuest(false);
       if (currentUser) {
         sessionStorage.removeItem('isGuest');
       }
@@ -76,25 +74,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
-      // Redirection is handled by useEffect hooks in pages based on auth state.
+      setLoading(true);
+      await signInWithRedirect(auth, provider);
     } catch (error: any) {
-      console.error("Google sign-in failed:", error);
-      let description = `Could not sign in with Google. (${error.code || 'Unknown error'})`;
-
-      if (error.code === 'auth/internal-error') {
-        description = `An internal authentication error occurred. This is often due to project configuration. Please check the following in your Firebase project:
-        1. Ensure your .env.local file has the correct Firebase credentials.
-        2. Go to Authentication -> Settings -> Authorized Domains and add '${window.location.hostname}'.
-        3. In Google Cloud Console, ensure the "Identity Platform" API is enabled for your project.`;
-      }
-
+      console.error("Google sign-in redirect failed to initiate:", error);
+      let description = `Could not start sign-in process. (${error.code || 'Unknown error'})`;
       toast({
           variant: 'destructive',
           title: 'Sign-In Failed',
           description,
-          duration: 15000,
+          duration: 9000,
       });
+      setLoading(false);
     }
   };
 
@@ -108,12 +99,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const exitGuestModeAndSignIn = () => {
-    if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('isGuest');
-        // A full page reload is the most robust way to transition from a non-listener
-        // state (guest) to a listener state (auth page), ensuring a clean start.
-        window.location.href = '/auth';
-    }
+    sessionStorage.removeItem('isGuest');
+    setIsGuest(false);
+    signInWithGoogle();
   };
 
   const signOutUser = async () => {
@@ -122,7 +110,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (auth.currentUser) {
         try {
           await signOut(auth);
-          // onAuthStateChanged will set user to null.
         } catch (error: any) {
           console.error("Sign-out failed:", error);
           toast({
@@ -132,7 +119,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
         }
     }
-    // For both signed-in users and guests, clearing state and redirecting is desired.
     setIsGuest(false);
     setUser(null);
     if(typeof window !== 'undefined') {

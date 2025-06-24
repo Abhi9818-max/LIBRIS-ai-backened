@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookOpen, Chrome, AlertTriangle, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -13,6 +13,7 @@ import { Loader2 } from "lucide-react";
 export default function AuthPage() {
     const { user, isGuest, signInWithGoogle, signInAsGuest, loading, isFirebaseConfigured } = useAuth();
     const router = useRouter();
+    const [isRedirecting, setIsRedirecting] = useState(false);
 
     useEffect(() => {
         if (!loading && (user || isGuest)) {
@@ -20,11 +21,23 @@ export default function AuthPage() {
         }
     }, [user, isGuest, loading, router]);
 
-    if (loading) {
+    const handleGoogleSignIn = () => {
+        setIsRedirecting(true);
+        signInWithGoogle();
+    };
+
+    const handleGuestSignIn = () => {
+        setIsRedirecting(true);
+        signInAsGuest();
+    };
+
+    if (loading || isRedirecting) {
         return (
             <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-background">
                 <Loader2 className="h-16 w-16 animate-spin text-primary" />
-                <p className="mt-4 text-lg text-muted-foreground">Loading authentication...</p>
+                <p className="mt-4 text-lg text-muted-foreground">
+                    {isRedirecting ? "Redirecting..." : "Loading authentication..."}
+                </p>
             </main>
         );
     }
@@ -54,7 +67,7 @@ export default function AuthPage() {
                         </Alert>
                     ) : (
                         <div className="flex flex-col space-y-4">
-                            <Button onClick={signInWithGoogle} disabled={loading} className="w-full">
+                            <Button onClick={handleGoogleSignIn} disabled={loading || isRedirecting} className="w-full">
                                 <Chrome className="mr-2 h-5 w-5" />
                                 Sign in with Google
                             </Button>
@@ -70,7 +83,7 @@ export default function AuthPage() {
                               </div>
                             </div>
                             
-                            <Button variant="secondary" onClick={signInAsGuest} disabled={loading} className="w-full">
+                            <Button variant="secondary" onClick={handleGuestSignIn} disabled={loading || isRedirecting} className="w-full">
                                  <UserIcon className="mr-2 h-5 w-5" />
                                  Continue as Guest
                             </Button>
