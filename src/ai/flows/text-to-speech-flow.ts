@@ -48,25 +48,6 @@ async function toWav(pcmData: Buffer, channels = 1, rate = 24000, sampleWidth = 
   });
 }
 
-const prepareNarrationPrompt = ai.definePrompt({
-    name: 'prepareNarrationPrompt',
-    input: { schema: z.object({ text: z.string() }) },
-    output: { schema: z.object({ narratedText: z.string() }) },
-    prompt: `You are an expert voice actor. Your task is to take a piece of text and prepare it for narration. Your goal is to make it sound like a real person is reading it with emotion, not a robot.
-
-To do this, you should:
-1.  Add punctuation like commas and ellipses (...) to create natural pauses and a more human, emotional cadence.
-2.  Break up long sentences into shorter, more manageable fragments where appropriate to simulate natural breathing patterns.
-3.  You can slightly rephrase parts for better flow, but stick to the original meaning.
-
-IMPORTANT: Do NOT add any special formatting, markdown, annotations, or anything that isn't standard text and punctuation. The output must be ONLY the rewritten text, ready for a text-to-speech engine.
-
-Here is the text to prepare:
-{{{text}}}
-`,
-});
-
-
 const textToSpeechFlow = ai.defineFlow(
   {
     name: 'textToSpeechFlow',
@@ -81,21 +62,11 @@ const textToSpeechFlow = ai.defineFlow(
           return { media: '' };
       }
       
-      // The TTS model has a limit on input characters. We truncate to leave room for the narration enrichment.
+      // The TTS model has a limit on input characters. We truncate to prevent errors.
       const maxChars = 4000;
-      const truncatedText = text.length > maxChars ? text.substring(0, maxChars) : text;
-
-      // Step 1: Use an LLM to enrich the text for more natural, emotional narration.
-      const narrationResult = await prepareNarrationPrompt({ text: truncatedText });
-      const textForSpeech = narrationResult.output?.narratedText || truncatedText;
+      const textForSpeech = text.length > maxChars ? text.substring(0, maxChars) : text;
       
-      // Add validation to prevent crashing the TTS model with empty input.
-      if (!textForSpeech || textForSpeech.trim().length === 0) {
-        console.warn("Text for narration became empty after AI processing. Aborting audio generation.");
-        return { media: '' };
-      }
-
-      // Step 2: Generate audio from the enriched text.
+      // Generate audio directly from the text for better performance and reliability.
       const {media} = await ai.generate({
         model: 'googleai/gemini-2.5-flash-preview-tts',
         config: {
@@ -136,7 +107,6 @@ const textToSpeechFlow = ai.defineFlow(
         console.error("Fatal error in textToSpeechFlow:", error);
         // Return an empty object to prevent crashing the server flow.
         // The client will handle the empty response and show an error toast.
-        // This is a more robust pattern than re-throwing, which can cause unexpected server responses.
         return { media: '' };
     }
   }
