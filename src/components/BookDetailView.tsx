@@ -7,7 +7,9 @@ import Image from "next/image";
 import { Document, Page, pdfjs, type PDFDocumentProxy } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
-import { generateWhatIfStory, StorySandboxInput, StorySandboxOutput } from "@/ai/flows/story-sandbox-flow";
+import { generateWhatIfStory, StorySandboxOutput } from "@/ai/flows/story-sandbox-flow";
+import type { StorySandboxInput } from "@/ai/flows/story-sandbox-flow";
+
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -64,7 +66,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const [isPdfLoading, setIsPdfLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(initialTab);
   const [pdfPageDimensions, setPdfPageDimensions] = useState<{ width: number; height: number } | null>(null);
-  const [scale, setScale] = useState(1.0);
+  const [pageWidth, setPageWidth] = useState<number | null>(null);
   const [selectionPopover, setSelectionPopover] = useState<{ top: number; left: number; } | null>(null);
   const [deletingHighlight, setDeletingHighlight] = useState<Highlight | null>(null);
   const [isConfirmingDeleteBook, setIsConfirmingDeleteBook] = useState(false);
@@ -84,7 +86,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
       setPageNumber(book?.currentPage || 1);
       setPdfPageDimensions(null);
       setIsPdfLoading(true);
-      setScale(1.0);
+      setPageWidth(null);
       setSelectionPopover(null);
       setDeletingHighlight(null);
       setIsConfirmingDeleteBook(false);
@@ -103,9 +105,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
 
     if (pdfContainerRef.current) {
         const { clientWidth } = pdfContainerRef.current;
-        const initialScale = clientWidth / dimensions.width;
-        
-        setScale(initialScale > 0 ? initialScale : 1.0);
+        setPageWidth(clientWidth);
     }
 
     setIsPdfLoading(false);
@@ -175,32 +175,36 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
 
   const handleRemoveClick = () => {
     if (book) {
-      setIsConfirmingDeleteBook(false);
-      onRemoveBook(book.id);
+      setIsConfirmingDeleteBook(true);
     }
   };
   
-  const handleZoomIn = () => setScale(prevScale => prevScale * 1.2);
-  const handleZoomOut = () => setScale(prevScale => prevScale / 1.2);
+  const handleConfirmRemove = () => {
+     if (book) {
+      setIsConfirmingDeleteBook(false);
+      onRemoveBook(book.id);
+    }
+  }
+  
+  const handleZoomIn = () => setPageWidth(prevWidth => prevWidth ? prevWidth * 1.2 : null);
+  const handleZoomOut = () => setPageWidth(prevWidth => prevWidth ? prevWidth / 1.2 : null);
   
   const handleFitToPage = () => {
     if (!pdfContainerRef.current || !pdfPageDimensions) return;
     const { clientWidth, clientHeight } = pdfContainerRef.current;
-    const { width: pageWidth, height: pageHeight } = pdfPageDimensions;
-    if (pageWidth <= 0 || pageHeight <= 0) return;
+    const { width, height } = pdfPageDimensions;
+    if (width <= 0 || height <= 0) return;
 
-    const scaleX = clientWidth / pageWidth;
-    const scaleY = clientHeight / pageHeight;
-    setScale(Math.min(scaleX, scaleY));
+    const scaleX = clientWidth / width;
+    const scaleY = clientHeight / height;
+    const newScale = Math.min(scaleX, scaleY);
+    setPageWidth(width * newScale);
   };
 
   const handleFitToWidth = () => {
     if (!pdfContainerRef.current || !pdfPageDimensions) return;
     const { clientWidth } = pdfContainerRef.current;
-    const { width: pageWidth } = pdfPageDimensions;
-    if (pageWidth <= 0) return;
-    
-    setScale(clientWidth / pageWidth);
+    setPageWidth(clientWidth);
   };
 
   const handleDialogClose = (open: boolean) => {
@@ -228,7 +232,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   };
 
   const handleHighlightClick = (color: string) => {
-    if (!book) return;
+    if (!book || !pageWidth || !pdfPageDimensions) return;
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed) return;
 
@@ -239,6 +243,8 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     const range = selection.getRangeAt(0);
     const clientRects = Array.from(range.getClientRects());
     
+    const scale = pageWidth / pdfPageDimensions.width;
+
     const newHighlight: Highlight = {
         id: `highlight-${Date.now()}`,
         pageNumber: pageNumber,
@@ -317,6 +323,8 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const isComplete = percentageRead >= 100;
   const progressColor = getBookColor(book.id);
 
+  const currentScale = (pageWidth && pdfPageDimensions) ? (pageWidth / pdfPageDimensions.width) : 1;
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={handleDialogClose}>
@@ -363,7 +371,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                   </div>
                   <div className="flex space-x-2 mt-4">
                     <Button onClick={handleEditClick} size="sm"><Pencil className="mr-2 h-4 w-4" /> Edit</Button>
-                    <Button variant="destructive" onClick={() => setIsConfirmingDeleteBook(true)} size="sm"><Trash2 className="mr-2 h-4 w-4" /> Remove</Button>
+                    <Button variant="destructive" onClick={handleRemoveClick} size="sm"><Trash2 className="mr-2 h-4 w-4" /> Remove</Button>
                   </div>
                 </div>
                 <div className="md:col-span-2 space-y-4">
@@ -437,8 +445,10 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                                 <div 
                                   className="flex-grow cursor-pointer" 
                                   onClick={() => {
-                                      setActiveTab('read');
-                                      setPageNumber(highlight.pageNumber);
+                                      if (hasValidPdf) {
+                                          setActiveTab('read');
+                                          setPageNumber(highlight.pageNumber);
+                                      }
                                   }}
                                   title={`Go to page ${highlight.pageNumber}`}
                                 >
@@ -466,7 +476,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                       ) : (
                         <div className="text-sm text-muted-foreground pt-2 border rounded-md p-3 text-center">
                             <p>No highlights yet.</p>
-                            <p className="text-xs">Select text in the "Read" tab to create one.</p>
+                             {hasValidPdf && <p className="text-xs">Select text in the "Read" tab to create one.</p>}
                         </div>
                       )}
                     </div>
@@ -533,7 +543,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
               <div className="flex-grow flex flex-col overflow-hidden">
                 <div className="flex-grow bg-muted/40 overflow-auto relative p-2 sm:p-4" ref={pdfContainerRef} onMouseUp={handleMouseUp}>
                     <div 
-                        className="mx-auto transition-transform duration-200 ease-in-out"
+                        className="mx-auto"
                         ref={pdfWrapperRef}
                     >
                         {isPdfLoading && (
@@ -552,15 +562,15 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                           loading="" 
                           className={isPdfLoading ? 'hidden' : ''}
                         >
-                          <Page 
+                          {pageWidth && <Page 
                               key={`${book.id}-${pageNumber}`}
                               pageNumber={pageNumber} 
-                              scale={scale}
+                              width={pageWidth}
                               renderTextLayer={true}
                               onRenderError={onPageRenderError}
                               onRenderTextLayerError={onPageRenderTextLayerError}
                               className="transition-opacity duration-300"
-                          />
+                          />}
                         </Document>
                          <div className="absolute inset-0 pointer-events-none">
                             {book.highlights
@@ -572,7 +582,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                                     style={{
                                     ...(HIGHLIGHT_COLOR_STYLES[highlight.color] ||
                                         HIGHLIGHT_COLOR_STYLES.yellow),
-                                    clipPath: `path('${rectsToSvgPath(highlight.rects, scale)}')`,
+                                    clipPath: `path('${rectsToSvgPath(highlight.rects, currentScale)}')`,
                                     }}
                                 />
                                 ))}
@@ -673,7 +683,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction 
-              onClick={handleRemoveClick} 
+              onClick={handleConfirmRemove} 
               className={buttonVariants({ variant: "destructive" })}
             >
               Delete Book
@@ -684,3 +694,5 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     </>
   );
 }
+
+    
