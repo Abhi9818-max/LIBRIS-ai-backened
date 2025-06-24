@@ -597,7 +597,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                           className="w-full h-8"
                           onEnded={handleNextPage}
                         >
-                          <source src={audioDataUri} type="audio/wav" />
+                          <source src={audioDataUri} type="audio/mpeg" />
                            Your browser does not support the audio element.
                         </audio>
                       )}

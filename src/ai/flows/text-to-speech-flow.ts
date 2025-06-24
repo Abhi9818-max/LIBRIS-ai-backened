@@ -11,7 +11,6 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import wav from 'wav';
 
 const TextToSpeechInputSchema = z.object({
     text: z.string().describe("The text to convert to speech."),
@@ -21,31 +20,13 @@ export type TextToSpeechInput = z.infer<typeof TextToSpeechInputSchema>;
 
 
 const TextToSpeechOutputSchema = z.object({
-  media: z.string().describe('The audio data as a base64-encoded WAV data URI.'),
+  media: z.string().describe('The audio data as a data URI.'),
 });
 export type TextToSpeechOutput = z.infer<typeof TextToSpeechOutputSchema>;
 
 
 export async function textToSpeech(input: TextToSpeechInput): Promise<TextToSpeechOutput> {
   return textToSpeechFlow(input);
-}
-
-async function toWav(pcmData: Buffer, channels = 1, rate = 24000, sampleWidth = 2): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const writer = new wav.Writer({
-      channels,
-      sampleRate: rate,
-      bitDepth: sampleWidth * 8,
-    });
-
-    const bufs: Buffer[] = [];
-    writer.on('error', reject);
-    writer.on('data', (d) => bufs.push(d));
-    writer.on('end', () => resolve(Buffer.concat(bufs).toString('base64')));
-
-    writer.write(pcmData);
-    writer.end();
-  });
 }
 
 const textToSpeechFlow = ai.defineFlow(
@@ -62,16 +43,16 @@ const textToSpeechFlow = ai.defineFlow(
           return { media: '' };
       }
       
-      // The TTS model has a limit on input characters. We truncate to prevent errors.
       const maxChars = 4000;
       const textForSpeech = text.length > maxChars ? text.substring(0, maxChars) : text;
       
-      // Generate audio directly from the text for better performance and reliability.
       const {media} = await ai.generate({
         model: 'googleai/gemini-2.5-flash-preview-tts',
         config: {
           responseModalities: ['AUDIO'],
           speechConfig: {
+            // Request MP3 output directly to improve performance and reduce payload size.
+            audioEncoding: 'MP3',
             voiceConfig: {
               prebuiltVoiceConfig: {voiceName: voice || 'Algenib'},
             },
@@ -85,27 +66,9 @@ const textToSpeechFlow = ai.defineFlow(
         return { media: '' };
       }
 
-      // The media URL is a data URI with base64-encoded PCM data. We need to extract it.
-      const audioBase64 = media.url.substring(media.url.indexOf(',') + 1);
+      // The AI now returns a direct data URI for the MP3 audio.
+      return { media: media.url };
 
-      if (!audioBase64) {
-        console.warn('The AI model returned empty audio data.');
-        return { media: '' };
-      }
-
-      const audioBuffer = Buffer.from(audioBase64, 'base64');
-      
-      // Convert the raw PCM data to a proper WAV format.
-      const wavBase64 = await toWav(audioBuffer);
-
-      if (!wavBase64) {
-        console.warn('Failed to convert audio to WAV format.');
-        return { media: '' };
-      }
-
-      return {
-        media: 'data:audio/wav;base64,' + wavBase64,
-      };
     } catch (error) {
         console.error("Fatal error in textToSpeechFlow, returning empty media to prevent crash:", error);
         // Return an empty object to prevent crashing the server flow.
