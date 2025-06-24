@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -96,13 +97,16 @@
   }
 
   /*
-    Custom PDF text selection to prevent double text rendering.
-    When text is selected, the browser renders a duplicate, misaligned text layer.
-    This rule makes that duplicate text transparent, leaving only the selection background.
-    This fixes the "congested text" visual glitch during selection.
+    This is the definitive fix for the PDF text selection bug.
+    It targets the text layer that react-pdf creates for selection.
+    When you select text, the browser tries to render the text from this layer,
+    which clashes with the text already visible in the PDF canvas, causing the
+    ugly "congested" or "doubled" text glitch.
+    This rule makes the text color of the selection transparent, so only the
+    browser's highlight background is visible over the original, clean text
+    from the canvas. This fixes the visual glitch without breaking selection.
   */
   .react-pdf__Page__textLayer > span::selection {
-    background-color: hsl(var(--primary) / 0.4);
-    color: transparent !important;
+    color: transparent;
   }
 }
