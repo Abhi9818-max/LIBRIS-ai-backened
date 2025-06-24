@@ -10,7 +10,7 @@ import BookCard from "@/components/BookCard";
 import UploadBookForm from "@/components/UploadBookForm";
 import BookDetailView from "@/components/BookDetailView";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, BookOpen, SearchX, Loader2, Search } from "lucide-react";
+import { PlusCircle, BookOpen, SearchX, Loader2, Search, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { initDB, getBooks, saveBook, deleteBook } from "@/lib/db";
 import { defaultBooks } from "@/lib/default-books";
@@ -37,6 +37,7 @@ export default function HomePage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user && !isGuest) {
@@ -239,14 +240,15 @@ export default function HomePage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="sticky top-0 z-10 border-b border-border bg-background/80 py-3 px-4 backdrop-blur-sm md:px-8">
-        <div className="container mx-auto flex items-center gap-2 md:gap-4">
-            <Link href="/" className="text-2xl sm:text-3xl font-headline text-primary flex items-center shrink-0">
-                <BookOpen className="h-7 w-7 sm:h-8 sm:w-8 mr-2 sm:mr-3 text-primary" />
-                <span className="hidden md:inline">Libris</span>
-            </Link>
-
-            <div className="flex-1 flex justify-center px-4 sm:px-8">
-                <div className="relative w-full max-w-md">
+        <div className="container relative mx-auto flex items-center justify-between gap-2 overflow-hidden md:gap-4">
+            
+            {/* Mobile Search Overlay */}
+            <div className={`absolute inset-x-0 top-1/2 -translate-y-1/2 z-20 flex w-full items-center gap-2 bg-background px-4 transition-all duration-300 md:hidden ${isMobileSearchOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0" onClick={() => setIsMobileSearchOpen(false)}>
+                    <ArrowLeft className="h-5 w-5" />
+                    <span className="sr-only">Close search</span>
+                </Button>
+                <div className="relative w-full">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
                     <Input
                         type="search"
@@ -255,21 +257,50 @@ export default function HomePage() {
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="pl-10 w-full h-10 bg-muted/50 border-0 focus-visible:ring-primary focus-visible:ring-2"
                         aria-label="Search books"
+                        autoFocus
                     />
                 </div>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-3">
-                <Button 
-                  aria-label="Add new book" 
-                  onClick={() => handleOpenUploadModal()} 
-                  size="sm"
-                  className="h-10"
-                >
-                  <PlusCircle className="h-5 w-5 sm:mr-2" />
-                  <span className="hidden sm:inline">Add Book</span>
-                </Button>
-                <UserNav />
+            {/* Default Header Content */}
+            <div className={`flex w-full items-center justify-between gap-2 transition-opacity md:gap-4 ${isMobileSearchOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                <Link href="/" className="text-2xl sm:text-3xl font-headline text-primary flex items-center shrink-0">
+                    <BookOpen className="h-7 w-7 sm:h-8 sm:w-8 mr-2 sm:mr-3 text-primary" />
+                    <span className="hidden md:inline">Libris</span>
+                </Link>
+
+                {/* Desktop Search Bar */}
+                <div className="hidden flex-1 justify-center px-4 sm:px-8 md:flex">
+                    <div className="relative w-full max-w-md">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+                        <Input
+                            type="search"
+                            placeholder="Search your library..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10 w-full h-10 bg-muted/50 border-0 focus-visible:ring-primary focus-visible:ring-2"
+                            aria-label="Search books"
+                        />
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-2 sm:gap-3">
+                    {/* Mobile Search Trigger */}
+                    <Button variant="ghost" size="icon" className="h-10 w-10 md:hidden" onClick={() => setIsMobileSearchOpen(true)}>
+                        <Search className="h-5 w-5" />
+                        <span className="sr-only">Open search</span>
+                    </Button>
+                    <Button
+                      aria-label="Add new book"
+                      onClick={() => handleOpenUploadModal()}
+                      size="sm"
+                      className="h-10"
+                    >
+                      <PlusCircle className="h-5 w-5 sm:mr-2" />
+                      <span className="hidden sm:inline">Add Book</span>
+                    </Button>
+                    <UserNav />
+                </div>
             </div>
         </div>
       </header>
