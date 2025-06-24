@@ -39,47 +39,43 @@ const textToSpeechFlow = ai.defineFlow(
     try {
       const { text, voice } = input;
       if (!text || text.trim().length === 0) {
-          console.warn("textToSpeechFlow received empty text. Aborting.");
+          console.warn("[TTS] textToSpeechFlow received empty text. Aborting.");
           return { media: '' };
       }
       
       const maxChars = 4000;
       const textForSpeech = text.length > maxChars ? text.substring(0, maxChars) : text;
       
+      console.log(`[TTS] Attempting to generate audio for text (first 100 chars): "${textForSpeech.substring(0, 100)}..."`);
+
       const {media} = await ai.generate({
         model: 'googleai/gemini-2.5-flash-preview-tts',
         config: {
           responseModalities: ['AUDIO'],
-          speechConfig: {
-            // Request MP3 output directly to improve performance and reduce payload size.
-            audioEncoding: 'MP3',
-            voiceConfig: {
-              prebuiltVoiceConfig: {voiceName: voice || 'Algenib'},
-            },
+          audioEncoding: 'MP3',
+          voiceConfig: {
+            prebuiltVoiceConfig: {voiceName: voice || 'Algenib'},
           },
-          // Loosening safety settings to prevent false positives on book content.
           safetySettings: [
-            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
-            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
           ],
         },
         prompt: textForSpeech,
       });
       
       if (!media?.url) {
-        console.warn('No audio media was returned from the AI model.');
+        console.warn('[TTS] AI model call succeeded but returned no audio media.');
         return { media: '' };
       }
-
-      // The AI now returns a direct data URI for the MP3 audio.
+      
+      console.log(`[TTS] Successfully generated audio data URI (size: ${media.url.length}).`);
       return { media: media.url };
 
     } catch (error) {
-        console.error("Fatal error in textToSpeechFlow, returning empty media to prevent crash:", error);
-        // Return an empty object to prevent crashing the server flow.
-        // The client will handle the empty response and show an error toast.
+        console.error("[TTS] Fatal error in textToSpeechFlow. The AI call likely failed. Returning empty media to prevent crash.", error);
         return { media: '' };
     }
   }
