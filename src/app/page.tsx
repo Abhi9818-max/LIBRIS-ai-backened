@@ -238,19 +238,33 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="sticky top-0 z-10 border-b border-border bg-background/80 py-4 px-4 backdrop-blur-sm md:px-8">
-        <div className="container mx-auto flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-10 border-b border-border bg-background/80 py-3 px-4 backdrop-blur-sm md:px-8">
+        <div className="container mx-auto flex items-center gap-2 md:gap-4">
             <Link href="/" className="text-2xl sm:text-3xl font-headline text-primary flex items-center shrink-0">
                 <BookOpen className="h-7 w-7 sm:h-8 sm:w-8 mr-2 sm:mr-3 text-primary" />
-                Libris
+                <span className="hidden md:inline">Libris</span>
             </Link>
 
-            <div className="flex items-center gap-2 sm:gap-4">
+            <div className="flex-1 flex justify-center px-4 sm:px-8">
+                <div className="relative w-full max-w-md">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+                    <Input
+                        type="search"
+                        placeholder="Search your library..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10 w-full h-10 bg-muted/50 border-0 focus-visible:ring-primary focus-visible:ring-2"
+                        aria-label="Search books"
+                    />
+                </div>
+            </div>
+
+            <div className="flex items-center gap-2 sm:gap-3">
                 <Button 
                   aria-label="Add new book" 
                   onClick={() => handleOpenUploadModal()} 
-                  size="sm" 
-                  className="px-2 py-1 sm:px-3 sm:py-2 h-9 sm:h-10"
+                  size="sm"
+                  className="h-10"
                 >
                   <PlusCircle className="h-5 w-5 sm:mr-2" />
                   <span className="hidden sm:inline">Add Book</span>
@@ -268,32 +282,19 @@ export default function HomePage() {
             </div>
           ) : (
             <>
-              <div className="mb-8 rounded-lg border bg-card p-4 shadow-sm">
-                <div className="flex flex-col sm:flex-row items-center sm:justify-start gap-4">
-                  <div className="relative w-full sm:max-w-xs md:max-w-sm">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
-                      <Input
-                          type="search"
-                          placeholder="Search by title or author..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          className="pl-10 w-full"
-                          aria-label="Search books"
-                      />
-                  </div>
-                  <div className="w-full sm:w-auto">
-                      <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                        <SelectTrigger className="w-full sm:w-[220px]" aria-label="Filter by category">
-                          <SelectValue placeholder="Filter by category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="All">All Categories</SelectItem>
-                          {allCategories.map(category => (
-                            <SelectItem key={category} value={category}>{category}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                  </div>
+              <div className="mb-8">
+                <div className="w-full sm:max-w-xs">
+                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                    <SelectTrigger className="w-full" aria-label="Filter by category">
+                      <SelectValue placeholder="Filter by category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="All">All Categories</SelectItem>
+                      {allCategories.map(category => (
+                        <SelectItem key={category} value={category}>{category}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
