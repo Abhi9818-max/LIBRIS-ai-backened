@@ -541,9 +541,9 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
             <TabsContent value="read" className="flex-grow flex flex-col overflow-hidden data-[state=inactive]:hidden bg-muted/40">
               {hasValidPdf ? (
                 <div className="flex-grow relative overflow-hidden">
-                  <div ref={pdfContainerRef} className="h-full w-full overflow-auto" onMouseUp={handleMouseUp}>
+                  <div ref={pdfContainerRef} className="h-full w-full overflow-auto flex" onMouseUp={handleMouseUp}>
                       <div 
-                          className="mx-auto pt-20 pb-24 px-2 sm:px-4"
+                          className="m-auto pt-20 pb-24 px-2 sm:px-4"
                           ref={pdfWrapperRef}
                       >
                           {isPdfLoading && (
