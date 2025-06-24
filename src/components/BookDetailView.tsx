@@ -579,7 +579,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                 <div className="flex-grow relative overflow-hidden">
                   <div ref={pdfContainerRef} className="h-full w-full overflow-auto flex">
                       <div 
-                          className="m-auto pt-20 pb-24 px-2 sm:px-4"
+                          className="m-auto"
                           ref={pdfWrapperRef}
                           onMouseUp={handleMouseUp}
                       >
@@ -589,7 +589,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                               <p className="mt-4 text-muted-foreground">Loading PDF...</p>
                             </div>
                           )}
-                        <div className="relative">
+                        <div className="relative pt-20 pb-24 px-2 sm:px-4">
                           <Document
                             file={book.pdfDataUri}
                             onLoadSuccess={onDocumentLoadSuccess}
@@ -751,7 +751,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
         </AlertDialogContent>
       </AlertDialog>
       <AlertDialog open={!!visualizationResult} onOpenChange={(open) => !open && setVisualizationResult(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-h-[85vh] overflow-y-auto">
           <AlertDialogHeader>
             <AlertDialogTitle>Scene Visualized</AlertDialogTitle>
             <AlertDialogDescription>
