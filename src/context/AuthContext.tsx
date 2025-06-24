@@ -80,15 +80,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Redirection is handled by useEffect hooks in pages based on auth state.
     } catch (error: any) {
       console.error("Google sign-in failed:", error);
-      // The `auth/internal-error` is often a configuration issue.
-      const description = error.code === 'auth/internal-error'
-        ? 'An internal error occurred. Please ensure your Firebase project is configured correctly and the domain is authorized.'
-        : `Could not sign in with Google. (${error.code || 'Unknown error'})`;
+      let description = `Could not sign in with Google. (${error.code || 'Unknown error'})`;
+
+      if (error.code === 'auth/internal-error') {
+        description = `An internal authentication error occurred. This is often due to project configuration. Please check the following in your Firebase project:
+        1. Ensure your .env.local file has the correct Firebase credentials.
+        2. Go to Authentication -> Settings -> Authorized Domains and add '${window.location.hostname}'.
+        3. In Google Cloud Console, ensure the "Identity Platform" API is enabled for your project.`;
+      }
 
       toast({
           variant: 'destructive',
-          title: 'Sign-In Error',
+          title: 'Sign-In Failed',
           description,
+          duration: 15000,
       });
     }
   };
