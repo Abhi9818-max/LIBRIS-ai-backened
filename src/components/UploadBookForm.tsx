@@ -454,43 +454,48 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-             {pdfFileName ? (
-              <div className="flex items-center justify-between rounded-lg border bg-muted/50 p-4">
+            {pdfFileName ? (
+              <div className="flex w-full items-center justify-between rounded-lg border border-primary/30 bg-primary/10 p-4">
                 <div className="flex items-center gap-3 overflow-hidden">
-                    <FileText className="h-6 w-6 shrink-0 text-primary" />
-                    <div className="flex flex-col overflow-hidden">
-                        <span className="text-sm font-medium text-foreground truncate" title={pdfFileName}>{pdfFileName}</span>
-                        <span className="text-xs text-muted-foreground">PDF selected</span>
-                    </div>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-background">
+                    <FileText className="h-6 w-6 text-primary" />
+                  </div>
+                  <div className="flex flex-col overflow-hidden">
+                    <p className="truncate text-sm font-medium text-foreground" title={pdfFileName}>
+                      {pdfFileName}
+                    </p>
+                    <p className="text-xs text-muted-foreground">PDF selected. Ready for analysis.</p>
+                  </div>
                 </div>
-                <Button type="button" variant="outline" size="sm" asChild>
-                    <Label htmlFor="pdf-upload" className="cursor-pointer">
-                        Change
-                        <Input id="pdf-upload" name="pdf-upload" type="file" className="sr-only" onChange={onPdfInputChange} accept="application/pdf" />
-                    </Label>
+                <Button type="button" variant="ghost" size="sm" asChild>
+                  <Label htmlFor="pdf-upload" className="cursor-pointer">
+                    Change
+                    <Input id="pdf-upload" name="pdf-upload" type="file" className="sr-only" onChange={onPdfInputChange} accept="application/pdf" />
+                  </Label>
                 </Button>
               </div>
             ) : (
               <div
                 className={cn(
-                    "relative flex w-full flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg transition-colors duration-200 ease-in-out hover:border-primary/50 hover:bg-muted/50",
-                    isDragging && "border-primary bg-primary/10"
+                  "group relative flex w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-background p-8 text-center transition-all duration-300",
+                  "hover:border-primary hover:bg-primary/5",
+                  isDragging && "border-primary bg-primary/10 ring-2 ring-primary/20"
                 )}
                 onDrop={onDrop}
                 onDragOver={onDragOver}
                 onDragLeave={onDragLeave}
               >
-                  <Input id="pdf-upload" name="pdf-upload" type="file" className="sr-only" onChange={onPdfInputChange} accept="application/pdf" />
-                  <label htmlFor="pdf-upload" className="absolute inset-0 h-full w-full cursor-pointer rounded-md" aria-label="Upload PDF"></label>
-                  <div className="pointer-events-none text-center">
-                      <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
-                      <p className="mt-4 text-sm font-medium text-foreground">
-                          <span className="text-primary">Click to upload</span> or drag and drop
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                          PDF up to 100MB
-                      </p>
-                  </div>
+                <Input id="pdf-upload" name="pdf-upload" type="file" className="sr-only" onChange={onPdfInputChange} accept="application/pdf" />
+                <label htmlFor="pdf-upload" className="absolute inset-0 z-10 h-full w-full cursor-pointer" aria-label="Upload PDF" />
+                <div className="z-0 flex flex-col items-center pointer-events-none">
+                  <UploadCloud className="h-10 w-10 text-muted-foreground transition-transform group-hover:scale-110 group-hover:text-primary" />
+                  <p className="mt-4 text-base font-semibold text-foreground">
+                    Drop your PDF here
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    or <span className="font-medium text-primary">browse your files</span>
+                  </p>
+                </div>
               </div>
             )}
 
