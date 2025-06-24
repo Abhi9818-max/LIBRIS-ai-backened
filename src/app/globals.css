@@ -98,6 +98,6 @@
   /* Custom PDF text selection to prevent double text rendering */
   .react-pdf__Page__textLayer > span::selection {
     background: hsl(var(--primary) / 0.4);
-    color: transparent;
+    color: transparent !important;
   }
 }
