@@ -10,7 +10,7 @@ import BookCard from "@/components/BookCard";
 import UploadBookForm from "@/components/UploadBookForm";
 import BookDetailView from "@/components/BookDetailView";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, BookOpen, SearchX, Loader2, Search, ArrowLeft } from "lucide-react";
+import { PlusCircle, BookOpen, SearchX, Loader2, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { initDB, getBooks, saveBook, deleteBook } from "@/lib/db";
 import { defaultBooks } from "@/lib/default-books";
@@ -37,7 +37,6 @@ export default function HomePage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [mobileSearchActive, setMobileSearchActive] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user && !isGuest) {
@@ -246,54 +245,17 @@ export default function HomePage() {
                 Libris
             </Link>
 
-            <div className="flex items-center gap-2">
-                <div className="relative hidden md:block w-72">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
-                    <Input
-                        type="search"
-                        placeholder="Search by title or author..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10"
-                        aria-label="Search books"
-                    />
-                </div>
-                
-                {mobileSearchActive && (
-                    <div className="absolute top-0 left-0 w-full h-full bg-background z-20 flex items-center p-4 gap-2 md:hidden">
-                        <Button variant="ghost" size="icon" onClick={() => setMobileSearchActive(false)} className="shrink-0">
-                            <ArrowLeft className="h-5 w-5" />
-                        </Button>
-                        <div className="relative flex-grow">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
-                            <Input
-                                type="search"
-                                placeholder="Search..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-10"
-                                aria-label="Search books"
-                                autoFocus
-                            />
-                        </div>
-                    </div>
-                )}
-
-                <div className="flex items-center space-x-1 sm:space-x-2">
-                    <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setMobileSearchActive(true)}>
-                        <Search className="h-5 w-5"/>
-                    </Button>
-                    <Button 
-                      aria-label="Add new book" 
-                      onClick={() => handleOpenUploadModal()} 
-                      size="sm" 
-                      className="px-2 py-1 sm:px-3 sm:py-2 h-9 sm:h-10"
-                    >
-                      <PlusCircle className="h-5 w-5 sm:mr-2" />
-                      <span className="hidden sm:inline">Add Book</span>
-                    </Button>
-                    <UserNav />
-                </div>
+            <div className="flex items-center gap-2 sm:gap-4">
+                <Button 
+                  aria-label="Add new book" 
+                  onClick={() => handleOpenUploadModal()} 
+                  size="sm" 
+                  className="px-2 py-1 sm:px-3 sm:py-2 h-9 sm:h-10"
+                >
+                  <PlusCircle className="h-5 w-5 sm:mr-2" />
+                  <span className="hidden sm:inline">Add Book</span>
+                </Button>
+                <UserNav />
             </div>
         </div>
       </header>
@@ -306,18 +268,31 @@ export default function HomePage() {
             </div>
           ) : books.length > 0 ? (
             <>
-              <div className="flex justify-start mb-6">
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className="w-1/2 sm:w-[220px]" aria-label="Filter by category">
-                    <SelectValue placeholder="Filter by category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="All">All Categories</SelectItem>
-                    {allCategories.map(category => (
-                      <SelectItem key={category} value={category}>{category}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="flex flex-col sm:flex-row items-center sm:justify-start gap-4 mb-8">
+                <div className="relative w-full sm:max-w-xs md:max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+                    <Input
+                        type="search"
+                        placeholder="Search by title or author..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10 w-full"
+                        aria-label="Search books"
+                    />
+                </div>
+                <div className="w-full sm:w-auto">
+                    <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                      <SelectTrigger className="w-full sm:w-[220px]" aria-label="Filter by category">
+                        <SelectValue placeholder="Filter by category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="All">All Categories</SelectItem>
+                        {allCategories.map(category => (
+                          <SelectItem key={category} value={category}>{category}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                </div>
               </div>
               {filteredBooks.length === 0 ? (
                  <div className="flex flex-col items-center justify-center text-center h-[50vh]">
