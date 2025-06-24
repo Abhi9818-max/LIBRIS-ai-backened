@@ -1,9 +1,11 @@
+
 'use client';
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, type User, signOut } from 'firebase/auth';
 import { auth, missingConfig } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
   user: User | null;
@@ -23,6 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isGuest, setIsGuest] = useState(false);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { toast } = useToast();
   const isFirebaseConfigured = missingConfig.length === 0;
 
   useEffect(() => {
@@ -31,36 +34,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Check for guest status first on client-side
+    // On initial load, check for guest status from session storage.
     if (typeof window !== 'undefined') {
         const guestStatus = sessionStorage.getItem('isGuest') === 'true';
         if (guestStatus) {
             setIsGuest(true);
             setLoading(false);
-            return; // Don't setup firebase listener for guests
+            return; // Don't attach Firebase listener for guests.
         }
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      setIsGuest(false);
-      if (typeof window !== 'undefined') {
+    // If not a guest, listen for Firebase auth changes.
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setIsGuest(false); // A logged-in user or a logged-out user is not a guest.
+      if (currentUser) {
         sessionStorage.removeItem('isGuest');
       }
       setLoading(false);
+    }, (error) => {
+        console.error('onAuthStateChanged error:', error);
+        toast({
+            variant: 'destructive',
+            title: 'Authentication Error',
+            description: 'There was a problem with your session. Please try refreshing.',
+        });
+        setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [isFirebaseConfigured]);
+  }, [isFirebaseConfigured, toast]);
 
   const signInWithGoogle = async () => {
-    if (!isFirebaseConfigured) return;
+    if (!isFirebaseConfigured) {
+        toast({
+            variant: 'destructive',
+            title: 'Firebase Not Configured',
+            description: 'Cannot sign in. Please check your .env.local file.',
+        });
+        return;
+    }
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-      router.push('/');
-    } catch (error) {
+      // Redirection is handled by useEffect hooks in pages based on auth state.
+    } catch (error: any) {
       console.error("Google sign-in failed:", error);
+      // The `auth/internal-error` is often a configuration issue.
+      const description = error.code === 'auth/internal-error'
+        ? 'An internal error occurred. Please ensure your Firebase project is configured correctly and the domain is authorized.'
+        : `Could not sign in with Google. (${error.code || 'Unknown error'})`;
+
+      toast({
+          variant: 'destructive',
+          title: 'Sign-In Error',
+          description,
+      });
     }
   };
 
@@ -76,21 +105,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const exitGuestModeAndSignIn = () => {
     if (typeof window !== 'undefined') {
         sessionStorage.removeItem('isGuest');
+        // A full page reload is the most robust way to transition from a non-listener
+        // state (guest) to a listener state (auth page), ensuring a clean start.
+        window.location.href = '/auth';
     }
-    setIsGuest(false);
-    router.push('/auth');
   };
 
   const signOutUser = async () => {
-    // This function is now ONLY for authenticated users.
     if (!isFirebaseConfigured || !auth.currentUser) return;
     
     try {
       await signOut(auth);
-      // `onAuthStateChanged` will handle the user state update and trigger redirect.
+      // onAuthStateChanged will set user to null.
+      // Redirect immediately for a better UX. The page effects will also catch this.
       router.push('/auth');
-    } catch (error) {
+    } catch (error: any) {
       console.error("Sign-out failed:", error);
+      toast({
+          variant: 'destructive',
+          title: 'Sign-Out Error',
+          description: `Could not sign out. (${error.code})`,
+      });
     }
   };
 
