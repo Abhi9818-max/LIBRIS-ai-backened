@@ -1,9 +1,10 @@
 import { initializeApp, getApps, getApp, type FirebaseOptions } from "firebase/app";
 import { getAuth } from "firebase/auth";
+import { getStorage } from "firebase/storage";
+
 // The following are not needed for basic auth functionality, so they are not included
 // in the initial setup check.
 // import { getFirestore } from "firebase/firestore";
-// import { getStorage } from "firebase/storage";
 
 const firebaseConfig: FirebaseOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -49,7 +50,7 @@ if (missingConfig.length > 0 && typeof window !== 'undefined') {
 // Initialize Firebase with the full config, so other services work if configured.
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
+const storage = firebaseConfig.storageBucket ? getStorage(app) : null;
 // const db = getFirestore(app);
-// const storage = getStorage(app);
 
-export { app, auth, firebaseConfig, missingConfig };
+export { app, auth, storage, firebaseConfig, missingConfig };
