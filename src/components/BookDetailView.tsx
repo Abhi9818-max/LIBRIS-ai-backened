@@ -4,9 +4,10 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { Book, Highlight, HighlightRect } from "@/types";
 import Image from "next/image";
-import { Document, Page, pdfjs, type PDFDocumentProxy, type TextContent } from 'react-pdf';
+import { Document, Page, pdfjs, type PDFDocumentProxy } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
+import { generateWhatIfStory } from "@/ai/flows/story-sandbox-flow";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -15,8 +16,11 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2, BookText } from "lucide-react";
+import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2, BookText, Sparkles } from "lucide-react";
 import { cn, getBookColor } from "@/lib/utils";
+import { Label } from "./ui/label";
+import { Textarea } from "./ui/textarea";
+import { Skeleton } from "./ui/skeleton";
 
 
 // Set up the pdf.js worker
@@ -40,7 +44,7 @@ interface BookDetailViewProps {
   onEditBook: (book: Book) => void;
   onRemoveBook: (id: string) => void;
   onUpdateBook: (book: Book) => void;
-  initialTab?: 'details' | 'read';
+  initialTab?: 'details' | 'read' | 'sandbox';
 }
 
 // Helper function to convert rectangle data into an SVG path for clip-path
@@ -63,6 +67,10 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const [scale, setScale] = useState(1.0);
   const [selectionPopover, setSelectionPopover] = useState<{ top: number; left: number; } | null>(null);
   const [deletingHighlight, setDeletingHighlight] = useState<Highlight | null>(null);
+  
+  const [sandboxPrompt, setSandboxPrompt] = useState("");
+  const [generatedStory, setGeneratedStory] = useState("");
+  const [isGeneratingStory, setIsGeneratingStory] = useState(false);
 
   const pdfContainerRef = useRef<HTMLDivElement>(null);
   const pdfWrapperRef = useRef<HTMLDivElement>(null);
@@ -78,6 +86,9 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
       setScale(1.0);
       setSelectionPopover(null);
       setDeletingHighlight(null);
+      setSandboxPrompt("");
+      setGeneratedStory("");
+      setIsGeneratingStory(false);
     }
   }, [isOpen, initialTab, book?.id]);
   
@@ -266,6 +277,32 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     setDeletingHighlight(null);
   };
   
+  const handleGenerateStory = async () => {
+    if (!book || !sandboxPrompt) return;
+
+    setIsGeneratingStory(true);
+    setGeneratedStory("");
+
+    try {
+      const result = await generateWhatIfStory({
+        title: book.title,
+        author: book.author,
+        summary: book.summary,
+        prompt: sandboxPrompt,
+      });
+      setGeneratedStory(result.story);
+    } catch (error) {
+      console.error("Failed to generate story:", error);
+      toast({
+        title: "Story Generation Failed",
+        description: "The AI was unable to generate a story. Please try again.",
+        variant: "destructive",
+      });
+      setGeneratedStory("Sorry, the muse is not with me right now. Please try again later.");
+    } finally {
+      setIsGeneratingStory(false);
+    }
+  };
 
   if (!isOpen || !book) {
     return null;
@@ -289,7 +326,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
             ? "w-screen h-svh max-w-full max-h-svh rounded-none border-0" 
             : "sm:max-w-4xl lg:max-w-6xl h-[95vh]"
         )}>
-          {activeTab === 'details' ? (
+          {activeTab !== 'read' ? (
               <DialogHeader className="p-4 sm:p-6 pb-2 border-b shrink-0">
                 <DialogTitle className="font-headline text-xl sm:text-2xl truncate pr-10">{book.title || "Untitled Book"}</DialogTitle>
                 <DialogDescription className="text-sm sm:text-md">
@@ -303,10 +340,11 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
             </DialogHeader>
           )}
 
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'details' | 'read')} className="flex-grow flex flex-col overflow-hidden">
-              {activeTab === 'details' && (
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'details' | 'read' | 'sandbox')} className="flex-grow flex flex-col overflow-hidden">
+              {activeTab !== 'read' && (
                   <TabsList className="mx-auto w-fit mt-2 px-4 shrink-0">
                       <TabsTrigger value="details">Details</TabsTrigger>
+                      <TabsTrigger value="sandbox"><Sparkles className="mr-2 h-4 w-4"/>Sandbox</TabsTrigger>
                       <TabsTrigger value="read" disabled={!hasValidPdf}>Read</TabsTrigger>
                   </TabsList>
               )}
@@ -435,6 +473,60 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                 </div>
               </div>
             </TabsContent>
+            
+            <TabsContent value="sandbox" className="flex-grow flex flex-col overflow-y-auto p-4 md:p-6 data-[state=inactive]:hidden">
+                <div className="space-y-4 max-w-2xl mx-auto w-full">
+                    <div className="space-y-1 text-center">
+                        <h3 className="font-headline text-lg text-foreground flex items-center justify-center">
+                            <Sparkles className="h-5 w-5 mr-2 text-primary" />
+                            Story Sandbox
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                            What if the story went differently? Enter a prompt and let the AI write a new chapter.
+                        </p>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="sandbox-prompt">Your "What If..." Prompt</Label>
+                        <Textarea
+                            id="sandbox-prompt"
+                            placeholder="e.g., What if the main character was actually a cat?"
+                            value={sandboxPrompt}
+                            onChange={(e) => setSandboxPrompt(e.target.value)}
+                            rows={3}
+                            disabled={isGeneratingStory}
+                        />
+                    </div>
+                    <Button onClick={handleGenerateStory} disabled={isGeneratingStory || !sandboxPrompt} className="w-full sm:w-auto">
+                        {isGeneratingStory ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Generating...
+                            </>
+                        ) : (
+                            "Generate Story"
+                        )}
+                    </Button>
+                    
+                    <div className="pt-4">
+                        {isGeneratingStory && (
+                            <div className="space-y-2">
+                                <Skeleton className="h-4 w-full" />
+                                <Skeleton className="h-4 w-full" />
+                                <Skeleton className="h-4 w-3/4" />
+                            </div>
+                        )}
+                        {generatedStory && !isGeneratingStory && (
+                            <div className="space-y-2">
+                                <h4 className="font-headline text-md text-foreground">The Story Continues...</h4>
+                                <ScrollArea className="h-64 border rounded-md p-4 bg-muted/50">
+                                    <p className="text-sm whitespace-pre-wrap">{generatedStory}</p>
+                                </ScrollArea>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </TabsContent>
+
 
             <TabsContent value="read" className="flex-grow flex flex-col overflow-hidden data-[state=inactive]:hidden">
               {hasValidPdf ? (
