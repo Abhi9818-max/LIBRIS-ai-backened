@@ -19,7 +19,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2, ArrowLeft, Sparkles, Image as ImageIcon } from "lucide-react";
+import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2, ArrowLeft, Sparkles, Image as ImageIcon, Save } from "lucide-react";
 import { cn, getBookColor } from "@/lib/utils";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
@@ -78,7 +78,9 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const [isGeneratingStory, setIsGeneratingStory] = useState(false);
   
   const [isVisualizing, setIsVisualizing] = useState(false);
-  const [visualizationResult, setVisualizationResult] = useState<{ image: string; text: string } | null>(null);
+  const [visualizationResult, setVisualizationResult] = useState<{ image: string; text: string; pageNumber: number; rects: HighlightRect[] } | null>(null);
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
+
 
   const pdfContainerRef = useRef<HTMLDivElement>(null);
   const pdfWrapperRef = useRef<HTMLDivElement>(null);
@@ -100,6 +102,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
       setIsGeneratingStory(false);
       setIsVisualizing(false);
       setVisualizationResult(null);
+      setViewingImage(null);
     }
   }, [isOpen, initialTab, book?.id]);
   
@@ -321,18 +324,43 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     const selection = window.getSelection();
     const selectedText = selection?.toString().trim();
 
-    if (!selectedText || !book) {
+    if (!selectedText || !book || !pageWidth || !pdfPageDimensions) {
       toast({ title: "No Text Selected", description: "Please select a passage to visualize." });
       return;
     }
     
+    const pageContainer = pdfWrapperRef.current?.querySelector('.react-pdf__Page');
+    if (!pageContainer) return;
+
+    const pageRect = pageContainer.getBoundingClientRect();
+    const range = selection.getRangeAt(0);
+    const clientRects = Array.from(range.getClientRects());
+    const scale = pageWidth / pdfPageDimensions.width;
+
+    const rects: HighlightRect[] = clientRects.map((rect): HighlightRect => ({
+        x: (rect.left - pageRect.left) / scale,
+        y: (rect.top - pageRect.top) / scale,
+        width: rect.width / scale,
+        height: rect.height / scale,
+    })).filter(r => r.width > 0 && r.height > 0);
+
+    if (rects.length === 0) {
+        toast({ title: "Selection Error", description: "Could not get coordinates for this selection.", variant: "destructive" });
+        return;
+    }
+
     setIsVisualizing(true);
     toast({ title: "Visualizing Scene ✨", description: "The AI is creating an image..." });
     
     try {
       const result = await generateSceneImage({ text: selectedText, category: book.category });
       if (result.imageDataUri) {
-        setVisualizationResult({ image: result.imageDataUri, text: selectedText });
+        setVisualizationResult({ 
+            image: result.imageDataUri, 
+            text: selectedText,
+            pageNumber: pageNumber,
+            rects: rects,
+        });
       } else {
         toast({ title: "Visualization Failed", description: "The AI couldn't generate an image for this selection.", variant: "destructive" });
       }
@@ -344,6 +372,26 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
       setSelectionPopover(null);
       window.getSelection()?.removeAllRanges();
     }
+  };
+
+  const handleSaveVisualization = () => {
+    if (!book || !visualizationResult) return;
+
+    const newHighlight: Highlight = {
+        id: `highlight-${Date.now()}`,
+        pageNumber: visualizationResult.pageNumber,
+        rects: visualizationResult.rects,
+        text: visualizationResult.text,
+        color: 'yellow', // Default color for visualized highlights
+        visualizationImageUri: visualizationResult.image,
+    };
+
+    const updatedHighlights = [...(book.highlights || []), newHighlight];
+    const updatedBook = { ...book, highlights: updatedHighlights };
+
+    onUpdateBook(updatedBook);
+    toast({ title: "Visualization Saved!", description: "The image has been saved to your highlights." });
+    setVisualizationResult(null); // Close the dialog
   };
 
   if (!isOpen || !book) {
@@ -479,22 +527,36 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                               .map((highlight) => (
                               <div key={highlight.id} className="group flex items-start justify-between gap-2">
                                 <div 
-                                  className="flex-grow cursor-pointer" 
-                                  onClick={() => {
-                                      if (hasValidPdf) {
-                                          setActiveTab('read');
-                                          setPageNumber(highlight.pageNumber);
-                                      }
-                                  }}
-                                  title={`Go to page ${highlight.pageNumber}`}
+                                    className="flex-grow" 
                                 >
-                                  <blockquote 
-                                    className="text-sm text-muted-foreground italic border-l-4 pl-3 py-1 transition-colors group-hover:border-primary/70"
-                                    style={{ borderLeftColor: (HIGHLIGHT_COLOR_STYLES[highlight.color] || HIGHLIGHT_COLOR_STYLES.yellow).backgroundColor as string }}
-                                  >
-                                    "{highlight.text.length > 150 ? `${highlight.text.substring(0, 150)}...` : highlight.text}"
-                                  </blockquote>
-                                  <p className="text-xs text-muted-foreground/80 mt-1">Page {highlight.pageNumber}</p>
+                                  <div className="flex gap-3 items-start">
+                                    {highlight.visualizationImageUri && (
+                                        <div 
+                                            className="relative w-16 h-16 shrink-0 rounded-md overflow-hidden cursor-pointer border" 
+                                            onClick={(e) => { e.stopPropagation(); setViewingImage(highlight.visualizationImageUri!); }}
+                                            title="View saved image"
+                                        >
+                                            <Image src={highlight.visualizationImageUri} alt="Visualization thumbnail" layout="fill" objectFit="cover" data-ai-hint="fantasy art"/>
+                                        </div>
+                                    )}
+                                    <div className="flex-grow cursor-pointer"
+                                      onClick={() => {
+                                          if (hasValidPdf) {
+                                              setActiveTab('read');
+                                              setPageNumber(highlight.pageNumber);
+                                          }
+                                      }}
+                                      title={`Go to page ${highlight.pageNumber}`}
+                                    >
+                                        <blockquote 
+                                            className="text-sm text-muted-foreground italic border-l-4 pl-3 py-1 transition-colors group-hover:border-primary/70"
+                                            style={{ borderLeftColor: (HIGHLIGHT_COLOR_STYLES[highlight.color] || HIGHLIGHT_COLOR_STYLES.yellow).backgroundColor as string }}
+                                        >
+                                            "{highlight.text.length > 150 ? `${highlight.text.substring(0, 150)}...` : highlight.text}"
+                                        </blockquote>
+                                        <p className="text-xs text-muted-foreground/80 mt-1">Page {highlight.pageNumber}</p>
+                                    </div>
+                                  </div>
                                 </div>
                                 <Button 
                                   variant="ghost" 
@@ -756,7 +818,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
           <AlertDialogHeader>
             <AlertDialogTitle>Scene Visualized</AlertDialogTitle>
             <AlertDialogDescription>
-              The AI generated this image based on the selected text.
+              The AI generated this image based on the selected text. You can save it to your highlights.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="mt-4 space-y-4">
@@ -771,7 +833,24 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setVisualizationResult(null)}>Close</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSaveVisualization}>
+              <Save className="mr-2 h-4 w-4" />
+              Save Visualization
+            </AlertDialogAction>
           </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={!!viewingImage} onOpenChange={(open) => !open && setViewingImage(null)}>
+        <AlertDialogContent className="max-w-2xl">
+            <AlertDialogHeader>
+                <AlertDialogTitle>Saved Visualization</AlertDialogTitle>
+            </AlertDialogHeader>
+            <div className="mt-4 relative aspect-video w-full rounded-md overflow-hidden border">
+                {viewingImage && <Image src={viewingImage} alt="Saved visualization" layout="fill" objectFit="cover" data-ai-hint="fantasy landscape"/>}
+            </div>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setViewingImage(null)}>Close</AlertDialogCancel>
+            </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>

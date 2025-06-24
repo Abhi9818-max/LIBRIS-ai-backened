@@ -11,6 +11,7 @@ export interface Highlight {
   rects: HighlightRect[];
   text: string;
   color: string;
+  visualizationImageUri?: string;
 }
 
 export interface Book {
