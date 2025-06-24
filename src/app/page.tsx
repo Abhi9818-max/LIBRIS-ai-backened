@@ -21,7 +21,7 @@ import { UserNav } from "@/components/auth/UserNav";
 
 
 export default function HomePage() {
-  const { user, isGuest, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
   const [books, setBooks] = useState<Book[]>([]);
@@ -40,27 +40,20 @@ export default function HomePage() {
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && !user && !isGuest) {
-      router.push('/auth');
-    }
-  }, [user, isGuest, authLoading, router]);
-
-  useEffect(() => {
+    // With guest-only mode, we no longer need to redirect to /auth
     setIsClient(true);
-    if (user || isGuest) {
-      initDB().then(success => {
-        if (success) {
-          setIsDbReady(true);
-        } else {
-          toast({
-            title: "Database Error",
-            description: "Could not initialize the local database. Your books cannot be saved.",
-            variant: "destructive",
-          });
-        }
-      });
-    }
-  }, [toast, user, isGuest]);
+    initDB().then(success => {
+      if (success) {
+        setIsDbReady(true);
+      } else {
+        toast({
+          title: "Database Error",
+          description: "Could not initialize the local database. Your books cannot be saved.",
+          variant: "destructive",
+        });
+      }
+    });
+  }, [toast]);
   
   const populateDefaultBooks = useCallback(async () => {
     try {
@@ -87,7 +80,7 @@ export default function HomePage() {
   }, [toast]);
 
   useEffect(() => {
-    if (isDbReady && (user || isGuest)) {
+    if (isDbReady) {
       getBooks().then(storedBooks => {
         if (storedBooks.length === 0) {
           populateDefaultBooks();
@@ -103,7 +96,7 @@ export default function HomePage() {
         });
       });
     }
-  }, [isDbReady, user, isGuest, toast, populateDefaultBooks]);
+  }, [isDbReady, toast, populateDefaultBooks]);
 
 
   const handleOpenUploadModal = (book: Book | null = null) => {
@@ -231,10 +224,6 @@ export default function HomePage() {
         <p className="text-xl font-headline text-muted-foreground mt-4">Loading Libris...</p>
       </div>
     );
-  }
-  
-  if (!user && !isGuest) {
-    return null;
   }
 
   return (

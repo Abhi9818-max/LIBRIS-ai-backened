@@ -2,142 +2,67 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { onAuthStateChanged, signInWithRedirect, GoogleAuthProvider, type User, signOut } from 'firebase/auth';
-import { auth, missingConfig } from '@/lib/firebase';
-import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 
+// Simplified user object for guests
+interface GuestUser {
+  displayName: string;
+  photoURL: string | null;
+}
+
 interface AuthContextType {
-  user: User | null;
-  isGuest: boolean;
+  user: GuestUser | null;
   loading: boolean;
-  isFirebaseConfigured: boolean;
-  missingConfigKeys: string[];
-  signInWithGoogle: () => Promise<void>;
-  signInAsGuest: () => void;
-  signOutUser: () => Promise<void>;
-  exitGuestModeAndSignIn: () => void;
+  updateGuestPhoto: (photoDataUri: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isGuest, setIsGuest] = useState(false);
+  const [user, setUser] = useState<GuestUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
   const { toast } = useToast();
-  const isFirebaseConfigured = missingConfig.length === 0;
 
   useEffect(() => {
-    if (!isFirebaseConfigured) {
-      setLoading(false);
-      return;
-    }
-
-    if (typeof window !== 'undefined' && sessionStorage.getItem('isGuest') === 'true') {
-        setIsGuest(true);
-        setUser(null);
-        setLoading(false);
-        return;
-    }
-
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        setIsGuest(false);
-        sessionStorage.removeItem('isGuest');
-      }
-      setLoading(false);
-    }, (error) => {
-        console.error('onAuthStateChanged error:', error);
-        toast({
-            variant: 'destructive',
-            title: 'Authentication Error',
-            description: 'There was a problem with your session. Please try refreshing.',
-        });
-        setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [isFirebaseConfigured, toast]);
-
-  const signInWithGoogle = async () => {
-    if (!isFirebaseConfigured) {
-        toast({
-            variant: 'destructive',
-            title: 'Firebase Not Configured',
-            description: 'Cannot sign in. Please complete the setup instructions.',
-        });
-        return;
-    }
+    // The app is now always in guest mode.
+    // We retrieve the photo from localStorage if it exists.
     setLoading(true);
-    const provider = new GoogleAuthProvider();
+    let guestPhotoURL: string | null = null;
     try {
-      await signInWithRedirect(auth, provider);
-    } catch (error: any) {
-      let description = `Could not start sign-in process. (${error.code || 'Unknown error'})`;
-      toast({
-          variant: 'destructive',
-          title: 'Sign-In Failed',
-          description,
-          duration: 9000,
-      });
-      setLoading(false);
+      if (typeof window !== 'undefined') {
+        guestPhotoURL = window.localStorage.getItem('guestPhotoURL');
+      }
+    } catch (e) {
+      console.error("Could not access localStorage", e);
     }
-  };
-
-  const signInAsGuest = () => {
-    setLoading(true);
-    if (typeof window !== 'undefined') {
-        sessionStorage.setItem('isGuest', 'true');
-    }
-    setIsGuest(true);
-    setUser(null);
+    setUser({ displayName: 'Guest', photoURL: guestPhotoURL });
     setLoading(false);
-    router.push('/');
-  };
-
-  const exitGuestModeAndSignIn = () => {
-    sessionStorage.removeItem('isGuest');
-    setIsGuest(false);
-    signInWithGoogle();
-  };
-
-  const signOutUser = async () => {
-    if (!isFirebaseConfigured) return;
-    setLoading(true);
-    if (auth.currentUser) {
-        try {
-          await signOut(auth);
-        } catch (error: any) {
-          console.error("Sign-out failed:", error);
-          toast({
-              variant: 'destructive',
-              title: 'Sign-Out Error',
-              description: `Could not sign out. (${error.code})`,
-          });
+  }, []);
+  
+  const updateGuestPhoto = (photoDataUri: string) => {
+    try {
+        if (typeof window !== 'undefined') {
+            window.localStorage.setItem('guestPhotoURL', photoDataUri);
+            setUser(prevUser => prevUser ? { ...prevUser, photoURL: photoDataUri } : { displayName: 'Guest', photoURL: photoDataUri });
+             toast({
+                title: 'Success!',
+                description: 'Your profile picture has been updated.',
+            });
         }
+    } catch(e) {
+        console.error("Could not save photo to localStorage", e);
+        toast({
+            title: 'Save Failed',
+            description: 'Could not save profile picture locally.',
+            variant: 'destructive',
+        });
     }
-    setIsGuest(false);
-    setUser(null);
-    if(typeof window !== 'undefined') {
-        sessionStorage.removeItem('isGuest');
-    }
-    setLoading(false);
-    router.push('/auth');
   };
 
   const value = {
     user,
-    isGuest,
     loading,
-    isFirebaseConfigured,
-    missingConfigKeys: missingConfig.map(([key]) => `NEXT_PUBLIC_FIREBASE_${key.replace(/([A-Z])/g, '_$1').toUpperCase()}`),
-    signInWithGoogle,
-    signInAsGuest,
-    signOutUser,
-    exitGuestModeAndSignIn,
+    updateGuestPhoto,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
