@@ -117,21 +117,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOutUser = async () => {
-    if (!isFirebaseConfigured || !auth.currentUser) return;
+    if (!isFirebaseConfigured) return;
     
-    try {
-      await signOut(auth);
-      // onAuthStateChanged will set user to null.
-      // Redirect immediately for a better UX. The page effects will also catch this.
-      router.push('/auth');
-    } catch (error: any) {
-      console.error("Sign-out failed:", error);
-      toast({
-          variant: 'destructive',
-          title: 'Sign-Out Error',
-          description: `Could not sign out. (${error.code})`,
-      });
+    if (auth.currentUser) {
+        try {
+          await signOut(auth);
+          // onAuthStateChanged will set user to null.
+        } catch (error: any) {
+          console.error("Sign-out failed:", error);
+          toast({
+              variant: 'destructive',
+              title: 'Sign-Out Error',
+              description: `Could not sign out. (${error.code})`,
+          });
+        }
     }
+    // For both signed-in users and guests, clearing state and redirecting is desired.
+    setIsGuest(false);
+    setUser(null);
+    if(typeof window !== 'undefined') {
+        sessionStorage.removeItem('isGuest');
+    }
+    router.push('/auth');
   };
 
   const value = {
