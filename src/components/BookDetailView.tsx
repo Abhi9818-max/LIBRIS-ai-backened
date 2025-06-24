@@ -321,7 +321,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     const selection = window.getSelection();
     const selectedText = selection?.toString().trim();
 
-    if (!selectedText) {
+    if (!selectedText || !book) {
       toast({ title: "No Text Selected", description: "Please select a passage to visualize." });
       return;
     }
@@ -330,7 +330,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     toast({ title: "Visualizing Scene ✨", description: "The AI is creating an image..." });
     
     try {
-      const result = await generateSceneImage({ text: selectedText });
+      const result = await generateSceneImage({ text: selectedText, category: book.category });
       if (result.imageDataUri) {
         setVisualizationResult({ image: result.imageDataUri, text: selectedText });
       } else {
@@ -576,11 +576,10 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
 
             <TabsContent value="read" className="flex-grow flex flex-col overflow-hidden data-[state=inactive]:hidden bg-muted/40">
               {hasValidPdf ? (
-                <div className="flex-grow relative overflow-hidden">
+                <div className="flex-grow relative overflow-hidden flex justify-center items-start" onMouseUp={handleMouseUp}>
                   <div 
                     ref={pdfContainerRef} 
                     className="h-full w-full overflow-auto flex justify-center items-center"
-                    onMouseUp={handleMouseUp}
                   >
                       <div 
                           ref={pdfWrapperRef}

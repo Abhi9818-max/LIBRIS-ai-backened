@@ -12,6 +12,7 @@ import {z} from 'genkit';
 
 const GenerateSceneImageInputSchema = z.object({
   text: z.string().describe('The text passage describing the scene.'),
+  category: z.string().optional().describe('The category of the book (e.g., Novel, Manga, Fantasy).'),
 });
 export type GenerateSceneImageInput = z.infer<typeof GenerateSceneImageInputSchema>;
 
@@ -32,7 +33,34 @@ const generateSceneImageFlow = ai.defineFlow(
   },
   async (input) => {
     try {
-      const promptText = `Generate a vivid, artistic, and photorealistic image based on the following scene description from a book. The image should be atmospheric and detailed, capturing the mood of the text. Do not include any text, words, or letters in the image itself.
+      const category = input.category || 'Novel'; // Default to Novel
+      let stylePrompt = "A vivid, artistic, and photorealistic image. The image should be atmospheric and detailed, capturing the mood of the text.";
+
+      switch (category.toLowerCase()) {
+          case 'novel':
+              stylePrompt = "A photorealistic or painterly style image, capturing the environment and characters like a scene from a film. It should be atmospheric and detailed.";
+              break;
+          case 'manga':
+              stylePrompt = "A vibrant anime or manga style illustration of the scene. The art should be dynamic and expressive, focusing on characters and action.";
+              break;
+          case 'fantasy':
+              stylePrompt = "An epic fantasy illustration. The scene should be rich with detail, featuring mythical elements, magical lighting, or heroic characters as described.";
+              break;
+          case 'science fiction':
+              stylePrompt = "A science fiction scene with a futuristic or high-tech aesthetic. It could feature advanced technology, alien landscapes, or spacecraft, based on the description.";
+              break;
+          case 'mystery':
+              stylePrompt = "A suspenseful and intriguing image with a noir or mystery atmosphere. Use shadows, dramatic lighting, and subtle clues to capture the mood.";
+              break;
+          case 'non-fiction':
+               stylePrompt = "A clean, modern, and informative illustration or diagram that visually represents the concept described in the text.";
+              break;
+          default:
+              stylePrompt = "A vivid, artistic, and photorealistic image. The image should be atmospheric and detailed, capturing the mood of the text.";
+              break;
+      }
+      
+      const promptText = `${stylePrompt} Do not include any text, words, or letters in the image itself. Generate the image based on the following scene description from a book:
 
 Scene Description:
 "${input.text}"`;
