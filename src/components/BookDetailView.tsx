@@ -1,9 +1,10 @@
+
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { Book, Highlight, HighlightRect } from "@/types";
 import Image from "next/image";
-import { Document, Page, pdfjs, type PDFDocumentProxy } from 'react-pdf';
+import { Document, Page, pdfjs, type PDFDocumentProxy, type TextContent } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
 
@@ -14,8 +15,9 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2, BookText } from "lucide-react";
+import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2, BookText, Headphones } from "lucide-react";
 import { cn, getBookColor } from "@/lib/utils";
+import { textToSpeech } from "@/ai/flows/text-to-speech-flow";
 
 
 // Set up the pdf.js worker
@@ -63,8 +65,14 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const [selectionPopover, setSelectionPopover] = useState<{ top: number; left: number; } | null>(null);
   const [deletingHighlight, setDeletingHighlight] = useState<Highlight | null>(null);
 
+  const [pageText, setPageText] = useState('');
+  const [audioDataUri, setAudioDataUri] = useState<string | null>(null);
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+
   const pdfContainerRef = useRef<HTMLDivElement>(null);
   const pdfWrapperRef = useRef<HTMLDivElement>(null);
+  const audioPlayerRef = useRef<HTMLAudioElement>(null);
+
 
   useEffect(() => {
     if (isOpen) {
@@ -76,9 +84,17 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
       setScale(1.0);
       setSelectionPopover(null);
       setDeletingHighlight(null);
+      setAudioDataUri(null);
+      setIsGeneratingAudio(false);
     }
   }, [isOpen, initialTab, book?.id]);
   
+  useEffect(() => {
+    // Reset audio when page changes
+    setAudioDataUri(null);
+    setIsGeneratingAudio(false);
+  }, [pageNumber]);
+
   const onDocumentLoadSuccess = useCallback(async (pdf: PDFDocumentProxy): Promise<void> => {
     setNumPages(pdf.numPages);
     const page = await pdf.getPage(1);
@@ -133,6 +149,11 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
       variant: "destructive"
     });
   }, [toast]);
+  
+  const onGetTextSuccess = useCallback((textContent: TextContent) => {
+    const text = textContent.items.map(item => ('str' in item ? item.str : '')).join(' ');
+    setPageText(text);
+  }, []);
 
   const handlePreviousPage = () => {
     setPageNumber(prev => Math.max(prev - 1, 1));
@@ -256,6 +277,45 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     toast({ title: "Highlight Removed" });
     setDeletingHighlight(null);
   };
+  
+  const handleListenToPage = async () => {
+    if (!pageText || pageText.trim().length === 0) {
+      toast({
+        title: "Nothing to Read",
+        description: "There doesn't seem to be any text on this page to narrate.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsGeneratingAudio(true);
+    setAudioDataUri(null);
+
+    try {
+      const result = await textToSpeech(pageText);
+      if (result.media) {
+        setAudioDataUri(result.media);
+      } else {
+        throw new Error("The AI did not return any audio data.");
+      }
+    } catch (error: any) {
+      console.error("Text-to-speech failed:", error);
+      toast({
+        title: "Narration Failed",
+        description: `Could not generate audio for this page. ${error.message || ""}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingAudio(false);
+    }
+  };
+
+
+  useEffect(() => {
+    if (audioDataUri && audioPlayerRef.current) {
+        audioPlayerRef.current.play().catch(e => console.error("Audio autoplay was blocked:", e));
+    }
+  }, [audioDataUri]);
 
   if (!isOpen || !book) {
     return null;
@@ -455,6 +515,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                               pageNumber={pageNumber} 
                               scale={scale}
                               renderTextLayer={true}
+                              onGetTextSuccess={onGetTextSuccess}
                               onRenderError={onPageRenderError}
                               onRenderTextLayerError={onPageRenderTextLayerError}
                               className="transition-opacity duration-300"
@@ -501,7 +562,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                         </div>
                     )}
                 </div>
-                <div className="p-3 border-t flex flex-wrap items-center justify-center gap-x-4 gap-y-3 shrink-0 bg-background">
+                <div className="p-3 border-t flex flex-wrap items-center justify-between gap-x-4 gap-y-3 shrink-0 bg-background">
                     <div className="flex items-center justify-center space-x-2">
                         <Button variant="outline" size="icon" onClick={handlePreviousPage} disabled={pageNumber <= 1}><ChevronLeft className="h-4 w-4" /></Button>
                         <span className="text-sm font-medium text-muted-foreground tabular-nums whitespace-nowrap">
@@ -510,9 +571,24 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                         <Button variant="outline" size="icon" onClick={handleNextPage} disabled={!numPages || pageNumber >= numPages}><ChevronRight className="h-4 w-4" /></Button>
                     </div>
 
+                    <div className="flex-1 min-w-[150px]">
+                      {audioDataUri && (
+                        <audio
+                          ref={audioPlayerRef}
+                          controls
+                          src={audioDataUri}
+                          className="w-full h-8"
+                          onEnded={handleNextPage}
+                        />
+                      )}
+                    </div>
+                    
                     <div className="flex items-center justify-center space-x-2">
                         <Button variant="outline" size="icon" onClick={() => setActiveTab('details')} title="Back to Details">
                             <BookText className="h-4 w-4" />
+                        </Button>
+                        <Button variant="outline" size="icon" onClick={handleListenToPage} disabled={isGeneratingAudio} title="Listen to this page">
+                          {isGeneratingAudio ? <Loader2 className="h-4 w-4 animate-spin"/> : <Headphones className="h-4 w-4" />}
                         </Button>
                         <Button variant="outline" size="icon" onClick={handleZoomIn} title="Zoom In"><ZoomIn className="h-4 w-4" /></Button>
                         <Button variant="outline" size="icon" onClick={handleZoomOut} title="Zoom Out"><ZoomOut className="h-4 w-4" /></Button>
