@@ -87,7 +87,11 @@ const textToSpeechFlow = ai.defineFlow(
       // Step 1: Use an LLM to enrich the text for more natural, emotional narration.
       const narrationResult = await prepareNarrationPrompt({ text: truncatedText });
       const textForSpeech = narrationResult.output?.narratedText || truncatedText;
-
+      
+      // Add validation to prevent crashing the TTS model with empty input.
+      if (!textForSpeech || textForSpeech.trim().length === 0) {
+        throw new Error("Text for narration became empty after AI processing. Cannot generate audio from empty text.");
+      }
 
       // Step 2: Generate audio from the enriched text.
       const {media} = await ai.generate({
