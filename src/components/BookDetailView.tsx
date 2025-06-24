@@ -119,6 +119,11 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   }, []);
 
   const onDocumentLoadError = useCallback((error: Error) => {
+    if (error.name === 'AbortException') {
+        // This is expected if the user navigates away while the PDF is loading.
+        // We can safely ignore it.
+        return; 
+    }
     console.error("Failed to load PDF:", error);
     toast({
       title: "PDF Loading Error",
