@@ -15,10 +15,8 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2, BookText, Headphones } from "lucide-react";
+import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2, BookText } from "lucide-react";
 import { cn, getBookColor } from "@/lib/utils";
-import { textToSpeech, type TextToSpeechOutput } from "@/ai/flows/text-to-speech-flow";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 
 // Set up the pdf.js worker
@@ -66,14 +64,8 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const [selectionPopover, setSelectionPopover] = useState<{ top: number; left: number; } | null>(null);
   const [deletingHighlight, setDeletingHighlight] = useState<Highlight | null>(null);
 
-  const [pageText, setPageText] = useState('');
-  const [audioDataUri, setAudioDataUri] = useState<string | null>(null);
-  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
-  const [narratorVoice, setNarratorVoice] = useState('Algenib');
-
   const pdfContainerRef = useRef<HTMLDivElement>(null);
   const pdfWrapperRef = useRef<HTMLDivElement>(null);
-  const audioPlayerRef = useRef<HTMLAudioElement>(null);
 
 
   useEffect(() => {
@@ -86,16 +78,9 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
       setScale(1.0);
       setSelectionPopover(null);
       setDeletingHighlight(null);
-      setAudioDataUri(null);
-      setIsGeneratingAudio(false);
     }
   }, [isOpen, initialTab, book?.id]);
   
-  useEffect(() => {
-    // Reset audio when page changes
-    setAudioDataUri(null);
-    setIsGeneratingAudio(false);
-  }, [pageNumber]);
 
   const onDocumentLoadSuccess = useCallback(async (pdf: PDFDocumentProxy): Promise<void> => {
     setNumPages(pdf.numPages);
@@ -157,10 +142,6 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     });
   }, [toast]);
   
-  const onGetTextSuccess = useCallback((textContent: TextContent) => {
-    const text = textContent.items.map(item => ('str' in item ? item.str : '')).join(' ');
-    setPageText(text);
-  }, []);
 
   const handlePreviousPage = () => {
     setPageNumber(prev => Math.max(prev - 1, 1));
@@ -285,61 +266,6 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     setDeletingHighlight(null);
   };
   
-  const handleListenToPage = async () => {
-    if (!pageText || pageText.trim().length === 0) {
-      toast({
-        title: "Nothing to Read",
-        description: "There doesn't seem to be any text on this page to narrate.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setIsGeneratingAudio(true);
-    setAudioDataUri(null);
-
-    try {
-      const result: TextToSpeechOutput = await textToSpeech({ text: pageText, voice: narratorVoice });
-      if (result && result.media) {
-        setAudioDataUri(result.media);
-      } else {
-        // The flow returned an empty/falsy media string, which indicates a failure on the server.
-        // We can show a toast message here directly.
-        toast({
-          title: "Narration Failed",
-          description: "The AI narrator was unable to generate audio for this page. Please try again.",
-          variant: "destructive",
-        });
-      }
-    } catch (error: any) {
-      // This will catch network errors or other unexpected exceptions from the flow call itself.
-      console.error("Text-to-speech call failed:", error);
-      toast({
-        title: "Narration Failed",
-        description: `An unexpected error occurred. ${error.message || "Please check your connection and try again."}`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsGeneratingAudio(false);
-    }
-  };
-
-
-  useEffect(() => {
-    if (audioDataUri && audioPlayerRef.current) {
-        const playPromise = audioPlayerRef.current.play();
-        if (playPromise !== undefined) {
-            playPromise.catch(error => {
-                if (error.name === 'AbortError') {
-                    // This is expected when the user navigates away quickly.
-                    // We can safely ignore it.
-                    return; 
-                }
-                console.error("Audio autoplay was blocked or failed:", error);
-            });
-        }
-    }
-  }, [audioDataUri]);
 
   if (!isOpen || !book) {
     return null;
@@ -539,7 +465,6 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                               pageNumber={pageNumber} 
                               scale={scale}
                               renderTextLayer={true}
-                              onGetTextSuccess={onGetTextSuccess}
                               onRenderError={onPageRenderError}
                               onRenderTextLayerError={onPageRenderTextLayerError}
                               className="transition-opacity duration-300"
@@ -595,42 +520,10 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                         <Button variant="outline" size="icon" onClick={handleNextPage} disabled={!numPages || pageNumber >= numPages}><ChevronRight className="h-4 w-4" /></Button>
                     </div>
 
-                    <div className="flex-1 min-w-[150px]">
-                      {audioDataUri && (
-                        <audio
-                          key={audioDataUri}
-                          ref={audioPlayerRef}
-                          controls
-                          className="w-full h-8"
-                          onEnded={handleNextPage}
-                        >
-                          <source src={audioDataUri} type="audio/mpeg" />
-                           Your browser does not support the audio element.
-                        </audio>
-                      )}
-                    </div>
-                    
                     <div className="flex items-center justify-center space-x-2">
                         <Button variant="outline" size="icon" onClick={() => setActiveTab('details')} title="Back to Details">
                             <BookText className="h-4 w-4" />
                         </Button>
-                        
-                        <div className="flex items-center gap-1">
-                            <Select value={narratorVoice} onValueChange={setNarratorVoice}>
-                                <SelectTrigger className="w-[140px] h-10" aria-label="Select narrator voice">
-                                    <SelectValue placeholder="Select a voice" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Algenib">Narrator 1 (M)</SelectItem>
-                                    <SelectItem value="Achernar">Narrator 2 (M)</SelectItem>
-                                    <SelectItem value="Sirius">Narrator 3 (F)</SelectItem>
-                                    <SelectItem value="Vega">Narrator 4 (F)</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <Button variant="outline" size="icon" onClick={handleListenToPage} disabled={isGeneratingAudio} title="Listen to this page">
-                              {isGeneratingAudio ? <Loader2 className="h-4 w-4 animate-spin"/> : <Headphones className="h-4 w-4" />}
-                            </Button>
-                        </div>
                         
                         <Button variant="outline" size="icon" onClick={handleZoomIn} title="Zoom In"><ZoomIn className="h-4 w-4" /></Button>
                         <Button variant="outline" size="icon" onClick={handleZoomOut} title="Zoom Out"><ZoomOut className="h-4 w-4" /></Button>
