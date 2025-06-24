@@ -100,11 +100,13 @@
     This works by making the text in the selectable layer permanently invisible,
     so that the browser's native text selection only shows the background color
     without rendering misaligned duplicate text on top of the PDF canvas.
+    We use !important to ensure this style overrides the browser's default.
   */
   .react-pdf__Page__textLayer > span {
-    color: transparent;
+    color: transparent !important;
   }
   .react-pdf__Page__textLayer > span::selection {
     background-color: hsl(var(--primary) / 0.4);
+    color: transparent !important;
   }
 }
