@@ -641,11 +641,12 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                 <div className="flex-grow relative overflow-hidden">
                   <div 
                     ref={pdfContainerRef} 
-                    className="h-full w-full overflow-auto flex justify-center"
+                    className="h-full w-full overflow-auto text-center"
                     onMouseUp={handleMouseUp}
                   >
                       <div 
                           ref={pdfWrapperRef}
+                          className="inline-block text-left"
                       >
                           {isPdfLoading && (
                             <div className="flex flex-col items-center justify-center h-full w-full absolute inset-0">
