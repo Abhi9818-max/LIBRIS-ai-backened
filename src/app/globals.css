@@ -95,9 +95,16 @@
     @apply bg-background text-foreground;
   }
 
-  /* Custom PDF text selection to prevent double text rendering */
+  /*
+    Custom PDF text selection to prevent double text rendering.
+    This works by making the text in the selectable layer permanently invisible,
+    so that the browser's native text selection only shows the background color
+    without rendering misaligned duplicate text on top of the PDF canvas.
+  */
+  .react-pdf__Page__textLayer > span {
+    color: transparent;
+  }
   .react-pdf__Page__textLayer > span::selection {
-    background: hsl(var(--primary) / 0.4);
-    color: transparent !important;
+    background-color: hsl(var(--primary) / 0.4);
   }
 }
