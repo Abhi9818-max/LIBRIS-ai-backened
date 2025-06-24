@@ -157,7 +157,6 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       setPdfFile(file); 
       setPdfFileName(file.name);
       
-      // If a new PDF is selected, reset form fields to trigger re-analysis.
       form.reset({
         title: "",
         author: "",
@@ -292,7 +291,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     event.preventDefault();
     event.stopPropagation();
     setIsDragging(false);
-    if (event.dataTransfer.files && event.dataTransfer.files[0]) {
+    if (!isProcessingPdf && event.dataTransfer.files && event.dataTransfer.files[0]) {
       handlePdfFileChange(event.dataTransfer.files[0]);
     }
   };
@@ -401,7 +400,6 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
   const onSubmit = async (data: BookFormData) => {
     const bookId = isEditing && bookToEdit ? bookToEdit.id : Date.now().toString();
     
-    // Use the current state of the URI and file name as the source of truth
     const finalPdfDataUri = currentPdfDataUri || "";
     const finalPdfFileName = pdfFileName || "";
     const finalCoverImageUrl = coverPreviewUrl || "https://placehold.co/200x300.png";
@@ -454,58 +452,44 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {pdfFileName ? (
-              <div className="flex w-full items-center justify-between rounded-lg border border-primary/30 bg-primary/10 p-4">
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-background">
-                    <FileText className="h-6 w-6 text-primary" />
+             <div
+              className={cn(
+                "relative w-full rounded-xl bg-muted/40 p-4 text-center transition-colors duration-300",
+                { "ring-2 ring-primary ring-offset-2 ring-offset-background": isDragging },
+                { "hover:bg-muted/60": !isProcessingPdf },
+                { "cursor-pointer": !isProcessingPdf }
+              )}
+              onDrop={onDrop}
+              onDragOver={onDragOver}
+              onDragLeave={onDragLeave}
+            >
+              <Input id="pdf-upload" name="pdf-upload" type="file" className="sr-only" onChange={onPdfInputChange} accept="application/pdf" disabled={isProcessingPdf}/>
+              <label htmlFor="pdf-upload" className={cn("absolute inset-0", { "cursor-pointer": !isProcessingPdf, "cursor-wait": isProcessingPdf })} aria-label="Upload PDF" />
+              
+              <div className="flex h-32 flex-col items-center justify-center">
+                {isProcessingPdf ? (
+                  <>
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="mt-4 text-sm font-medium text-foreground">Analyzing your book...</p>
+                    <p className="text-xs text-muted-foreground">This might take a moment.</p>
+                  </>
+                ) : pdfFileName ? (
+                  <div className="flex w-full items-center gap-4 text-left pointer-events-none">
+                    <FileText className="h-12 w-12 shrink-0 text-primary" />
+                    <div className="flex-grow overflow-hidden">
+                      <p className="font-semibold text-foreground truncate" title={pdfFileName}>{pdfFileName}</p>
+                      <p className="text-sm text-muted-foreground">PDF selected. Click to change.</p>
+                    </div>
                   </div>
-                  <div className="flex flex-col overflow-hidden">
-                    <p className="truncate text-sm font-medium text-foreground" title={pdfFileName}>
-                      {pdfFileName}
-                    </p>
-                    <p className="text-xs text-muted-foreground">PDF selected. Ready for analysis.</p>
+                ) : (
+                  <div className="pointer-events-none">
+                    <UploadCloud className="mx-auto h-8 w-8 text-muted-foreground" />
+                    <p className="mt-4 text-base font-semibold text-foreground">Click to upload or drag & drop</p>
+                    <p className="mt-1 text-sm text-muted-foreground">A PDF is required to add a book</p>
                   </div>
-                </div>
-                <Button type="button" variant="ghost" size="sm" asChild>
-                  <Label htmlFor="pdf-upload" className="cursor-pointer">
-                    Change
-                    <Input id="pdf-upload" name="pdf-upload" type="file" className="sr-only" onChange={onPdfInputChange} accept="application/pdf" />
-                  </Label>
-                </Button>
-              </div>
-            ) : (
-              <div
-                className={cn(
-                  "group relative flex w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-background p-8 text-center transition-all duration-300",
-                  "hover:border-primary hover:bg-primary/5",
-                  isDragging && "border-primary bg-primary/10 ring-2 ring-primary/20"
                 )}
-                onDrop={onDrop}
-                onDragOver={onDragOver}
-                onDragLeave={onDragLeave}
-              >
-                <Input id="pdf-upload" name="pdf-upload" type="file" className="sr-only" onChange={onPdfInputChange} accept="application/pdf" />
-                <label htmlFor="pdf-upload" className="absolute inset-0 z-10 h-full w-full cursor-pointer" aria-label="Upload PDF" />
-                <div className="z-0 flex flex-col items-center pointer-events-none">
-                  <UploadCloud className="h-10 w-10 text-muted-foreground transition-transform group-hover:scale-110 group-hover:text-primary" />
-                  <p className="mt-4 text-base font-semibold text-foreground">
-                    Drop your PDF here
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    or <span className="font-medium text-primary">browse your files</span>
-                  </p>
-                </div>
               </div>
-            )}
-
-
-            {isProcessingPdf && (
-              <div className="flex items-center justify-center p-4 text-primary">
-                <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                <span>Processing PDF...</span>
-              </div>
-            )}
+            </div>
 
             <FormField
               control={form.control}
@@ -514,7 +498,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
                 <FormItem>
                   <FormLabel className="font-headline">Title</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input {...field} disabled={isProcessingPdf} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -528,7 +512,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
                 <FormItem>
                   <FormLabel className="font-headline">Author</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input {...field} disabled={isProcessingPdf} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -541,7 +525,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="font-headline">Category</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={isProcessingPdf}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a category" />
@@ -570,7 +554,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
                   <FormItem>
                     <FormLabel className="font-headline">Custom Category</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Historical Fiction" {...field} />
+                      <Input placeholder="e.g., Historical Fiction" {...field} disabled={isProcessingPdf} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -586,7 +570,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
                 <FormItem>
                   <FormLabel className="font-headline">Summary</FormLabel>
                   <FormControl>
-                    <Textarea {...field} rows={3} />
+                    <Textarea {...field} rows={3} disabled={isProcessingPdf} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -600,7 +584,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
                 <FormItem>
                   <FormLabel className="font-headline">Total Pages</FormLabel>
                   <FormControl>
-                     <Input type="number" placeholder="e.g., 350" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} value={field.value || ''} />
+                     <Input type="number" placeholder="e.g., 350" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} value={field.value || ''} disabled={isProcessingPdf} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -614,11 +598,11 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
                       <img src={coverPreviewUrl} alt="Cover preview" className="h-24 w-16 object-cover rounded-md border" data-ai-hint="book cover"/>
                   ) : (
                       <div className="h-24 w-16 bg-muted rounded-md flex items-center justify-center text-muted-foreground border">
-                          <ImageUp className="h-8 w-8" />
+                          {isGeneratingCover ? <Loader2 className="h-6 w-6 animate-spin" /> : <ImageUp className="h-8 w-8" />}
                       </div>
                   )}
                   <div className="flex flex-col items-start space-y-2">
-                    <Button type="button" variant="outline" size="sm" asChild>
+                    <Button type="button" variant="outline" size="sm" asChild disabled={isProcessingPdf}>
                       <Label htmlFor="cover-image-upload" className="cursor-pointer flex items-center">
                         <ImageUp className="mr-2 h-4 w-4" />
                         Upload Cover
@@ -644,7 +628,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
                   <span>Generating cover... This may take a moment.</span>
                 </div>
               )}
-              {!isEditing && !coverImageFile && !isGeneratingCover && (currentPdfDataUri) && !coverPreviewUrl && (
+               {!isEditing && !coverImageFile && !isGeneratingCover && (currentPdfDataUri) && !coverPreviewUrl && (
                 <p className="text-xs text-muted-foreground mt-1">AI cover generation failed or was skipped. A placeholder will be used if no cover is uploaded. You can still add the book.</p>
               )}
                {isEditing && !coverImageFile && !coverPreviewUrl?.startsWith("data:image") && (
@@ -667,3 +651,5 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     </Dialog>
   );
 }
+
+  
