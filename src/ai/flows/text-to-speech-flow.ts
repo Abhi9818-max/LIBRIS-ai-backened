@@ -77,7 +77,8 @@ const textToSpeechFlow = ai.defineFlow(
     try {
       const { text, voice } = input;
       if (!text || text.trim().length === 0) {
-          throw new Error("Input text cannot be empty.");
+          console.warn("textToSpeechFlow received empty text. Aborting.");
+          return { media: '' };
       }
       
       // The TTS model has a limit on input characters. We truncate to leave room for the narration enrichment.
@@ -90,7 +91,8 @@ const textToSpeechFlow = ai.defineFlow(
       
       // Add validation to prevent crashing the TTS model with empty input.
       if (!textForSpeech || textForSpeech.trim().length === 0) {
-        throw new Error("Text for narration became empty after AI processing. Cannot generate audio from empty text.");
+        console.warn("Text for narration became empty after AI processing. Aborting audio generation.");
+        return { media: '' };
       }
 
       // Step 2: Generate audio from the enriched text.
@@ -132,9 +134,10 @@ const textToSpeechFlow = ai.defineFlow(
       };
     } catch (error) {
         console.error("Fatal error in textToSpeechFlow:", error);
-        // Re-throw a generic error to the client to avoid leaking implementation details.
-        // The client's try/catch will handle this and show a friendly toast message.
-        throw new Error("The AI narrator failed to generate audio. Please try again.");
+        // Return an empty object to prevent crashing the server flow.
+        // The client will handle the empty response and show an error toast.
+        // This is a more robust pattern than re-throwing, which can cause unexpected server responses.
+        return { media: '' };
     }
   }
 );

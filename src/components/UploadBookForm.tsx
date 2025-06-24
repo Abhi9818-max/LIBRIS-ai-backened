@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useCallback, ChangeEvent, DragEvent, useEffect } from "react";
@@ -200,7 +201,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         let textContent = '';
         const maxPagesToScan = Math.min(pdfDoc.numPages, 5);
         for (let i = 1; i <= maxPagesToScan; i++) {
-            const page = await page.getPage(i);
+            const page = await pdfDoc.getPage(i);
             const text = await page.getTextContent();
             textContent += text.items.map(item => 'str' in item ? item.str : '').join(' ') + '\n';
         }
