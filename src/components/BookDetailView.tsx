@@ -11,6 +11,7 @@ import { generateWhatIfStory, StorySandboxOutput } from "@/ai/flows/story-sandbo
 import type { StorySandboxInput } from "@/ai/flows/story-sandbox-flow";
 import { generateSceneImage } from "@/ai/flows/generate-scene-image-flow";
 import { suggestReadingMood, type SuggestReadingMoodOutput } from "@/ai/flows/suggest-reading-mood-flow";
+import { textToSpeech } from "@/ai/flows/text-to-speech-flow";
 
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -20,7 +21,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2, ArrowLeft, Sparkles, Image as ImageIcon, Save, Music } from "lucide-react";
+import { Pencil, Trash2, ChevronLeft, ChevronRight, RefreshCw, Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2, ArrowLeft, Sparkles, Image as ImageIcon, Save, Music, PlayCircle, PauseCircle } from "lucide-react";
 import { cn, getBookColor } from "@/lib/utils";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
@@ -85,6 +86,8 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const [moodSuggestion, setMoodSuggestion] = useState<{ moodDescription: string; soundtrack: string[] } | null>(null);
   const [isSuggestingMood, setIsSuggestingMood] = useState(false);
 
+  const [playingHighlight, setPlayingHighlight] = useState<{ id: string; audioSrc: string | null; isLoading: boolean; } | null>(null);
+
 
   const pdfContainerRef = useRef<HTMLDivElement>(null);
   const pdfWrapperRef = useRef<HTMLDivElement>(null);
@@ -109,6 +112,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
       setViewingImage(null);
       setMoodSuggestion(null);
       setIsSuggestingMood(false);
+      setPlayingHighlight(null);
     }
   }, [isOpen, initialTab, book?.id]);
   
@@ -426,6 +430,32 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     }
   };
 
+  const handlePlayHighlight = async (highlight: Highlight) => {
+    if (playingHighlight?.id === highlight.id) {
+        setPlayingHighlight(null);
+        return;
+    }
+
+    setPlayingHighlight({ id: highlight.id, audioSrc: null, isLoading: true });
+
+    try {
+        const result = await textToSpeech(highlight.text);
+        if (result.audioDataUri) {
+            setPlayingHighlight({ id: highlight.id, audioSrc: result.audioDataUri, isLoading: false });
+        } else {
+            throw new Error("No audio data returned.");
+        }
+    } catch (error) {
+        console.error("Failed to generate audio:", error);
+        toast({
+            title: "Audio Generation Failed",
+            description: "Could not generate audio for this highlight.",
+            variant: "destructive",
+        });
+        setPlayingHighlight(null);
+    }
+  };
+
   if (!isOpen || !book) {
     return null;
   }
@@ -597,10 +627,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                             {book.highlights
                               .sort((a, b) => a.pageNumber - b.pageNumber)
                               .map((highlight) => (
-                              <div key={highlight.id} className="group flex items-start justify-between gap-2">
-                                <div 
-                                    className="flex-grow" 
-                                >
+                              <div key={highlight.id} className="group">
                                   <div className="flex gap-3 items-start">
                                     {highlight.visualizationImageUri && (
                                         <div 
@@ -611,7 +638,8 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                                             <Image src={highlight.visualizationImageUri} alt="Visualization thumbnail" layout="fill" objectFit="cover" data-ai-hint="fantasy art"/>
                                         </div>
                                     )}
-                                    <div className="flex-grow cursor-pointer"
+                                    <div 
+                                      className="flex-grow cursor-pointer"
                                       onClick={() => {
                                           if (hasValidPdf) {
                                               setActiveTab('read');
@@ -626,19 +654,40 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                                         >
                                             "{highlight.text.length > 150 ? `${highlight.text.substring(0, 150)}...` : highlight.text}"
                                         </blockquote>
-                                        <p className="text-xs text-muted-foreground/80 mt-1">Page {highlight.pageNumber}</p>
+                                        <div className="flex justify-between items-center mt-1">
+                                            <p className="text-xs text-muted-foreground/80">Page {highlight.pageNumber}</p>
+                                            <div className="flex items-center gap-1 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    className="h-7 w-7"
+                                                    onClick={(e) => { e.stopPropagation(); handlePlayHighlight(highlight); }}
+                                                    aria-label="Listen to highlight"
+                                                    title="Listen to highlight"
+                                                    disabled={playingHighlight?.isLoading && playingHighlight?.id === highlight.id}
+                                                >
+                                                    {playingHighlight?.isLoading && playingHighlight?.id === highlight.id ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                    ) : playingHighlight?.id === highlight.id && !playingHighlight.isLoading ? (
+                                                        <PauseCircle className="h-4 w-4 text-primary" />
+                                                    ) : (
+                                                        <PlayCircle className="h-4 w-4" />
+                                                    )}
+                                                </Button>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    className="h-7 w-7"
+                                                    onClick={(e) => { e.stopPropagation(); setDeletingHighlight(highlight); }}
+                                                    aria-label="Delete highlight"
+                                                    title="Delete highlight"
+                                                >
+                                                    <Trash2 className="h-4 w-4 hover:text-destructive" />
+                                                </Button>
+                                            </div>
+                                        </div>
                                     </div>
                                   </div>
-                                </div>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-7 w-7 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                                  onClick={() => setDeletingHighlight(highlight)}
-                                  aria-label="Delete highlight"
-                                >
-                                  <Trash2 className="h-4 w-4 hover:text-destructive" />
-                                </Button>
                               </div>
                             ))}
                           </div>
@@ -927,6 +976,15 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {playingHighlight?.audioSrc && (
+          <audio 
+              key={playingHighlight.id}
+              src={playingHighlight.audioSrc} 
+              autoPlay 
+              onEnded={() => setPlayingHighlight(null)}
+              className="sr-only"
+          />
+      )}
     </>
   );
 }
