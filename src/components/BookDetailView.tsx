@@ -83,7 +83,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const [visualizationResult, setVisualizationResult] = useState<{ image: string; text: string; pageNumber: number; rects: HighlightRect[] } | null>(null);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
   
-  const [moodSuggestion, setMoodSuggestion] = useState<{ moodDescription: string; soundtrack: string[] } | null>(null);
+  const [moodSuggestion, setMoodSuggestion] = useState<SuggestReadingMoodOutput | null>(null);
   const [isSuggestingMood, setIsSuggestingMood] = useState(false);
 
   const [playingHighlight, setPlayingHighlight] = useState<{ id: string; audioSrc: string | null; isLoading: boolean; } | null>(null);
@@ -456,6 +456,12 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     }
   };
 
+  const handlePlaySong = (song: {title: string, artist: string}) => {
+    const searchQuery = encodeURIComponent(`${song.title} ${song.artist}`);
+    const youtubeUrl = `https://www.youtube.com/results?search_query=${searchQuery}`;
+    window.open(youtubeUrl, '_blank');
+  };
+
   if (!isOpen || !book) {
     return null;
   }
@@ -565,10 +571,26 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                                     <Music className="h-4 w-4 text-primary" />
                                     Suggested Soundtrack
                                 </h4>
-                                <div className="flex flex-wrap gap-2">
-                                    {moodSuggestion.soundtrack.map((item, index) => (
-                                        <Badge key={index} variant="secondary">{item}</Badge>
-                                    ))}
+                                <div className="space-y-3">
+                                  {moodSuggestion.soundtrack.map((song, index) => (
+                                    <div key={index} className="flex items-center justify-between gap-2">
+                                        <div className="flex-grow">
+                                            <p className="font-medium text-sm text-foreground">{song.title}</p>
+                                            <p className="text-xs text-muted-foreground">{song.artist}</p>
+                                            <p className="text-xs text-muted-foreground/80 mt-1 italic">"{song.reason}"</p>
+                                        </div>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-8 w-8 shrink-0"
+                                            onClick={() => handlePlaySong(song)}
+                                            title={`Search for ${song.title} on YouTube`}
+                                            aria-label={`Search for ${song.title} on YouTube`}
+                                        >
+                                            <PlayCircle className="h-5 w-5" />
+                                        </Button>
+                                    </div>
+                                  ))}
                                 </div>
                             </div>
                         </div>

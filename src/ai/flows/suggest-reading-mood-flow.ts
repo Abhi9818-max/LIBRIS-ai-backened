@@ -18,9 +18,15 @@ const SuggestReadingMoodInputSchema = z.object({
 });
 export type SuggestReadingMoodInput = z.infer<typeof SuggestReadingMoodInputSchema>;
 
+const SongSuggestionSchema = z.object({
+    title: z.string().describe("The title of the suggested song."),
+    artist: z.string().describe("The artist of the suggested song."),
+    reason: z.string().describe("A very brief, one-sentence explanation of why this song fits the book's mood.")
+});
+
 const SuggestReadingMoodOutputSchema = z.object({
   moodDescription: z.string().describe("A short, evocative description of the ideal reading atmosphere or mood for the book (e.g., 'A rainy afternoon with a cup of tea.')."),
-  soundtrack: z.array(z.string()).describe("A list of 3-5 instrumental music genres (with no lyrics) that would make a good soundtrack for reading this book."),
+  soundtrack: z.array(SongSuggestionSchema).describe("A list of 3 song suggestions that would make a good soundtrack for reading this book. Include a mix of instrumental and lyrical songs where appropriate."),
 });
 export type SuggestReadingMoodOutput = z.infer<typeof SuggestReadingMoodOutputSchema>;
 
@@ -41,7 +47,7 @@ Book Details:
 
 Instructions:
 1.  **Describe the Mood:** Based on the book's details, write a single, short, and atmospheric sentence that describes the perfect setting or mood for reading this book. Be creative and evocative.
-2.  **Suggest an Instrumental Soundtrack:** Recommend a list of 3 to 5 instrumental music genres that would complement the book's tone and themes. The music must not contain any words or lyrics. Examples include 'Classical Piano', 'Lofi Beats', 'Ambient Space Music', or 'Cinematic Score'. Do not suggest artists, only genres.
+2.  **Suggest a Soundtrack:** Recommend a list of exactly 3 songs that would complement the book's tone and themes. You can suggest a mix of instrumental tracks and songs with lyrics, choosing whatever best fits the book's atmosphere. For each song, provide the title, the artist, and a very short, one-sentence reason why it's a good fit.
 
 Return ONLY a single, valid JSON object matching the requested schema. Do not add any conversational text or markdown formatting around the JSON.`,
 });
