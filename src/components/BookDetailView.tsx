@@ -87,7 +87,6 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const [isSuggestingMood, setIsSuggestingMood] = useState(false);
 
   const [playingHighlight, setPlayingHighlight] = useState<{ id: string; audioSrc: string | null; isLoading: boolean; } | null>(null);
-  const [playingMood, setPlayingMood] = useState<{ isLoading: boolean; audioSrc: string | null; } | null>(null);
 
 
   const pdfContainerRef = useRef<HTMLDivElement>(null);
@@ -114,7 +113,6 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
       setMoodSuggestion(null);
       setIsSuggestingMood(false);
       setPlayingHighlight(null);
-      setPlayingMood(null);
     }
   }, [isOpen, initialTab, book?.id]);
   
@@ -458,30 +456,11 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     }
   };
   
-  const handlePlayMood = async () => {
-    if (playingMood) {
-        setPlayingMood(null); // Stop playing if it's already playing or loading
-        return;
-    }
+  const handlePlayMood = () => {
     if (!moodSuggestion?.moodDescription) return;
-
-    setPlayingMood({ isLoading: true, audioSrc: null });
-    try {
-        const result = await textToSpeech(moodSuggestion.moodDescription);
-        if (result.audioDataUri) {
-            setPlayingMood({ isLoading: false, audioSrc: result.audioDataUri });
-        } else {
-            throw new Error("No audio data returned.");
-        }
-    } catch (error) {
-        console.error("Failed to generate mood audio:", error);
-        toast({
-            title: "Audio Generation Failed",
-            description: "Could not generate audio for the mood description.",
-            variant: "destructive",
-        });
-        setPlayingMood(null);
-    }
+    const searchQuery = encodeURIComponent(`${moodSuggestion.moodDescription} ambiance music`);
+    const youtubeUrl = `https://www.youtube.com/results?search_query=${searchQuery}`;
+    window.open(youtubeUrl, '_blank');
   };
 
   const handlePlaySong = (song: {title: string, artist: string}) => {
@@ -595,22 +574,15 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                         <div className="border rounded-md p-3 bg-muted/50 space-y-3 animate-fade-in">
                             <div className="flex items-center justify-between">
                                 <p className="text-sm italic text-muted-foreground flex-grow pr-2">"{moodSuggestion.moodDescription}"</p>
-                                <Button 
-                                    variant="ghost" 
-                                    size="icon" 
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
                                     className="h-8 w-8 shrink-0"
                                     onClick={handlePlayMood}
-                                    title="Listen to ambiance"
-                                    aria-label="Listen to ambiance"
-                                    disabled={playingMood?.isLoading}
+                                    title="Find ambiance soundtrack on YouTube"
+                                    aria-label="Find ambiance soundtrack on YouTube"
                                 >
-                                    {playingMood?.isLoading ? (
-                                        <Loader2 className="h-5 w-5 animate-spin" />
-                                    ) : playingMood && !playingMood.isLoading ? (
-                                        <PauseCircle className="h-5 w-5 text-primary" />
-                                    ) : (
-                                        <PlayCircle className="h-5 w-5" />
-                                    )}
+                                    <PlayCircle className="h-5 w-5" />
                                 </Button>
                             </div>
                             <div>
@@ -1051,14 +1023,6 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
               src={playingHighlight.audioSrc} 
               autoPlay 
               onEnded={() => setPlayingHighlight(null)}
-              className="sr-only"
-          />
-      )}
-      {playingMood?.audioSrc && (
-          <audio 
-              src={playingMood.audioSrc} 
-              autoPlay 
-              onEnded={() => setPlayingMood(null)}
               className="sr-only"
           />
       )}
