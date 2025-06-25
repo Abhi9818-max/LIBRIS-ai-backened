@@ -459,14 +459,14 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const handlePlayMood = () => {
     if (!moodSuggestion?.moodDescription) return;
     const searchQuery = encodeURIComponent(`${moodSuggestion.moodDescription} ambiance music`);
-    const youtubeUrl = `https://www.youtube.com/results?search_query=${searchQuery}`;
-    window.open(youtubeUrl, 'musicPlayer', 'width=800,height=600,scrollbars=yes,resizable=yes');
+    const spotifyUrl = `https://open.spotify.com/search/${searchQuery}`;
+    window.open(spotifyUrl, 'musicPlayer', 'width=800,height=600,scrollbars=yes,resizable=yes');
   };
 
   const handlePlaySong = (song: {title: string, artist: string}) => {
     const searchQuery = encodeURIComponent(`${song.title} ${song.artist}`);
-    const youtubeUrl = `https://www.youtube.com/results?search_query=${searchQuery}`;
-    window.open(youtubeUrl, 'musicPlayer', 'width=800,height=600,scrollbars=yes,resizable=yes');
+    const spotifyUrl = `https://open.spotify.com/search/${searchQuery}`;
+    window.open(spotifyUrl, 'musicPlayer', 'width=800,height=600,scrollbars=yes,resizable=yes');
   };
 
   if (!isOpen || !book) {
@@ -579,8 +579,8 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                                     size="icon"
                                     className="h-8 w-8 shrink-0"
                                     onClick={handlePlayMood}
-                                    title="Find ambiance soundtrack on YouTube"
-                                    aria-label="Find ambiance soundtrack on YouTube"
+                                    title="Find ambiance soundtrack on Spotify"
+                                    aria-label="Find ambiance soundtrack on Spotify"
                                 >
                                     <PlayCircle className="h-5 w-5" />
                                 </Button>
@@ -603,8 +603,8 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                                             size="icon" 
                                             className="h-8 w-8 shrink-0"
                                             onClick={() => handlePlaySong(song)}
-                                            title={`Search for ${song.title} on YouTube`}
-                                            aria-label={`Search for ${song.title} on YouTube`}
+                                            title={`Search for ${song.title} on Spotify`}
+                                            aria-label={`Search for ${song.title} on Spotify`}
                                         >
                                             <PlayCircle className="h-5 w-5" />
                                         </Button>
@@ -1029,5 +1029,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     </>
   );
 }
+
+    
 
     
