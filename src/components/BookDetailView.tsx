@@ -87,6 +87,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const [isSuggestingMood, setIsSuggestingMood] = useState(false);
 
   const [playingHighlight, setPlayingHighlight] = useState<{ id: string; audioSrc: string | null; isLoading: boolean; } | null>(null);
+  const [playingMood, setPlayingMood] = useState<{ isLoading: boolean; audioSrc: string | null; } | null>(null);
 
 
   const pdfContainerRef = useRef<HTMLDivElement>(null);
@@ -113,6 +114,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
       setMoodSuggestion(null);
       setIsSuggestingMood(false);
       setPlayingHighlight(null);
+      setPlayingMood(null);
     }
   }, [isOpen, initialTab, book?.id]);
   
@@ -455,6 +457,32 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
         setPlayingHighlight(null);
     }
   };
+  
+  const handlePlayMood = async () => {
+    if (playingMood) {
+        setPlayingMood(null); // Stop playing if it's already playing or loading
+        return;
+    }
+    if (!moodSuggestion?.moodDescription) return;
+
+    setPlayingMood({ isLoading: true, audioSrc: null });
+    try {
+        const result = await textToSpeech(moodSuggestion.moodDescription);
+        if (result.audioDataUri) {
+            setPlayingMood({ isLoading: false, audioSrc: result.audioDataUri });
+        } else {
+            throw new Error("No audio data returned.");
+        }
+    } catch (error) {
+        console.error("Failed to generate mood audio:", error);
+        toast({
+            title: "Audio Generation Failed",
+            description: "Could not generate audio for the mood description.",
+            variant: "destructive",
+        });
+        setPlayingMood(null);
+    }
+  };
 
   const handlePlaySong = (song: {title: string, artist: string}) => {
     const searchQuery = encodeURIComponent(`${song.title} ${song.artist}`);
@@ -565,7 +593,26 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                       )}
                       {moodSuggestion && (
                         <div className="border rounded-md p-3 bg-muted/50 space-y-3 animate-fade-in">
-                            <p className="text-sm italic text-muted-foreground">"{moodSuggestion.moodDescription}"</p>
+                            <div className="flex items-center justify-between">
+                                <p className="text-sm italic text-muted-foreground flex-grow pr-2">"{moodSuggestion.moodDescription}"</p>
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8 shrink-0"
+                                    onClick={handlePlayMood}
+                                    title="Listen to ambiance"
+                                    aria-label="Listen to ambiance"
+                                    disabled={playingMood?.isLoading}
+                                >
+                                    {playingMood?.isLoading ? (
+                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                    ) : playingMood && !playingMood.isLoading ? (
+                                        <PauseCircle className="h-5 w-5 text-primary" />
+                                    ) : (
+                                        <PlayCircle className="h-5 w-5" />
+                                    )}
+                                </Button>
+                            </div>
                             <div>
                                 <h4 className="font-semibold text-sm flex items-center gap-2 mb-2">
                                     <Music className="h-4 w-4 text-primary" />
@@ -677,7 +724,7 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
                                             "{highlight.text.length > 150 ? `${highlight.text.substring(0, 150)}...` : highlight.text}"
                                         </blockquote>
                                         <div className="flex justify-between items-center mt-1">
-                                            <p className="text-xs text-muted-foreground/80">Page {highlight.pageNumber}</p>
+                                            <p className="text-xs text-muted-foreground">Page {highlight.pageNumber}</p>
                                             <div className="flex items-center gap-1 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <Button 
                                                     variant="ghost" 
@@ -1007,6 +1054,16 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
               className="sr-only"
           />
       )}
+      {playingMood?.audioSrc && (
+          <audio 
+              src={playingMood.audioSrc} 
+              autoPlay 
+              onEnded={() => setPlayingMood(null)}
+              className="sr-only"
+          />
+      )}
     </>
   );
 }
+
+    
