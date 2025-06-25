@@ -460,13 +460,13 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     if (!moodSuggestion?.moodDescription) return;
     const searchQuery = encodeURIComponent(`${moodSuggestion.moodDescription} ambiance music`);
     const youtubeUrl = `https://www.youtube.com/results?search_query=${searchQuery}`;
-    window.open(youtubeUrl, '_blank');
+    window.open(youtubeUrl, 'musicPlayer', 'width=800,height=600,scrollbars=yes,resizable=yes');
   };
 
   const handlePlaySong = (song: {title: string, artist: string}) => {
     const searchQuery = encodeURIComponent(`${song.title} ${song.artist}`);
     const youtubeUrl = `https://www.youtube.com/results?search_query=${searchQuery}`;
-    window.open(youtubeUrl, '_blank');
+    window.open(youtubeUrl, 'musicPlayer', 'width=800,height=600,scrollbars=yes,resizable=yes');
   };
 
   if (!isOpen || !book) {
