@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { PlusCircle, BookOpen, SearchX, Loader2, Search, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { initDB, getBooks, saveBook, deleteBook } from "@/lib/db";
-import { defaultBooks } from "@/lib/default-books";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/context/AuthContext";
@@ -55,38 +54,11 @@ export default function HomePage() {
     });
   }, [toast]);
   
-  const populateDefaultBooks = useCallback(async () => {
-    try {
-      const booksToSave = defaultBooks.map((book, index) => ({
-        ...book,
-        id: `default-${Date.now()}-${index}`,
-        highlights: [],
-      }));
-      await Promise.all(booksToSave.map(book => saveBook(book)));
-      const allBooks = await getBooks();
-      setBooks(allBooks);
-      toast({
-        title: "Welcome to Libris!",
-        description: "We've added a few classic books to your shelf to get you started.",
-      });
-    } catch (error) {
-      console.error("Error populating default books:", error);
-      toast({
-        title: "Error",
-        description: "Could not add default books to your library.",
-        variant: "destructive",
-      });
-    }
-  }, [toast]);
 
   useEffect(() => {
     if (isDbReady) {
       getBooks().then(storedBooks => {
-        if (storedBooks.length === 0) {
-          populateDefaultBooks();
-        } else {
-          setBooks(storedBooks);
-        }
+        setBooks(storedBooks);
       }).catch(error => {
         console.error("Error loading books from IndexedDB:", error);
         toast({
@@ -96,7 +68,7 @@ export default function HomePage() {
         });
       });
     }
-  }, [isDbReady, toast, populateDefaultBooks]);
+  }, [isDbReady, toast]);
 
 
   const handleOpenUploadModal = (book: Book | null = null) => {
@@ -381,3 +353,5 @@ export default function HomePage() {
     </div>
   );
 }
+
+    
