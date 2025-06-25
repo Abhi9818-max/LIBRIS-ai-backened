@@ -87,6 +87,9 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   const [isSuggestingMood, setIsSuggestingMood] = useState(false);
 
   const [playingHighlight, setPlayingHighlight] = useState<{ id: string; audioSrc: string | null; isLoading: boolean; } | null>(null);
+  
+  const [songToPlay, setSongToPlay] = useState<{title: string; artist: string} | null>(null);
+  const [moodToPlay, setMoodToPlay] = useState<string | null>(null);
 
 
   const pdfContainerRef = useRef<HTMLDivElement>(null);
@@ -113,6 +116,8 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
       setMoodSuggestion(null);
       setIsSuggestingMood(false);
       setPlayingHighlight(null);
+      setSongToPlay(null);
+      setMoodToPlay(null);
     }
   }, [isOpen, initialTab, book?.id]);
   
@@ -457,16 +462,13 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
   };
   
   const handlePlayMood = () => {
-    if (!moodSuggestion?.moodDescription) return;
-    const searchQuery = encodeURIComponent(`${moodSuggestion.moodDescription} ambiance music`);
-    const spotifyUrl = `https://open.spotify.com/search/${searchQuery}`;
-    window.open(spotifyUrl, 'musicPlayer', 'width=800,height=600,scrollbars=yes,resizable=yes');
+    if (moodSuggestion?.moodDescription) {
+        setMoodToPlay(moodSuggestion.moodDescription);
+    }
   };
 
   const handlePlaySong = (song: {title: string, artist: string}) => {
-    const searchQuery = encodeURIComponent(`${song.title} ${song.artist}`);
-    const spotifyUrl = `https://open.spotify.com/search/${searchQuery}`;
-    window.open(spotifyUrl, 'musicPlayer', 'width=800,height=600,scrollbars=yes,resizable=yes');
+    setSongToPlay(song);
   };
 
   if (!isOpen || !book) {
@@ -1026,6 +1028,54 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
               className="sr-only"
           />
       )}
+      <AlertDialog open={!!songToPlay} onOpenChange={(open) => !open && setSongToPlay(null)}>
+          <AlertDialogContent>
+              <AlertDialogHeader>
+                  <AlertDialogTitle>Play on Spotify?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                      This will search for "{songToPlay?.title}" by {songToPlay?.artist} on Spotify. You can listen in the web player or the app.
+                  </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => {
+                      if (songToPlay) {
+                          const searchQuery = encodeURIComponent(`${songToPlay.title} ${songToPlay.artist}`);
+                          const spotifyUrl = `https://open.spotify.com/search/${searchQuery}`;
+                          window.open(spotifyUrl, 'musicPlayer', 'width=800,height=600,scrollbars=yes,resizable=yes');
+                          setSongToPlay(null);
+                      }
+                  }}>
+                      Continue to Spotify
+                  </AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={!!moodToPlay} onOpenChange={(open) => !open && setMoodToPlay(null)}>
+          <AlertDialogContent>
+              <AlertDialogHeader>
+                  <AlertDialogTitle>Find Ambiance on Spotify?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                      This will search for ambiance music matching "{moodToPlay}" on Spotify. You can listen in the web player or the app.
+                  </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => {
+                      if (moodToPlay) {
+                          const searchQuery = encodeURIComponent(`${moodToPlay} ambiance music`);
+                          const spotifyUrl = `https://open.spotify.com/search/${searchQuery}`;
+                          window.open(spotifyUrl, 'musicPlayer', 'width=800,height=600,scrollbars=yes,resizable=yes');
+                          setMoodToPlay(null);
+                      }
+                  }}>
+                      Continue to Spotify
+                  </AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
+
+    
