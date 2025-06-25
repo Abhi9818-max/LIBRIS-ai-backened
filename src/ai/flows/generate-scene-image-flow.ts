@@ -61,7 +61,7 @@ const generateSceneImageFlow = ai.defineFlow(
               break;
       }
       
-      const promptText = `${stylePrompt} Do not include any text, words, or letters in the image itself. Generate the image based on the following scene description from a book:
+      const promptText = `${stylePrompt} IMPORTANT: Generate a purely pictorial image. Do not include any text, words, letters, or numbers in the image itself. The image must only contain the visual representation of the following scene description from a book:
 
 Scene Description:
 "${input.text}"`;

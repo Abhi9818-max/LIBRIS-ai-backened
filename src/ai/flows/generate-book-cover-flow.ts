@@ -66,7 +66,7 @@ const generateBookCoverFlow = ai.defineFlow(
       if (input.summary && input.summary.trim().length > 10) {
         promptText += ` The book is about: '${input.summary}'.`;
       }
-      promptText += ` The image should be a vertical rectangle, typical for a book cover. Do not render any text on the image.`;
+      promptText += ` The image should be a vertical rectangle, typical for a book cover. IMPORTANT: Do not render any text, words, letters, or numbers on the image. The image must be purely pictorial.`;
       
       const {media} = await ai.generate({
         model: 'googleai/gemini-2.0-flash-preview-image-generation',
