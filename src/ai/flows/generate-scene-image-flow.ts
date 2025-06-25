@@ -61,7 +61,7 @@ const generateSceneImageFlow = ai.defineFlow(
               break;
       }
       
-      const promptText = `Generate a single, high-resolution, photorealistic image based on the following scene description from a book. Style: ${stylePrompt}. The image must be purely visual and must not contain any text, letters, or numbers. Focus on creating a cinematic, atmospheric visual representation.
+      const promptText = `Generate a single, high-resolution image based on the following scene description from a book. Style: ${stylePrompt}. The image must be purely visual and must not contain any text, letters, or numbers. Focus on creating a cinematic, atmospheric visual representation. The final image should have a professional, polished quality.
 
 Scene Description:
 "${input.text}"`;

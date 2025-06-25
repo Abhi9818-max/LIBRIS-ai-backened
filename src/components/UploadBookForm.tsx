@@ -76,6 +76,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
   const isEditing = !!bookToEdit;
   const standardCategories = ['Novel', 'Fantasy', 'Science Fiction', 'Mystery', 'Manga', 'Non-Fiction'];
   const isInitialPopulation = useRef(true);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 
   const form = useForm<BookFormData>({
@@ -151,13 +152,18 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       const title = form.getValues('title');
       if (!title) return;
 
-      const debounceTimer = setTimeout(() => {
-          setIsGeneratingCover(true);
+      // Clear any existing timer to debounce correctly
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+
+      setIsGeneratingCover(true);
+      toast({ title: "Re-generating Cover ✨", description: `Creating a new cover for the new category...` });
+
+      debounceTimer.current = setTimeout(() => {
           const summary = form.getValues('summary');
           const customCategory = form.getValues('customCategory');
           const categoryForApi = watchedCategory === 'Other' && customCategory ? customCategory : watchedCategory;
-
-          toast({ title: "Re-generating Cover ✨", description: `Creating a new cover for the '${categoryForApi}' category...` });
 
           generateBookCover({ title, summary, category: categoryForApi })
               .then(coverResult => {
@@ -177,7 +183,11 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
               });
       }, 1000);
 
-      return () => clearTimeout(debounceTimer);
+      return () => {
+        if (debounceTimer.current) {
+            clearTimeout(debounceTimer.current);
+        }
+      };
   }, [watchedCategory, isOpen, form, coverImageFile, toast]);
 
 
