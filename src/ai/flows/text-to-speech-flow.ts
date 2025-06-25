@@ -81,6 +81,10 @@ const textToSpeechFlow = ai.defineFlow(
         media.url.substring(media.url.indexOf(',') + 1),
         'base64'
       );
+
+      if (audioBuffer.length === 0) {
+        throw new Error('The model returned empty audio data.');
+      }
       
       const wavBase64 = await toWav(audioBuffer);
       

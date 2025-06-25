@@ -51,6 +51,7 @@ const nextConfig: NextConfig = {
       `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
       `font-src 'self' https://fonts.gstatic.com`,
       `img-src 'self' data: https://placehold.co https://lh3.googleusercontent.com`,
+      `media-src 'self' data: blob:`, // Allow audio from data URIs and blobs
       `object-src 'self' blob:`, // For viewing PDFs from blob URLs
       `worker-src 'self' blob: https://cdnjs.cloudflare.com`, // Allow worker scripts from self, blob, and CDN
       // Allow iframes from your Firebase auth domain for the sign-in popup
