@@ -35,7 +35,7 @@ const generateSceneImageFlow = ai.defineFlow(
   async (input) => {
     try {
       const category = input.category || 'Novel'; // Default to Novel
-      let stylePrompt = "A vivid, artistic, and photorealistic image. The image should be atmospheric and detailed, capturing the mood of the text.";
+      let stylePrompt: string;
 
       switch (category.toLowerCase()) {
           case 'novel':
@@ -57,7 +57,7 @@ const generateSceneImageFlow = ai.defineFlow(
                stylePrompt = "A clean, modern, and informative illustration or diagram that visually represents the concept described in the text.";
               break;
           default:
-              stylePrompt = "A vivid, artistic, and photorealistic image. The image should be atmospheric and detailed, capturing the mood of the text.";
+              stylePrompt = `An image in the style of ${category}. The image should be atmospheric and detailed, capturing the mood of the text as if it were from a book of the "${category}" genre.`;
               break;
       }
       
