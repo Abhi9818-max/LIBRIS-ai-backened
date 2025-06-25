@@ -15,7 +15,7 @@ const ExtractBookMetadataInputSchema = z.object({
   textContent: z
     .string()
     .describe(
-      'The text content from the first few pages of the book PDF.'
+      'The entire text content of a book.'
     ),
 });
 export type ExtractBookMetadataInput = z.infer<typeof ExtractBookMetadataInputSchema>;
@@ -36,17 +36,16 @@ const prompt = ai.definePrompt({
   name: 'extractBookMetadataPrompt',
   input: {schema: ExtractBookMetadataInputSchema},
   output: {schema: ExtractBookMetadataOutputSchema},
-  prompt: `You are an expert librarian AI specializing in analyzing book manuscripts. Your task is to meticulously extract key metadata from the provided text, which represents the first few pages of a book. Even if the text is very sparse (e.g., only a title page), do your best to identify a plausible title and author.
+  prompt: `You are an ultimate smart literary analysis AI. You have been provided with the complete text of a book. Your mission is to perform a deep analysis and extract the following information with the highest accuracy.
 
-Follow these instructions carefully:
-1.  **Identify the Title:** Scan the text for the most prominent text. This is often the largest, most centered text, or written in all capital letters. This is almost always the book's title. Be precise and capture the full title. If no clear title is present, use your best judgment to identify what is most likely the title.
-2.  **Identify the Author:** The author's name is typically located just below the title, often preceded by "by" or "written by". If no such phrase is present, look for a name that appears to be a person's name near the title. Extract the full name.
-3.  **Generate a Compelling Summary:** Read all the provided text. Synthesize a concise, one-paragraph summary that would entice someone to read the book. If the text is too sparse (e.g., only a title page), use the title and author to infer the genre and create a plausible and engaging summary based on that inference.
-4.  **Determine the Category:** Based on all the information you have gathered (title, author, summary), classify the book into ONE of the following categories: Novel, Fantasy, Science Fiction, Mystery, Manga, Non-Fiction, Other. Choose the most fitting category.
+Instructions:
+1.  **Identify Title and Author:** Meticulously scan the initial pages of the text to pinpoint the book's exact title and author. This information is crucial.
+2.  **Craft the Ultimate Summary:** This is the most important task. Read and comprehend the *entire* provided text. Do not just look at the first few pages. Synthesize a detailed, insightful, and comprehensive summary that captures the main plot, character arcs, underlying themes, and overall tone of the book. Go beyond a simple blurb; provide a summary that demonstrates a true understanding of the work.
+3.  **Determine the Precise Category:** Based on your full reading of the text, classify the book into the single most fitting category: Novel, Fantasy, Science Fiction, Mystery, Manga, Non-Fiction, or Other.
 
-Return ONLY a single, valid JSON object matching the requested schema. Do not add any conversational text or markdown formatting around the JSON. Prioritize finding a title and author above all else.
+Return ONLY a single, valid JSON object that strictly adheres to the requested schema. Do not add any extra commentary or markdown.
 
-Text to Analyze:
+Full Book Text to Analyze:
 {{{textContent}}}`,
 });
 

@@ -206,8 +206,9 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
         }
         
         let textContent = '';
-        const maxPagesToScan = Math.min(pdfDoc.numPages, 5);
-        for (let i = 1; i <= maxPagesToScan; i++) {
+        // Process the entire PDF to get the full text for a high-quality summary.
+        const totalPages = pdfDoc.numPages;
+        for (let i = 1; i <= totalPages; i++) {
             const page = await pdfDoc.getPage(i);
             const text = await page.getTextContent();
             textContent += text.items.map(item => 'str' in item ? item.str : '').join(' ') + '\n';
@@ -470,8 +471,8 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
                 {isProcessingPdf ? (
                   <>
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <p className="mt-4 text-sm font-medium text-foreground">Analyzing your book...</p>
-                    <p className="text-xs text-muted-foreground">This might take a moment.</p>
+                    <p className="mt-4 text-sm font-medium text-foreground">Performing deep analysis...</p>
+                    <p className="text-xs text-muted-foreground">This may take longer for large books.</p>
                   </>
                 ) : pdfFileName ? (
                   <div className="flex w-full items-center gap-4 text-left pointer-events-none">
