@@ -1029,7 +1029,3 @@ export default function BookDetailView({ book, isOpen, onClose, onEditBook, onRe
     </>
   );
 }
-
-    
-
-    
