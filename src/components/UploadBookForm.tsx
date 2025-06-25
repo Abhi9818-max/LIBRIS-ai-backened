@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useCallback, ChangeEvent, DragEvent, useEffect } from "react";
+import { useState, useCallback, ChangeEvent, DragEvent, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -75,12 +75,15 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
   const { toast } = useToast();
   const isEditing = !!bookToEdit;
   const standardCategories = ['Novel', 'Fantasy', 'Science Fiction', 'Mystery', 'Manga', 'Non-Fiction'];
+  const isInitialPopulation = useRef(true);
 
 
   const form = useForm<BookFormData>({
     resolver: zodResolver(BookFormSchema),
     defaultValues: { title: "", author: "", summary: "", category: "Novel", totalPages: undefined, customCategory: "" },
   });
+  
+  const watchedCategory = form.watch('category');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -112,6 +115,7 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
 
   useEffect(() => {
     if (isOpen) {
+      isInitialPopulation.current = true;
       if (bookToEdit) {
         const isCustomCategory = bookToEdit.category && !standardCategories.includes(bookToEdit.category);
 
@@ -131,8 +135,50 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
       } else {
         resetFormState();
       }
+      // Defer setting the flag to false to ensure form.reset has completed
+      setTimeout(() => {
+          isInitialPopulation.current = false;
+      }, 0);
     }
   }, [isOpen, bookToEdit, form, resetFormState]);
+
+
+  // Effect to re-generate cover when category changes
+  useEffect(() => {
+      if (isInitialPopulation.current || !isOpen) return;
+      if (coverImageFile) return; // Don't run if a custom cover is set
+
+      const title = form.getValues('title');
+      if (!title) return;
+
+      const debounceTimer = setTimeout(() => {
+          setIsGeneratingCover(true);
+          const summary = form.getValues('summary');
+          const customCategory = form.getValues('customCategory');
+          const categoryForApi = watchedCategory === 'Other' && customCategory ? customCategory : watchedCategory;
+
+          toast({ title: "Re-generating Cover ✨", description: `Creating a new cover for the '${categoryForApi}' category...` });
+
+          generateBookCover({ title, summary, category: categoryForApi })
+              .then(coverResult => {
+                  if (coverResult.coverImageDataUri) {
+                      setCoverPreviewUrl(coverResult.coverImageDataUri);
+                      toast({ title: "AI Cover Updated!", description: "A new cover image has been generated." });
+                  } else {
+                      toast({ title: "AI Cover Failed", description: "Could not generate a new cover.", variant: "destructive" });
+                  }
+              })
+              .catch(genError => {
+                  console.error("Error re-generating cover image:", genError);
+                  toast({ title: "AI Cover Error", description: `Cover generation failed: ${genError.message || "Unknown error"}.`, variant: "destructive" });
+              })
+              .finally(() => {
+                  setIsGeneratingCover(false);
+              });
+      }, 1000);
+
+      return () => clearTimeout(debounceTimer);
+  }, [watchedCategory, isOpen, form, coverImageFile, toast]);
 
 
   const handlePdfFileChange = async (file: File | null) => {
@@ -652,5 +698,3 @@ export default function UploadBookForm({ isOpen, onOpenChange, onSaveBook, bookT
     </Dialog>
   );
 }
-
-  
