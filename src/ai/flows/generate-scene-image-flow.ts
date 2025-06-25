@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview AI flow to generate an image based on a scene description.
