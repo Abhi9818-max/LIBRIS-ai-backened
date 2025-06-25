@@ -20,7 +20,7 @@ export type SuggestReadingMoodInput = z.infer<typeof SuggestReadingMoodInputSche
 
 const SuggestReadingMoodOutputSchema = z.object({
   moodDescription: z.string().describe("A short, evocative description of the ideal reading atmosphere or mood for the book (e.g., 'A rainy afternoon with a cup of tea.')."),
-  soundtrack: z.array(z.string()).describe("A list of 3-5 music genres or specific artists that would make a good soundtrack for reading this book."),
+  soundtrack: z.array(z.string()).describe("A list of 3-5 instrumental music genres (with no lyrics) that would make a good soundtrack for reading this book."),
 });
 export type SuggestReadingMoodOutput = z.infer<typeof SuggestReadingMoodOutputSchema>;
 
@@ -41,7 +41,7 @@ Book Details:
 
 Instructions:
 1.  **Describe the Mood:** Based on the book's details, write a single, short, and atmospheric sentence that describes the perfect setting or mood for reading this book. Be creative and evocative.
-2.  **Suggest a Soundtrack:** Recommend a list of 3 to 5 music genres or specific artists whose music would complement the book's tone and themes.
+2.  **Suggest an Instrumental Soundtrack:** Recommend a list of 3 to 5 instrumental music genres that would complement the book's tone and themes. The music must not contain any words or lyrics. Examples include 'Classical Piano', 'Lofi Beats', 'Ambient Space Music', or 'Cinematic Score'. Do not suggest artists, only genres.
 
 Return ONLY a single, valid JSON object matching the requested schema. Do not add any conversational text or markdown formatting around the JSON.`,
 });
